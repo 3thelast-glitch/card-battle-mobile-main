@@ -660,10 +660,12 @@ export function RarityCard({
           )}
 
           {/* ── Card Art ── */}
+          {/* REVERTED: source back to card.finalImage (local require format) */}
           <Image
-            source={{ uri: card.imageUrl }}
+            source={card.finalImage}
             style={styles.art}
-            contentFit="cover"
+            contentFit="contain"
+            cachePolicy="memory-disk"
             transition={200}
           />
 
@@ -694,6 +696,7 @@ export function RarityCard({
           </View>
 
           {/* ── Stats strip (bottom) ── */}
+          {/* REVERTED: stats back to card.attack, card.defense, card.hp */}
           {showStats && (
             <View style={styles.statsStrip}>
               {config.magicCircles ? (
@@ -719,33 +722,29 @@ export function RarityCard({
                       </View>
                     </View>
                     <PremiumStatOrb
-                      icon="❤️" value={card.health}
+                      icon="❤️" value={card.hp}
                       color={config.borderColor} glowColor={config.glowColor!}
                       orbSize={orbSize} fontSize={dim.stat}
                       circleColor={config.circleColor} circleSpeed={config.circleSpeed}
                       showMagicCircle={config.magicCircles}
                     />
                   </View>
-                  {card.mana !== undefined && (
-                    <View style={{ alignItems: 'center', marginTop: 2 }}>
-                      <PremiumStatOrb
-                        icon="💧" value={card.mana}
-                        color={config.borderColor} glowColor={config.glowColor!}
-                        orbSize={orbSize * 0.85} fontSize={dim.stat * 0.9}
-                        circleColor={config.circleColor} circleSpeed={config.circleSpeed}
-                        showMagicCircle={false}
-                      />
-                    </View>
-                  )}
+                  <View style={{ alignItems: 'center', marginTop: 2 }}>
+                    <PremiumStatOrb
+                      icon="🛡️" value={card.defense}
+                      color={config.borderColor} glowColor={config.glowColor!}
+                      orbSize={orbSize * 0.85} fontSize={dim.stat * 0.9}
+                      circleColor={config.circleColor} circleSpeed={config.circleSpeed}
+                      showMagicCircle={false}
+                    />
+                  </View>
                 </>
               ) : (
                 <>
                   <View style={styles.statsRow}>
-                    <StatBadge icon="⚔️" value={card.attack} fs={dim.stat} />
-                    <StatBadge icon="❤️" value={card.health} fs={dim.stat} />
-                    {card.mana !== undefined && (
-                      <StatBadge icon="💧" value={card.mana} fs={dim.stat} />
-                    )}
+                    <StatBadge icon="⚔️" value={card.attack}  fs={dim.stat} />
+                    <StatBadge icon="🛡️" value={card.defense} fs={dim.stat} />
+                    <StatBadge icon="❤️" value={card.hp}      fs={dim.stat} />
                   </View>
                   <Text style={[styles.cardName, { fontSize: dim.name }]} numberOfLines={1}>
                     {card.nameAr}
@@ -983,7 +982,7 @@ const styles = StyleSheet.create({
   },
 });
 
-// ─── Exports ─────────────────────────────────────────────────────────────────
+// ─── Exports ───────────────────────────────────────────────────────────────
 
 export type { RarityCardProps };
 export default RarityCard;
