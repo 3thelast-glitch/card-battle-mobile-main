@@ -4,7 +4,7 @@ import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { LuxuryBackground } from '@/components/game/luxury-background';
-import { CardPreview } from '@/components/game/card-preview';
+import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { EpicCardTemplate } from '@/components/game/epic-card-template';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data';
@@ -132,10 +132,9 @@ export default function CardsGalleryScreen() {
                 >
                     <View style={[styles.gridContainer, { gap: gridGap, paddingHorizontal: padding }]}>
                         {sortedCards.map((card) => (
-                            <CardPreview
+                            <LuxuryCharacterCardAnimated
                                 key={card.id}
                                 card={card}
-                                onPress={() => handleCardPress(card)}
                             />
                         ))}
                     </View>
@@ -171,7 +170,6 @@ export default function CardsGalleryScreen() {
                                 imageSrc={selectedCard.finalImage}
                                 nameAr={selectedCard.nameAr}
                                 nameEn={selectedCard.nameEn ?? selectedCard.name}
-                                hp={selectedCard.hp}
                                 attack={selectedCard.attack}
                                 defense={selectedCard.defense}
                                 rarity={selectedCard.rarity}
@@ -222,7 +220,7 @@ export default function CardsGalleryScreen() {
                                     </View>
                                 </View>
 
-                                {/* Full Stats Grid */}
+                                {/* Full Stats Grid - 2 columns */}
                                 <View style={styles.statsGrid}>
                                     <StatDetailItem
                                         icon="⚔️"
@@ -233,16 +231,6 @@ export default function CardsGalleryScreen() {
                                         icon="🛡️"
                                         label="Defense"
                                         value={selectedCard.defense}
-                                    />
-                                    <StatDetailItem
-                                        icon="❤️"
-                                        label="HP"
-                                        value={selectedCard.hp}
-                                    />
-                                    <StatDetailItem
-                                        icon="💨"
-                                        label="Speed"
-                                        value={selectedCard.speed}
                                     />
                                 </View>
 

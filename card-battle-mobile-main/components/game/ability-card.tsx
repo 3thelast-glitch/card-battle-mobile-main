@@ -24,6 +24,7 @@ export interface AbilityData {
 
 interface Props {
     ability: AbilityData;
+    showActionButtons?: boolean;
 }
 
 // ─── Card dimensions ──────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ const RARITY_THEMES: Record<string, {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function AbilityCard({ ability }: Props) {
+export function AbilityCard({ ability, showActionButtons = true }: Props) {
     const IconComponent = ability.icon;
 
     // Dev-testing state
@@ -139,8 +140,17 @@ export function AbilityCard({ ability }: Props) {
         setLocalRarity(rarities[(currentIndex + 1) % rarities.length]);
     };
 
-    // Resolve local artwork
+    // Resolve local artwork based on ability English name
+    // IMPORTANT: ABILITY_IMAGES dictionary already has "_Art" suffix in keys
+    // Format: "LogicalEncounter" -> "LogicalEncounter_Art"
+    // NOTE: If you see repeated images, add missing abilities to ABILITY_IMAGES dictionary
     const formattedName = ability.nameEn.replaceAll(' ', '_') + '_Art';
+    
+    // Debug: Warn if image is missing from dictionary
+    if (!ABILITY_IMAGES[formattedName]) {
+        console.warn(`[Missing Art] Please add the image for: "${ability.nameEn}". Expected dictionary key: "${formattedName}"`);
+    }
+    
     const imageSource = ABILITY_IMAGES[formattedName] || ABILITY_IMAGES['default'];
 
     // ── Pulsing outer glow animation ──
@@ -195,7 +205,7 @@ export function AbilityCard({ ability }: Props) {
                 </ImageBackground>
 
                 {/* ═══════════════ 2. DEV ADMIN CONTROLS ═══════════════ */}
-                {__DEV__ && (
+                {showActionButtons && __DEV__ && (
                     <View style={styles.devControls}>
                         <TouchableOpacity
                             onPress={() => setIsDisabled(!isDisabled)}
@@ -222,11 +232,6 @@ export function AbilityCard({ ability }: Props) {
                         </View>
                     </View>
                 )}
-
-                {/* ═══════════════ 4. TOP-LEFT ID BADGE ═══════════════ */}
-                <View style={styles.idBadge}>
-                    <Text style={styles.idText}>#{String(ability.id).padStart(2, '0')}</Text>
-                </View>
 
                 {/* ═══════════════ 5. TOP-RIGHT RARITY BADGE ═══════════════ */}
                 <View style={[styles.rarityBadge, { backgroundColor: theme.badgeBg, borderColor: theme.border }]}>

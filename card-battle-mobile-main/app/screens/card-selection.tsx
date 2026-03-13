@@ -340,7 +340,7 @@ export default function CardSelectionScreen() {
                   return (
                     <View key={index} style={styles.abilityCardSlot}>
                       <View style={{ transform: [{ scale: 0.85 }] }}>
-                        <AbilityCard ability={abilityData} />
+                        <AbilityCard ability={abilityData} showActionButtons={false} />
                       </View>
                     </View>
                   );
