@@ -38,6 +38,13 @@ export interface CardGradientLayers {
     flat: string;
 }
 
+export interface CardGradientLayers {
+    base: readonly [string, string, string];
+    mid: readonly [string, string, string];
+    top: readonly [string, string, string];
+    flat: string;
+}
+
 export const CARD_GRADIENTS: Record<CardRarityName, CardGradientLayers> = {
     common: {
         flat: '#1e3a8a',
@@ -64,6 +71,7 @@ export const CARD_GRADIENTS: Record<CardRarityName, CardGradientLayers> = {
         top: ['#f87171', '#ef4444', 'transparent'],
     },
 } as const;
+
 
 
 // ─── Border Colors ────────────────────────────────────────────────────────────

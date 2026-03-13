@@ -96,6 +96,42 @@ import { FireParticles } from '@/lib/particles';
 
 // ─── Rarity Configuration ────────────────────────────────────────────────────
 
+const ELVEN = {
+    bg: '#06150A',
+    bgMid: '#0A1F0F',
+    forest: '#0d2315',
+    gold: '#FFD700',
+    goldMid: '#C8A84B',
+    goldDim: 'rgba(200,168,75,0.35)',
+    goldGlow: 'rgba(200,168,75,0.55)',
+    leaf: '#3FA66A',
+    leafFade: 'rgba(63,166,106,0.25)',
+    vine: '#2D6E45',
+    mist: 'rgba(0,140,60,0.4)',
+} as const;
+
+// gradient colors بديل لـ CARD_GRADIENTS عند theme=elven
+const ELVEN_GRADIENTS: Record<CardRarityName, string[]> = {
+    common: [ELVEN.bg, ELVEN.bgMid],
+    rare: [ELVEN.bgMid, '#071A0C', ELVEN.forest],
+    epic: ['#080F06', '#0E2610', '#0A1A08'],
+    legendary: ['#050F04', '#0C1E0A', '#112510', '#050F04'],
+};
+
+const ELVEN_BORDERS: Record<CardRarityName, string> = {
+    common: 'rgba(200,168,75,0.25)',
+    rare: 'rgba(200,168,75,0.45)',
+    epic: 'rgba(200,168,75,0.65)',
+    legendary: ELVEN.goldMid,
+};
+
+const ELVEN_GLOW: Record<CardRarityName, string> = {
+    common: 'transparent',
+    rare: ELVEN.leaf,
+    epic: ELVEN.goldMid,
+    legendary: ELVEN.gold,
+};
+
 const RARITY_CONFIG = {
     common: {
         borderColor: '#374151',
@@ -151,6 +187,7 @@ const RARITY_CONFIG = {
     },
 } as const;
 
+
 // ─── Rarity Glow Ring ────────────────────────────────────────────────────────
 
 function GlowRing({
@@ -189,21 +226,20 @@ const EFFECT_ICON: Record<CardEffectType, string> = {
 
 const SIZES = {
     small: { w: 90, h: 135, name: 8, stat: 8, badge: 6 },
-    medium: { w: 160, h: 240, name: 10, stat: 10, badge: 8 },
-    large: { w: 200, h: 300, name: 13, stat: 12, badge: 10 },
-    landscape: { w: 200, h: 300, name: 13, stat: 12, badge: 10 },
+    medium: { w: 160, h: 240, name: 11, stat: 10, badge: 8 },
+    large: { w: 200, h: 300, name: 13, stat: 13, badge: 10 },
+    landscape: { w: 220, h: 310, name: 14, stat: 13, badge: 10 },
 } as const;
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 export interface RarityCardProps {
     card: Card;
-    /** Rarity override (falls back to card.rarity ?? 'common') */
     rarity?: CardRarityName;
     size?: keyof typeof SIZES;
+    theme?: 'default' | 'elven';   // ← أضف هذا فقط
     isSelected?: boolean;
     showStats?: boolean;
-    /** Trigger entrance summon animation on mount */
     playEntrance?: boolean;
     entranceDelay?: number;
     onPress?: () => void;
@@ -419,11 +455,11 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
 
     const { stroke, gemFill } = colorMap[rarity] ?? { stroke: '#FFF', gemFill: '#FFF' };
 
-    const transformMap: Record<FiligreePosition, object> = {
-        'top-left': {},
-        'top-right': { x: size, scaleX: -1 },
-        'bottom-left': { y: size, scaleY: -1 },
-        'bottom-right': { x: size, y: size, scaleX: -1, scaleY: -1 },
+    const transformMap: Record<FiligreePosition, string | undefined> = {
+        'top-left': undefined,
+        'top-right': `translate(${size}, 0) scale(-1, 1)`,
+        'bottom-left': `translate(0, ${size}) scale(1, -1)`,
+        'bottom-right': `translate(${size}, ${size}) scale(-1, -1)`,
     };
 
     const posStyleMap: Record<FiligreePosition, ViewStyle> = {
@@ -433,7 +469,7 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
         'bottom-right': { bottom: 2, right: 2 },
     };
 
-    const transformProps = transformMap[position] ?? {};
+    const transformProps = transformMap[position];
     const posStyle = posStyleMap[position] ?? {};
 
     const spokeLines = Array.from({ length: 8 }).map((_, i) => {
@@ -448,7 +484,7 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
     return (
         <View style={[styles.filigreeCorner, posStyle]} pointerEvents="none">
             <Svg width={size} height={size} viewBox="0 0 80 80">
-                <G {...transformProps}>
+                <G transform={transformProps}>
                     <Path d="M 10 14 Q 30 10 60 12" stroke={stroke} strokeWidth={1.2} fill="none" opacity={0.85} />
                     <Path d="M 14 10 Q 10 30 12 60" stroke={stroke} strokeWidth={1.2} fill="none" opacity={0.85} />
                     {[32, 42, 52].map((x, i) => (
@@ -530,6 +566,7 @@ export function RarityCard({
     card,
     rarity: rarityOverride,
     size = 'medium',
+    theme = 'default',
     isSelected = false,
     showStats = true,
     playEntrance = false,
@@ -545,10 +582,26 @@ export function RarityCard({
 
     const dim = SIZES[size];
     const config = RARITY_CONFIG[rarity];
-    const gradient = CARD_GRADIENTS[rarity];
-    const glowColor = CARD_GLOWS[rarity];
+    
+    // Theme-based overrides
+    const isElven = theme === 'elven';
+    const baseBorderColor = isElven ? ELVEN_BORDERS[rarity] : config.borderColor;
+    const baseGlowColor = isElven ? ELVEN_GLOW[rarity] : CARD_GLOWS[rarity];
+    
+    // Gradient mapping to 3-layer system
+    const gradient = isElven 
+        ? {
+            base: ELVEN_GRADIENTS[rarity].length >= 3 
+                ? [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1], ELVEN_GRADIENTS[rarity][2]] as const
+                : [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0]] as const,
+            mid: [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], 'transparent'] as const,
+            top: [ELVEN.mist, 'rgba(255,255,255,0.05)', 'transparent'] as const,
+          }
+        : CARD_GRADIENTS[rarity];
+
+    const glowColor = baseGlowColor;
     const shadowCfg = CARD_SHADOWS[rarity];
-    const hasGlow = CARD_HAS_GLOW[rarity];
+    const hasGlow = CARD_HAS_GLOW[rarity] || (isElven && rarity !== 'common');
     const hasParticles = CARD_HAS_PARTICLES[rarity];
     const badgeColor = CARD_BADGE_COLORS[rarity];
     const rarityLabel = CARD_RARITY_LABELS[rarity];
@@ -573,7 +626,7 @@ export function RarityCard({
     };
 
     const borderStyle: ViewStyle = {
-        borderColor: isSelected ? '#ffffff' : config.borderColor,
+        borderColor: isSelected ? '#ffffff' : baseBorderColor,
         borderWidth: isSelected ? 3 : config.borderWidth,
     };
 
@@ -715,9 +768,7 @@ export function RarityCard({
                                             </Text>
                                             <View style={styles.starsRow}>
                                                 {Array.from({ length: 10 }).map((_, i) => (
-                                                    <Text key={i} style={{ fontSize: starSize, color: config.borderColor, opacity: 0.85 }}>
-                                                        ⭐
-                                                    </Text>
+                                                    <Text key={i} style={{ fontSize: starSize }}>⭐</Text>
                                                 ))}
                                             </View>
                                         </View>
@@ -827,7 +878,7 @@ const styles = StyleSheet.create({
     },
     art: {
         width: '100%',
-        height: '72%',
+        height: '76%',
         position: 'absolute',
         top: 0,
     },
@@ -872,11 +923,12 @@ const styles = StyleSheet.create({
     statsStrip: {
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
-        paddingHorizontal: 6,
-        paddingVertical: 5,
-        backgroundColor: 'rgba(0,0,0,0.68)',
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(0,0,0,0.82)', // أغمق من 0.68
         borderBottomLeftRadius: BORDER_R - 1,
         borderBottomRightRadius: BORDER_R - 1,
+        gap: 2,
     },
     statsRow: {
         flexDirection: 'row',
@@ -914,6 +966,10 @@ const styles = StyleSheet.create({
     },
     glowRing: {
         position: 'absolute',
+        top: -4,
+        left: -4,
+        right: -4,
+        bottom: -4,
         borderWidth: 2,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,

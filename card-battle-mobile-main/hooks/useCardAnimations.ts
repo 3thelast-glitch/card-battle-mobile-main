@@ -48,9 +48,9 @@ export function useCardTapAnimation() {
 // ─── Summon ───────────────────────────────────────────────────────────────────
 
 export function useCardSummonAnimation(delayMs = 0) {
-    const scale = useSharedValue(0);
-    const translateY = useSharedValue(60);
-    const opacity = useSharedValue(0);
+    const scale = useSharedValue(1);
+    const translateY = useSharedValue(0);
+    const opacity = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [

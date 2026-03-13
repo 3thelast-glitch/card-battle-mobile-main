@@ -83,7 +83,7 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
     const theme = RARITY_THEMES[rarity];
 
     return (
-        <View style={[styles.cardContainer, style, { 
+        <View style={[styles.cardContainer, style, {
             shadowColor: theme.shadowColor,
             shadowOpacity: theme.shadowOpacity,
             shadowRadius: theme.shadowRadius,
@@ -128,7 +128,7 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                     <Text style={styles.subtitle} numberOfLines={1}>
                         {card.nameAr}
                     </Text>
-                    <Text style={[styles.title, { 
+                    <Text style={[styles.title, {
                         textShadowColor: theme.color,
                         textShadowRadius: theme.titleGlowRadius,
                     }]} numberOfLines={2}>
@@ -146,7 +146,7 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 {/* Bottom Stat Orbs - Embedded in Corners */}
                 <View style={styles.statsContainer}>
                     {/* Left Orb - Defense */}
-                    <View style={[styles.statOrb, styles.defenseOrb, { 
+                    <View style={[styles.statOrb, styles.defenseOrb, {
                         borderColor: theme.borderColor,
                         shadowColor: theme.color,
                         shadowOpacity: theme.shadowOpacity * 0.6,
@@ -163,7 +163,7 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                     </View>
 
                     {/* Right Orb - Attack */}
-                    <View style={[styles.statOrb, styles.attackOrb, { 
+                    <View style={[styles.statOrb, styles.attackOrb, {
                         borderColor: theme.borderColor,
                         shadowColor: theme.color,
                         shadowOpacity: theme.shadowOpacity * 0.6,
@@ -186,12 +186,9 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
 
 const styles = StyleSheet.create({
     cardContainer: {
-        width: 220,
-        height: 320,
-        borderRadius: 12,
-        overflow: 'hidden',
+        width: 220, height: 320, borderRadius: 12,
+        borderWidth: 1.5, backgroundColor: '#111',
         shadowOffset: { width: 0, height: 0 },
-        backgroundColor: '#111',
     },
     cardBackground: {
         width: '100%',
