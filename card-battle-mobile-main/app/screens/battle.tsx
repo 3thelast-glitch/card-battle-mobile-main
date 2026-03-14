@@ -1,13 +1,30 @@
+/**
+ * BattleScreen — Professional Arena Redesign
+ *
+ * Layout (landscape-only):
+ *   [PLAYER SIDE] | [CENTER COMMAND] | [BOT SIDE]
+ *
+ * Improvements:
+ *  • Cinematic top HUD with health-style score bars
+ *  • Arena panels with gradient border glow per side
+ *  • Center column: VS badge, preview chip, attack CTA, abilities CTA
+ *  • Round progress bar below HUD
+ *  • Advantage badge floats over the card that has advantage
+ *  • History & abilities modals redesigned
+ *  • All DraggableResizable / edit-mode logic preserved
+ */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Modal, ScrollView, PanResponder, Animated as RNAnimated, Dimensions, Alert, useWindowDimensions } from 'react-native';
+import {
+  View, TouchableOpacity, StyleSheet, Platform,
+  Modal, ScrollView, PanResponder, Animated as RNAnimated,
+  useWindowDimensions, Alert,
+} from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
+  useSharedValue, useAnimatedStyle,
+  withTiming, withDelay, withSpring, withSequence,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,202 +33,265 @@ import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-
 import { StatusBar } from 'expo-status-bar';
 import { ElementEffect } from '@/components/game/element-effect';
 import { LuxuryBackground } from '@/components/game/luxury-background';
-import { HealthBar } from '@/components/game/health-bar';
 import { DamageNumber, DamageNumberVariant } from '@/components/game/damage-number';
-import { BattleHUD } from '@/components/game/BattleHUD';
 import { BattleResultOverlay } from '@/components/game/BattleResultOverlay';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { useLandscapeLayout, LAYOUT_PADDING, CARD_WIDTH_FACTOR } from '@/utils/layout';
 import { useGame } from '@/lib/game/game-context';
 import { ELEMENT_EMOJI, ElementAdvantage } from '@/lib/game/types';
-import { getAbilityNameAr, getAbilityNameOnly, getAbilityDescription } from '@/lib/game/ability-names';
+import { getAbilityNameAr, getAbilityDescription } from '@/lib/game/ability-names';
 import { AbilityCard } from '@/components/game/ability-card';
 import PredictionModal from '@/app/components/modals/PredictionModal';
 import PopularityModal from '@/app/components/modals/PopularityModal';
 import {
-  buildPredictionSummary,
-  getRemainingRounds,
-  getUpcomingPredictionRounds,
-  isPredictionComplete,
+  buildPredictionSummary, getRemainingRounds,
+  getUpcomingPredictionRounds, isPredictionComplete,
 } from '@/lib/game/ui-helpers';
+import { COLOR, SPACE, RADIUS, FONT, GLASS_PANEL, SHADOW } from '@/components/ui/design-tokens';
 
 type BattlePhase = 'selection' | 'action' | 'combat' | 'result' | 'waiting';
 
-const getAdvantageColor = (advantage: ElementAdvantage): string => {
-  switch (advantage) {
-    case 'strong': return '#4ade80';
-    case 'weak': return '#f87171';
-    default: return '#a0a0a0';
-  }
-};
+// ─── Helpers ───────────────────────────────────────────────────────────────
+const advantageColor = (a: ElementAdvantage) =>
+  a === 'strong' ? '#4ade80' : a === 'weak' ? '#f87171' : '#a0a0a0';
+const advantageLabel = (a: ElementAdvantage) =>
+  a === 'strong' ? '⬆️ قوي' : a === 'weak' ? '⬇️ ضعيف' : '';
 
-const getAdvantageText = (advantage: ElementAdvantage): string => {
-  switch (advantage) {
-    case 'strong': return '⬆️ قوي';
-    case 'weak': return '⬇️ ضعيف';
-    default: return '';
-  }
-};
+// ─── Round progress bar ──────────────────────────────────────────────────
+function RoundBar({ current, total }: { current: number; total: number }) {
+  const filled = useSharedValue(0);
+  useEffect(() => {
+    filled.value = withTiming((current / total) * 100, { duration: 400 });
+  }, [current]);
+  const barStyle = useAnimatedStyle(() => ({ width: `${filled.value}%` as any }));
+  return (
+    <View style={rb.track}>
+      <Animated.View style={[rb.fill, barStyle]} />
+      {Array.from({ length: total }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            rb.tick,
+            { left: `${((i + 1) / total) * 100}%` as any },
+            i < current && rb.tickDone,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+const rb = StyleSheet.create({
+  track: {
+    height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    overflow: 'visible', position: 'relative',
+  },
+  fill: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    backgroundColor: COLOR.gold, borderRadius: 3,
+  },
+  tick: {
+    position: 'absolute', top: -2, width: 2, height: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 1,
+    marginLeft: -1,
+  },
+  tickDone: { backgroundColor: 'rgba(228,165,42,0.6)' },
+});
 
-// ✅ شبكة إرشادية
+// ─── Score bar (fill proportional to score) ─────────────────────────────
+function ScoreBar({ score, maxScore, color, reverse = false }: { score: number; maxScore: number; color: string; reverse?: boolean }) {
+  const filled = useSharedValue(0);
+  useEffect(() => {
+    filled.value = withSpring(maxScore > 0 ? (score / maxScore) * 100 : 0, { damping: 14 });
+  }, [score]);
+  const barStyle = useAnimatedStyle(() => ({ width: `${filled.value}%` as any }));
+  return (
+    <View style={[sb.track, reverse && { flexDirection: 'row-reverse' }]}>
+      <Animated.View style={[sb.fill, { backgroundColor: color }, reverse && sb.fillRight, barStyle]} />
+    </View>
+  );
+}
+const sb = StyleSheet.create({
+  track: {
+    height: 8, borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 4,
+    position: 'absolute',
+    left: 0,
+  },
+  fillRight: { left: undefined, right: 0 },
+});
+
+// ─── Advantage chip ─────────────────────────────────────────────────────────
+function AdvantageChip({ advantage, element }: { advantage: ElementAdvantage; element: string }) {
+  if (advantage === 'neutral') return null;
+  const c = advantageColor(advantage);
+  return (
+    <View style={[ac.chip, { borderColor: c + '55', backgroundColor: c + '14' }]}>
+      <Text style={[ac.text, { color: c }]}>
+        {ELEMENT_EMOJI[element as keyof typeof ELEMENT_EMOJI]} {advantageLabel(advantage)}
+      </Text>
+    </View>
+  );
+}
+const ac = StyleSheet.create({
+  chip: {
+    paddingHorizontal: SPACE.md, paddingVertical: 3,
+    borderRadius: RADIUS.full, borderWidth: 1,
+    alignSelf: 'center', marginTop: SPACE.sm,
+  },
+  text: { fontSize: FONT.xs - 2, letterSpacing: 0.4 },
+});
+
+// ─── Grid overlay (edit mode) ───────────────────────────────────────────────
 const GridOverlay = () => (
-  <View style={styles.gridContainer} pointerEvents="none">
-    <View style={styles.verticalLine} />
-    <View style={styles.horizontalLine} />
-    <View style={[styles.verticalLineThin, { left: '25%' }]} />
-    <View style={[styles.verticalLineThin, { left: '75%' }]} />
-    <View style={[styles.horizontalLineThin, { top: '25%' }]} />
-    <View style={[styles.horizontalLineThin, { top: '75%' }]} />
-    <View style={styles.centerDot} />
-    <View style={[styles.quadrantLabel, { left: '25%', top: '25%' }]}><Text style={styles.quadrantText}>↖</Text></View>
-    <View style={[styles.quadrantLabel, { left: '75%', top: '25%' }]}><Text style={styles.quadrantText}>↗</Text></View>
-    <View style={[styles.quadrantLabel, { left: '25%', top: '75%' }]}><Text style={styles.quadrantText}>↙</Text></View>
-    <View style={[styles.quadrantLabel, { left: '75%', top: '75%' }]}><Text style={styles.quadrantText}>↘</Text></View>
+  <View style={S.gridContainer} pointerEvents="none">
+    <View style={S.vLine} />
+    <View style={S.hLine} />
+    <View style={[S.vLineThin, { left: '25%' }]} />
+    <View style={[S.vLineThin, { left: '75%' }]} />
+    <View style={[S.hLineThin, { top: '25%' }]} />
+    <View style={[S.hLineThin, { top: '75%' }]} />
+    <View style={S.gridCenter} />
   </View>
 );
 
-// ✅ Sidebar جانبي
-const EditSidebar = ({ visible, onClose, elements, onElementUpdate, showGrid, onToggleGrid, snapToGrid, onToggleSnap, onResetLayout }: any) => {
-  const slideAnim = useRef(new RNAnimated.Value(-300)).current;
+// ─── Edit sidebar ──────────────────────────────────────────────────────────────
+const EditSidebar = ({ visible, onClose, showGrid, onToggleGrid, snapToGrid, onToggleSnap, onResetLayout }: any) => {
+  const slide = useRef(new RNAnimated.Value(-300)).current;
   useEffect(() => {
-    RNAnimated.timing(slideAnim, { toValue: visible ? 0 : -300, duration: 300, useNativeDriver: true }).start();
+    RNAnimated.timing(slide, { toValue: visible ? 0 : -300, duration: 260, useNativeDriver: true }).start();
   }, [visible]);
   return (
-    <RNAnimated.View style={[styles.sidebar, { transform: [{ translateX: slideAnim }] }]}>
-      <View style={styles.sidebarHeader}>
-        <Text style={styles.sidebarTitle}>🎨 أدوات التحرير</Text>
-        <TouchableOpacity onPress={onClose} style={styles.sidebarCloseButton}>
-          <Text style={styles.sidebarCloseButtonText}>✕</Text>
+    <RNAnimated.View style={[S.sidebar, { transform: [{ translateX: slide }] }]}>
+      <View style={S.sidebarHead}>
+        <Text style={S.sidebarTitle}>🎨 أدوات التحرير</Text>
+        <TouchableOpacity onPress={onClose} style={S.sidebarClose}>
+          <Text style={{ color: '#f87171', fontSize: 18 }}>✕</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView style={styles.sidebarContent}>
-        <View style={styles.sidebarSection}>
-          <Text style={styles.sidebarSectionTitle}>⚙️ إعدادات الشبكة</Text>
-          <TouchableOpacity style={[styles.sidebarOption, showGrid && styles.sidebarOptionActive]} onPress={onToggleGrid}>
-            <Text style={styles.sidebarOptionText}>{showGrid ? '✓' : '○'} إظهار الشبكة</Text>
+      <ScrollView style={{ flex: 1, padding: SPACE.lg }}>
+        <View style={S.sidebarSection}>
+          <Text style={S.sidebarSectionTitle}>⚙️ إعدادات الشبكة</Text>
+          <TouchableOpacity style={[S.sidebarOpt, showGrid && S.sidebarOptActive]} onPress={onToggleGrid}>
+            <Text style={S.sidebarOptText}>{showGrid ? '✓' : '◦'} إظهار الشبكة</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.sidebarOption, snapToGrid && styles.sidebarOptionActive]} onPress={onToggleSnap}>
-            <Text style={styles.sidebarOptionText}>{snapToGrid ? '✓' : '○'} التقاط تلقائي</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.sidebarSection}>
-          <Text style={styles.sidebarSectionTitle}>⚡ إجراءات سريعة</Text>
-          <TouchableOpacity style={styles.sidebarActionButton} onPress={onResetLayout}>
-            <Text style={styles.sidebarActionButtonText}>🔄 إعادة ضبط الكل</Text>
+          <TouchableOpacity style={[S.sidebarOpt, snapToGrid && S.sidebarOptActive]} onPress={onToggleSnap}>
+            <Text style={S.sidebarOptText}>{snapToGrid ? '✓' : '◦'} التقاط تلقائي</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity style={S.sidebarAction} onPress={onResetLayout}>
+          <Text style={S.sidebarActionText}>🔄 إعادة ضبط الكل</Text>
+        </TouchableOpacity>
       </ScrollView>
     </RNAnimated.View>
   );
 };
 
-// ✅ مقبض تكبير
+// ─── Resize handle ──────────────────────────────────────────────────────────────
 const ResizeHandle = ({ position, onResizeStart, onResizeMove, onResizeEnd }: any) => {
-  const initialScale = useRef(1);
-  const panResponder = useRef(
+  const initScale = useRef(1);
+  const pr = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => { evt.stopPropagation(); initialScale.current = onResizeStart(); },
-      onPanResponderMove: (evt, gestureState) => {
-        evt.stopPropagation();
-        let scaleDelta = 0;
+      onPanResponderGrant: (e) => { e.stopPropagation(); initScale.current = onResizeStart(); },
+      onPanResponderMove: (e, g) => {
+        e.stopPropagation();
+        let delta = 0;
         if (position.includes('corner')) {
-          const distance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
-          const direction = gestureState.dx + gestureState.dy > 0 ? 1 : -1;
-          scaleDelta = (distance * direction) / 200;
+          const dist = Math.sqrt(g.dx ** 2 + g.dy ** 2);
+          delta = (dist * (g.dx + g.dy > 0 ? 1 : -1)) / 200;
         } else if (position === 'top' || position === 'bottom') {
-          scaleDelta = gestureState.dy / 200;
+          delta = g.dy / 200;
         } else {
-          scaleDelta = gestureState.dx / 200;
+          delta = g.dx / 200;
         }
-        onResizeMove(position, initialScale.current + scaleDelta);
+        onResizeMove(position, initScale.current + delta);
       },
-      onPanResponderRelease: () => { onResizeEnd(); },
+      onPanResponderRelease: () => onResizeEnd(),
     })
   ).current;
+  const key = `rh_${position.replace('-', '')}`;
   return (
-    <View {...panResponder.panHandlers} style={[styles.resizeHandle, (styles as any)[`resizeHandle_${position.replace('-', '')}`]]}>
-      <View style={styles.resizeHandleInner} />
+    <View {...pr.panHandlers} style={[S.resizeHandle, (S as any)[key]]}>
+      <View style={S.resizeHandleInner} />
     </View>
   );
 };
 
-const TransformHandles = ({ scale, onScaleChange, onResizeStart, onResizeMove, onResizeEnd, minScale, maxScale }: any) => {
+const TransformHandles = ({ onResizeStart, onResizeMove, onResizeEnd }: any) => {
   const positions = ['top-left','top-right','bottom-left','bottom-right','top','bottom','left','right'];
   return (
-    <View style={styles.transformHandlesContainer} pointerEvents="box-none">
-      {positions.map((pos) => (
-        <ResizeHandle key={pos} position={pos} onResizeStart={onResizeStart} onResizeMove={onResizeMove} onResizeEnd={onResizeEnd} />
-      ))}
-      <View style={styles.centerDotHandle} pointerEvents="none"><View style={styles.centerDotInner} /></View>
+    <View style={S.transformHandles} pointerEvents="box-none">
+      {positions.map((p) => <ResizeHandle key={p} position={p} onResizeStart={onResizeStart} onResizeMove={onResizeMove} onResizeEnd={onResizeEnd} />)}
     </View>
   );
 };
 
 const DraggableResizable = ({ children, id, initialX = 0, initialY = 0, initialScale = 1, onUpdate, minScale = 0.5, maxScale = 2.5, snapToGrid = false }: any) => {
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
-  const CENTER_X = SCREEN_WIDTH / 2;
-  const CENTER_Y = SCREEN_HEIGHT / 2;
+  const { width: W, height: H } = useWindowDimensions();
   const [scale, setScale] = useState(initialScale);
   const [isResizing, setIsResizing] = useState(false);
-  const position = useRef({ x: CENTER_X + initialX, y: CENTER_Y + initialY });
+  const position = useRef({ x: W / 2 + initialX, y: H / 2 + initialY });
   const pan = useRef(new RNAnimated.ValueXY(position.current)).current;
 
   useEffect(() => {
-    const newPos = { x: CENTER_X + initialX, y: CENTER_Y + initialY };
-    position.current = newPos;
-    pan.setValue(newPos);
-    setScale(initialScale);
+    const p = { x: W / 2 + initialX, y: H / 2 + initialY };
+    position.current = p; pan.setValue(p); setScale(initialScale);
   }, [initialX, initialY, initialScale]);
 
-  const handleResizeStart = () => { setIsResizing(true); return scale; };
-  const handleResizeMove = (_pos: string, newScale: number) => { setScale(Math.max(minScale, Math.min(maxScale, newScale))); };
-  const handleResizeEnd = () => {
+  const onResizeStart = () => { setIsResizing(true); return scale; };
+  const onResizeMove = (_: string, s: number) => setScale(Math.max(minScale, Math.min(maxScale, s)));
+  const onResizeEnd = () => {
     setIsResizing(false);
-    if (onUpdate) onUpdate(id, { x: position.current.x - CENTER_X, y: position.current.y - CENTER_Y, scale });
+    onUpdate?.(id, { x: position.current.x - W / 2, y: position.current.y - H / 2, scale });
   };
-  const handleScaleChange = (delta: number) => {
-    const newScale = Math.max(minScale, Math.min(maxScale, scale + delta));
-    setScale(newScale);
-    if (onUpdate) onUpdate(id, { x: position.current.x - CENTER_X, y: position.current.y - CENTER_Y, scale: newScale });
+  const onScaleChange = (d: number) => {
+    const ns = Math.max(minScale, Math.min(maxScale, scale + d));
+    setScale(ns);
+    onUpdate?.(id, { x: position.current.x - W / 2, y: position.current.y - H / 2, scale: ns });
   };
 
-  const panResponder = useRef(
+  const pr = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => !isResizing,
       onMoveShouldSetPanResponder: () => !isResizing,
-      onPanResponderGrant: () => { pan.setOffset({ x: position.current.x, y: position.current.y }); pan.setValue({ x: 0, y: 0 }); },
+      onPanResponderGrant: () => { pan.setOffset(position.current); pan.setValue({ x: 0, y: 0 }); },
       onPanResponderMove: RNAnimated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
-      onPanResponderRelease: (evt, gestureState) => {
+      onPanResponderRelease: (_, g) => {
         pan.flattenOffset();
-        const margin = 100;
-        let finalX = Math.max(margin, Math.min(SCREEN_WIDTH - margin, position.current.x + gestureState.dx));
-        let finalY = Math.max(margin, Math.min(SCREEN_HEIGHT - margin, position.current.y + gestureState.dy));
-        if (snapToGrid) { const g = 50; finalX = Math.round(finalX/g)*g; finalY = Math.round(finalY/g)*g; }
-        position.current = { x: finalX, y: finalY };
-        RNAnimated.spring(pan, { toValue: { x: finalX, y: finalY }, useNativeDriver: false, friction: 8, tension: 40 }).start();
-        if (onUpdate) onUpdate(id, { x: finalX - CENTER_X, y: finalY - CENTER_Y, scale });
+        const m = 100;
+        let fx = Math.max(m, Math.min(W - m, position.current.x + g.dx));
+        let fy = Math.max(m, Math.min(H - m, position.current.y + g.dy));
+        if (snapToGrid) { const gr = 50; fx = Math.round(fx / gr) * gr; fy = Math.round(fy / gr) * gr; }
+        position.current = { x: fx, y: fy };
+        RNAnimated.spring(pan, { toValue: { x: fx, y: fy }, useNativeDriver: false, friction: 8, tension: 40 }).start();
+        onUpdate?.(id, { x: fx - W / 2, y: fy - H / 2, scale });
       },
     })
   ).current;
 
   return (
-    <RNAnimated.View style={[{ position: 'absolute', left: 0, top: 0 }]} {...panResponder.panHandlers}>
+    <RNAnimated.View style={{ position: 'absolute', left: 0, top: 0 }} {...pr.panHandlers}>
       <RNAnimated.View style={{ transform: [{ translateX: pan.x }, { translateY: pan.y }, { translateX: -50 }, { translateY: -50 }, { scale }] }}>
-        <View style={styles.draggableContainer}>
+        <View style={{ position: 'relative' }}>
           {children}
-          <TransformHandles scale={scale} onScaleChange={handleScaleChange} onResizeStart={handleResizeStart} onResizeMove={handleResizeMove} onResizeEnd={handleResizeEnd} minScale={minScale} maxScale={maxScale} />
+          <TransformHandles onResizeStart={onResizeStart} onResizeMove={onResizeMove} onResizeEnd={onResizeEnd} />
         </View>
       </RNAnimated.View>
       <RNAnimated.View style={{ position: 'absolute', left: 0, top: 0, transform: [{ translateX: pan.x }, { translateY: pan.y }] }} pointerEvents="box-none">
-        <View style={styles.fixedScaleControls} pointerEvents="auto">
-          <TouchableOpacity style={[styles.scaleControlButton, scale <= minScale && styles.scaleControlButtonDisabled]} onPress={(e) => { e.stopPropagation(); handleScaleChange(-0.1); }} disabled={scale <= minScale}>
-            <Text style={styles.scaleControlButtonText}>−</Text>
+        <View style={S.scaleControls} pointerEvents="auto">
+          <TouchableOpacity style={[S.scaleBtn, scale <= minScale && S.scaleBtnDisabled]} onPress={(e) => { e.stopPropagation(); onScaleChange(-0.1); }} disabled={scale <= minScale}>
+            <Text style={S.scaleBtnText}>−</Text>
           </TouchableOpacity>
-          <View style={styles.scaleControlDisplay}><Text style={styles.scaleControlText}>{Math.round(scale * 100)}%</Text></View>
-          <TouchableOpacity style={[styles.scaleControlButton, scale >= maxScale && styles.scaleControlButtonDisabled]} onPress={(e) => { e.stopPropagation(); handleScaleChange(0.1); }} disabled={scale >= maxScale}>
-            <Text style={styles.scaleControlButtonText}>+</Text>
+          <View style={S.scaleDisplay}><Text style={S.scaleDisplayText}>{Math.round(scale * 100)}%</Text></View>
+          <TouchableOpacity style={[S.scaleBtn, scale >= maxScale && S.scaleBtnDisabled]} onPress={(e) => { e.stopPropagation(); onScaleChange(0.1); }} disabled={scale >= maxScale}>
+            <Text style={S.scaleBtnText}>+</Text>
           </TouchableOpacity>
         </View>
       </RNAnimated.View>
@@ -219,112 +299,115 @@ const DraggableResizable = ({ children, id, initialX = 0, initialY = 0, initialS
   );
 };
 
+// ────────────────────────── MAIN SCREEN ──────────────────────────
 export default function BattleScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const router  = useRouter();
+  const insets  = useSafeAreaInsets();
   const { width, height, isLandscape, size } = useLandscapeLayout();
-  const padding = LAYOUT_PADDING[size];
-  const maxAvailableHeight = height * 0.55;
-  const cardWidthByHeight = maxAvailableHeight / 1.5;
-  const cardWidthByWidth = width * CARD_WIDTH_FACTOR[size] * 0.9;
-  const cardWidth = Math.min(cardWidthByWidth, cardWidthByHeight);
-  const cardHeight = cardWidth * 1.5;
 
-  const { state, playRound, isGameOver, currentPlayerCard, currentBotCard, lastRoundResult, expectedRoundResult, useAbility, resetGame, setAbilitiesEnabled, nextRound, startBattle } = useGame();
+  // card sizing
+  const maxH        = height * 0.54;
+  const cardWidth   = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
+  const cardHeight  = cardWidth * 1.5;
 
-  const [phase, setPhase] = useState<BattlePhase>('selection');
-  const [showResult, setShowResult] = useState(false);
-  const [showPlayerEffect, setShowPlayerEffect] = useState(false);
-  const [showBotEffect, setShowBotEffect] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [roundHistory, setRoundHistory] = useState<any[]>([]);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [showPredictionModal, setShowPredictionModal] = useState(false);
-  const [predictionSelections, setPredictionSelections] = useState<Record<number, 'win' | 'loss'>>({});
-  const [predictionAbilityType, setPredictionAbilityType] = useState<'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool'>('LogicalEncounter');
-  const [popularityAbilityType, setPopularityAbilityType] = useState<'Popularity' | 'Rescue' | 'Penetration'>('Popularity');
-  const [showPopularityModal, setShowPopularityModal] = useState(false);
+  const {
+    state, playRound, isGameOver, currentPlayerCard, currentBotCard,
+    lastRoundResult, expectedRoundResult, useAbility,
+    resetGame, nextRound, startBattle,
+  } = useGame();
+
+  const [phase,                   setPhase]                   = useState<BattlePhase>('selection');
+  const [showResult,              setShowResult]              = useState(false);
+  const [showPlayerEffect,        setShowPlayerEffect]        = useState(false);
+  const [showBotEffect,           setShowBotEffect]           = useState(false);
+  const [roundHistory,            setRoundHistory]            = useState<any[]>([]);
+  const [isHistoryModalOpen,      setIsHistoryModalOpen]      = useState(false);
+  const [isAbilitiesModalOpen,    setIsAbilitiesModalOpen]    = useState(false);
+  const [showPredictionModal,     setShowPredictionModal]     = useState(false);
+  const [predictionSelections,    setPredictionSelections]    = useState<Record<number, 'win' | 'loss'>>({});
+  const [predictionAbilityType,   setPredictionAbilityType]   = useState<'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool'>('LogicalEncounter');
+  const [popularityAbilityType,   setPopularityAbilityType]   = useState<'Popularity' | 'Rescue' | 'Penetration'>('Popularity');
+  const [showPopularityModal,     setShowPopularityModal]     = useState(false);
   const [selectedPopularityRound, setSelectedPopularityRound] = useState<number | null>(null);
-  const [isAbilitiesModalOpen, setIsAbilitiesModalOpen] = useState(false);
+  const [activeDamageNumbers,     setActiveDamageNumbers]     = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant }[]>([]);
 
-  const [activeDamageNumbers, setActiveDamageNumbers] = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant; }[]>([]);
-  const spawnDamageNumber = useCallback((side: 'player' | 'bot', value: number, variant: DamageNumberVariant = 'damage') => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setActiveDamageNumbers((prev) => [...prev, { id, side, value, variant }]);
-  }, []);
-  const removeDamageNumber = useCallback((id: string) => {
-    setActiveDamageNumbers((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  const [editMode, setEditMode] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
-  const [snapToGrid, setSnapToGrid] = useState(false);
+  // edit mode
+  const [editMode,    setEditMode]    = useState(false);
+  const [showGrid,    setShowGrid]    = useState(true);
+  const [snapToGrid,  setSnapToGrid]  = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
-  const CENTER_X = SCREEN_WIDTH / 2;
-  const CENTER_Y = SCREEN_HEIGHT / 2;
-  const maxCardWidth = SCREEN_WIDTH * 0.35;
-  const baseCardScale = Math.min(1, maxCardWidth / 200);
-  const uiScale = Math.min(1, SCREEN_WIDTH / 400);
+  const { width: SW, height: SH } = useWindowDimensions();
+  const baseCardScale = Math.min(1, (SW * 0.35) / 200);
+  const uiScale = Math.min(1, SW / 400);
 
   const DEFAULT_LAYOUT = {
-    playerCard: { x: -SCREEN_WIDTH * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
-    botCard: { x: SCREEN_WIDTH * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
-    vs: { x: 0, y: 0, scale: uiScale, minScale: 0.3, maxScale: 2.0 },
-    score: { x: 0, y: -SCREEN_HEIGHT * 0.35, scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
-    round: { x: 0, y: -SCREEN_HEIGHT * 0.42, scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
-    result: { x: 0, y: SCREEN_HEIGHT * 0.35, scale: uiScale, minScale: 0.5, maxScale: 2.0 },
-    abilities: { x: 0, y: SCREEN_HEIGHT * 0.25, scale: uiScale * 0.8, minScale: 0.4, maxScale: 1.5 },
+    playerCard: { x: -SW * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
+    botCard:    { x:  SW * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
+    vs:         { x: 0, y: 0,           scale: uiScale,       minScale: 0.3, maxScale: 2.0 },
+    score:      { x: 0, y: -SH * 0.35,  scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
+    round:      { x: 0, y: -SH * 0.42,  scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
+    result:     { x: 0, y:  SH * 0.35,  scale: uiScale,       minScale: 0.5, maxScale: 2.0 },
+    abilities:  { x: 0, y:  SH * 0.25,  scale: uiScale * 0.8, minScale: 0.4, maxScale: 1.5 },
   };
-
   const [elements, setElements] = useState(DEFAULT_LAYOUT);
 
-  const playerCardScale = useSharedValue(0);
-  const botCardScale = useSharedValue(0);
-  const vsOpacity = useSharedValue(0);
-  const resultOpacity = useSharedValue(0);
+  // animations
+  const playerAnim  = useSharedValue(0);
+  const botAnim     = useSharedValue(0);
+  const vsOpacity   = useSharedValue(0);
+  const resultOp    = useSharedValue(0);
+  const flashAnim   = useSharedValue(0); // arena flash on attack
 
+  const playerStyle   = useAnimatedStyle(() => ({ transform: [{ scale: playerAnim.value }] }));
+  const botStyle      = useAnimatedStyle(() => ({ transform: [{ scale: botAnim.value }] }));
+  const vsStyle       = useAnimatedStyle(() => ({ opacity: vsOpacity.value }));
+  const resultStyle   = useAnimatedStyle(() => ({ opacity: resultOp.value }));
+  const flashStyle    = useAnimatedStyle(() => ({ opacity: flashAnim.value }));
+
+  // layout persistence
   useEffect(() => { loadLayout(); }, []);
   useEffect(() => { if (editMode) saveLayout(); }, [elements, editMode]);
-
   const loadLayout = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('battleLayout');
-      if (saved) setElements(JSON.parse(saved));
-    } catch {}
+    try { const s = await AsyncStorage.getItem('battleLayout'); if (s) setElements(JSON.parse(s)); } catch {}
   };
   const saveLayout = async () => {
     try { await AsyncStorage.setItem('battleLayout', JSON.stringify(elements)); } catch {}
   };
-  const updateElement = (id: string, data: any) => setElements((prev) => ({ ...prev, [id]: { ...prev[id as keyof typeof prev], ...data } }));
+  const updateElement = (id: string, d: any) => setElements(p => ({ ...p, [id]: { ...p[id as keyof typeof p], ...d } }));
   const resetLayout = async () => {
     setElements(DEFAULT_LAYOUT);
     try { await AsyncStorage.removeItem('battleLayout'); } catch {}
   };
 
   useEffect(() => {
-    if (state.currentRound < state.totalRounds && !currentPlayerCard && !currentBotCard) startBattle(state.playerDeck);
-  }, [state.currentRound, state.totalRounds, currentPlayerCard, currentBotCard, startBattle, state.playerDeck]);
+    if (state.currentRound < state.totalRounds && !currentPlayerCard && !currentBotCard)
+      startBattle(state.playerDeck);
+  }, [state.currentRound, state.totalRounds, currentPlayerCard, currentBotCard]);
 
   useEffect(() => {
     if (currentPlayerCard && currentBotCard && phase === 'selection' && !editMode) {
-      playerCardScale.value = 0; botCardScale.value = 0; vsOpacity.value = 0; resultOpacity.value = 0;
+      playerAnim.value = 0; botAnim.value = 0; vsOpacity.value = 0; resultOp.value = 0;
       setShowResult(false); setShowPlayerEffect(false); setShowBotEffect(false);
-      playerCardScale.value = withDelay(100, withTiming(1, { duration: 300 }));
-      botCardScale.value = withDelay(300, withTiming(1, { duration: 300 }));
-      vsOpacity.value = withDelay(500, withTiming(1, { duration: 200 }));
-      setTimeout(() => setPhase('action'), 800);
+      playerAnim.value  = withDelay(80,  withTiming(1, { duration: 280 }));
+      botAnim.value     = withDelay(240, withTiming(1, { duration: 280 }));
+      vsOpacity.value   = withDelay(440, withTiming(1, { duration: 200 }));
+      setTimeout(() => setPhase('action'), 720);
     }
   }, [currentPlayerCard, currentBotCard, phase, state.currentRound, editMode]);
 
   const handleExecuteAttack = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // cinematic flash
+    flashAnim.value = withSequence(
+      withTiming(0.35, { duration: 60 }),
+      withTiming(0, { duration: 300 }),
+    );
     setPhase('combat'); setShowPlayerEffect(true); setShowBotEffect(true);
     playRound();
     setPredictionSelections({}); setShowPredictionModal(false);
     setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, 1000);
-  }, [playRound, state.roundResults]);
+  }, [playRound]);
 
   useEffect(() => { if (editMode) setShowSidebar(true); else setShowSidebar(false); }, [editMode]);
 
@@ -334,6 +417,7 @@ export default function BattleScreen() {
     else { setPhase('selection'); nextRound(); }
   }, [isGameOver, router, nextRound]);
 
+  // Prediction / Popularity handlers
   const handleConfirmPrediction = useCallback(() => {
     useAbility(predictionAbilityType, { predictions: predictionSelections });
     setShowPredictionModal(false); setPredictionSelections({});
@@ -347,58 +431,55 @@ export default function BattleScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [popularityAbilityType, selectedPopularityRound, useAbility]);
 
-  const handleSelectPrediction = useCallback((round: number, outcome: 'win' | 'loss') => {
-    setPredictionSelections((prev) => ({ ...prev, [round]: outcome }));
-  }, []);
-  const handleClosePrediction = useCallback(() => setShowPredictionModal(false), []);
-  const handleCancelPrediction = useCallback(() => { setShowPredictionModal(false); setPredictionSelections({}); }, []);
-  const handleSelectPopularity = useCallback((round: number) => setSelectedPopularityRound(round), []);
-  const handleClosePopularity = useCallback(() => setShowPopularityModal(false), []);
-  const handleCancelPopularity = useCallback(() => { setShowPopularityModal(false); setSelectedPopularityRound(null); }, []);
-
+  // Round result effect
   useEffect(() => {
-    if (phase === 'result' && lastRoundResult && !editMode) {
-      setRoundHistory(prev => {
-        if (prev.some(h => h.round === lastRoundResult.round)) return prev;
-        return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
-      });
-      if (lastRoundResult.botDamage > 0) spawnDamageNumber('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
-      if (lastRoundResult.playerDamage > 0) spawnDamageNumber('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
-      if (isGameOver) {
-        setShowResult(true); resultOpacity.value = withTiming(1, { duration: 300 });
-        if (Platform.OS !== 'web') {
-          if (lastRoundResult.winner === 'player') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          else if (lastRoundResult.winner === 'bot') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-        setPhase('waiting');
-      } else {
-        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setTimeout(() => { setPhase('selection'); nextRound(); }, 1200);
+    if (phase !== 'result' || !lastRoundResult || editMode) return;
+    setRoundHistory(prev => {
+      if (prev.some(h => h.round === lastRoundResult.round)) return prev;
+      return [...prev, {
+        round: lastRoundResult.round,
+        playerCard: lastRoundResult.playerCard,
+        botCard: lastRoundResult.botCard,
+        winner: lastRoundResult.winner,
+      }];
+    });
+    if (lastRoundResult.botDamage    > 0) spawnDmg('bot',    lastRoundResult.botDamage,    lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
+    if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage    === 'strong' ? 'critical' : 'damage');
+    if (isGameOver) {
+      setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
+      if (Platform.OS !== 'web') {
+        if (lastRoundResult.winner === 'player') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        else if (lastRoundResult.winner === 'bot') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+      setPhase('waiting');
+    } else {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setTimeout(() => { setPhase('selection'); nextRound(); }, 1200);
     }
-  }, [phase, lastRoundResult, resultOpacity, editMode, spawnDamageNumber, isGameOver, nextRound]);
+  }, [phase, lastRoundResult, editMode, isGameOver]);
 
-  const playerCardAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: playerCardScale.value }] }));
-  const botCardAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: botCardScale.value }] }));
-  const vsAnimatedStyle = useAnimatedStyle(() => ({ opacity: vsOpacity.value }));
-  const resultAnimatedStyle = useAnimatedStyle(() => ({ opacity: resultOpacity.value }));
+  const spawnDmg = useCallback((side: 'player' | 'bot', value: number, variant: DamageNumberVariant) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setActiveDamageNumbers(p => [...p, { id, side, value, variant }]);
+  }, []);
+  const removeDmg = useCallback((id: string) => setActiveDamageNumbers(p => p.filter(n => n.id !== id)), []);
 
-  const roundNumber = state.currentRound + 1;
-  const upcomingRounds = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
-  const remainingRounds = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const roundNumber        = state.currentRound + 1;
+  const upcomingRounds     = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const remainingRounds    = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
   const predictionComplete = useMemo(() => isPredictionComplete(upcomingRounds, predictionSelections), [upcomingRounds, predictionSelections]);
-  const isPopularityReady = selectedPopularityRound !== null;
-  const predictionSummary = useMemo(() => buildPredictionSummary(state.activeEffects, 'player'), [state.activeEffects]);
 
   const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
-  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+  const displayBotCard    = showResult && lastRoundResult ? lastRoundResult.botCard    : currentBotCard;
+
+  const maxScore = state.totalRounds;
 
   if (!displayPlayerCard || !displayBotCard) {
     return (
-      <View style={styles.rootScreen}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>جاري التحميل...</Text>
+      <View style={S.root}>
+        <View style={S.loadWrap}>
+          <Text style={S.loadText}>جاري تحميل الساحة...</Text>
         </View>
       </View>
     );
@@ -406,423 +487,658 @@ export default function BattleScreen() {
 
   if (!isLandscape) return <RotateHintScreen />;
 
+  // ─── RENDER ───
   return (
-    <View style={styles.rootScreen}>
+    <View style={S.root}>
       <StatusBar hidden />
-      <View style={styles.backgroundWrapper}><LuxuryBackground /></View>
+      <View style={S.bgWrap}><LuxuryBackground /></View>
+
+      {/* Attack flash */}
+      <Animated.View style={[S.flashOverlay, flashStyle]} pointerEvents="none" />
 
       {editMode && showGrid && <GridOverlay />}
-
       <EditSidebar
-        visible={showSidebar}
-        onClose={() => setShowSidebar(false)}
-        elements={elements}
-        onElementUpdate={updateElement}
-        showGrid={showGrid}
-        onToggleGrid={() => setShowGrid(!showGrid)}
-        snapToGrid={snapToGrid}
-        onToggleSnap={() => setSnapToGrid(!snapToGrid)}
+        visible={showSidebar} onClose={() => setShowSidebar(false)}
+        showGrid={showGrid} onToggleGrid={() => setShowGrid(!showGrid)}
+        snapToGrid={snapToGrid} onToggleSnap={() => setSnapToGrid(!snapToGrid)}
         onResetLayout={resetLayout}
       />
 
-      {editMode && !showSidebar && (
-        <View style={styles.editInstructions}>
-          <Text style={styles.editInstructionsText}>💡 اسحب للتحريك • المقابض للتكبير • + و − للتحكم الدقيق</Text>
-        </View>
-      )}
-
-      <View style={[styles.battleContainer, { paddingLeft: insets.left, paddingRight: insets.right }]} pointerEvents={editMode ? 'auto' : 'box-none'}>
+      <View style={[S.battleWrap, { paddingLeft: insets.left, paddingRight: insets.right }]} pointerEvents={editMode ? 'auto' : 'box-none'}>
         {editMode ? (
+          // ─ EDIT MODE ─
           <>
             <DraggableResizable id="playerCard" initialX={elements.playerCard.x} initialY={elements.playerCard.y} initialScale={elements.playerCard.scale} minScale={elements.playerCard.minScale} maxScale={elements.playerCard.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}>
-                <Text style={styles.elementLabel}>👤 بطاقة اللاعب</Text>
-                <View style={{ transform: [{ scale: 0.8 }] }}>
-                  <LuxuryCharacterCardAnimated card={displayPlayerCard} />
-                </View>
+              <View style={S.editElem}><Text style={S.editLabel}>👤 بطاقة اللاعب</Text>
+                <View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayPlayerCard} /></View>
               </View>
             </DraggableResizable>
-
             <DraggableResizable id="botCard" initialX={elements.botCard.x} initialY={elements.botCard.y} initialScale={elements.botCard.scale} minScale={elements.botCard.minScale} maxScale={elements.botCard.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}>
-                <Text style={styles.elementLabel}>🤖 بطاقة البوت</Text>
-                <View style={{ transform: [{ scale: 0.8 }] }}>
-                  <LuxuryCharacterCardAnimated card={displayBotCard} />
-                </View>
+              <View style={S.editElem}><Text style={S.editLabel}>🤖 بطاقة البوت</Text>
+                <View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayBotCard} /></View>
               </View>
             </DraggableResizable>
-
             <DraggableResizable id="vs" initialX={elements.vs.x} initialY={elements.vs.y} initialScale={elements.vs.scale} minScale={elements.vs.minScale} maxScale={elements.vs.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}><Text style={styles.elementLabel}>⚔️ VS</Text><Text style={styles.vsEditText}>⚔️ VS ⚔️</Text></View>
+              <View style={S.editElem}><Text style={S.editLabel}>⚔️ VS</Text><Text style={{ color: '#e94560', fontSize: 24, padding: 12 }}>⚔️ VS ⚔️</Text></View>
             </DraggableResizable>
-
             <DraggableResizable id="score" initialX={elements.score.x} initialY={elements.score.y} initialScale={elements.score.scale} minScale={elements.score.minScale} maxScale={elements.score.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}><Text style={styles.elementLabel}>📊 النقاط</Text><Text style={styles.scoreEditText}>{state.playerScore} - {state.botScore}</Text></View>
+              <View style={S.editElem}><Text style={S.editLabel}>📊 النقاط</Text><Text style={{ color: '#fff', fontSize: 22, padding: 8 }}>{state.playerScore} - {state.botScore}</Text></View>
             </DraggableResizable>
-
-            <DraggableResizable id="round" initialX={elements.round.x} initialY={elements.round.y} initialScale={elements.round.scale} minScale={elements.round.minScale} maxScale={elements.round.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}><Text style={styles.elementLabel}>🔢 الجولة</Text><Text style={styles.roundEditText}>الجولة {state.currentRound + 1}/{state.totalRounds}</Text></View>
-            </DraggableResizable>
-
             <DraggableResizable id="abilities" initialX={elements.abilities.x} initialY={elements.abilities.y} initialScale={elements.abilities.scale} minScale={elements.abilities.minScale} maxScale={elements.abilities.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}>
-                <Text style={styles.elementLabel}>🎮 القدرات</Text>
-                <View style={styles.abilitiesEditBox}>
-                  {state.playerAbilities.map((ability, index) => (
-                    <View key={index} style={styles.abilityEditItem}>
-                      <Text style={styles.abilityEditText}>{ability.used ? '✗' : '✓'} {getAbilityNameAr(ability.type)}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </DraggableResizable>
-
-            <DraggableResizable id="result" initialX={elements.result.x} initialY={elements.result.y} initialScale={elements.result.scale} minScale={elements.result.minScale} maxScale={elements.result.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={styles.editElement}><Text style={styles.elementLabel}>🏆 النتيجة</Text><Text style={[styles.resultEditText, { color: '#fbbf24' }]}>🤝 تعادلاً!</Text></View>
+              <View style={S.editElem}><Text style={S.editLabel}>🎮 القدرات</Text></View>
             </DraggableResizable>
           </>
         ) : (
-          <>
-            <View style={styles.normalPlayContainer}>
-              <BattleResultOverlay
-                visible={showResult && phase === 'waiting'}
-                winner={state.playerScore > state.botScore ? 'player' : state.botScore > state.playerScore ? 'bot' : 'draw'}
-                playerScore={state.playerScore}
-                botScore={state.botScore}
-                onPlayAgain={() => { resetGame(); router.replace('/screens/rounds-config' as any); }}
-                onHome={() => { router.replace('/screens/splash' as any); }}
-              />
+          // ─ NORMAL PLAY MODE ─
+          <View style={S.normalRoot}>
+            <BattleResultOverlay
+              visible={showResult && phase === 'waiting'}
+              winner={state.playerScore > state.botScore ? 'player' : state.botScore > state.playerScore ? 'bot' : 'draw'}
+              playerScore={state.playerScore}
+              botScore={state.botScore}
+              onPlayAgain={() => { resetGame(); router.replace('/screens/rounds-config' as any); }}
+              onHome={() => router.replace('/screens/splash' as any)}
+            />
 
-              <View style={[styles.battleRoot, { paddingLeft: Math.max(insets.left, 8), paddingRight: Math.max(insets.right, 8) }]}>
+            <View style={[S.screen, { paddingLeft: Math.max(insets.left, 8), paddingRight: Math.max(insets.right, 8) }]}>
 
-                {/* ── TOP HUD ── */}
-                <View style={[styles.topHud, { backgroundColor: 'rgba(5, 10, 20, 0.45)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#334155' }]}>
-                  <View style={styles.hudPlayer}>
-                    <View style={[styles.avatarCircle, { backgroundColor: '#1a3a1a', width: 40, height: 40, borderWidth: 2, borderColor: '#4ade80' }]}>
-                      <Text style={{ fontSize: 20 }}>👤</Text>
-                    </View>
-                    <View style={[styles.hudInfo, { marginLeft: 10 }]}>
-                      <Text style={[styles.combatantName, { color: '#4ade80', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }]}>لاعب</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Text style={{ fontSize: 22, fontWeight: '900', color: '#fbbf24' }}>{state.playerScore}</Text>
-                        <Text style={{ fontSize: 16 }}>⭐</Text>
-                      </View>
-                    </View>
+              {/* ══ TOP HUD ══ */}
+              <View style={S.topHud}>
+                {/* Player */}
+                <View style={S.hudSide}>
+                  <View style={[S.avatar, { borderColor: '#4ade80' }]}>
+                    <Text style={{ fontSize: 18 }}>👤</Text>
                   </View>
-                  <View style={[styles.hudCenter, { flex: 1 }]}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF', letterSpacing: 1 }}>Round {state.currentRound + 1}/{state.totalRounds}</Text>
+                  <View style={S.hudInfo}>
+                    <Text style={[S.hudName, { color: '#4ade80' }]}>لاعب</Text>
+                    <ScoreBar score={state.playerScore} maxScore={maxScore} color="#4ade80" />
                   </View>
-                  <View style={styles.hudBot}>
-                    <View style={[styles.hudInfo, { alignItems: 'flex-end', marginRight: 10 }]}>
-                      <Text style={[styles.combatantName, { color: '#f87171', fontSize: 13, fontWeight: '600', letterSpacing: 0.5, textAlign: 'right' }]}>البوت</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Text style={{ fontSize: 16 }}>⭐</Text>
-                        <Text style={{ fontSize: 22, fontWeight: '900', color: '#fbbf24' }}>{state.botScore}</Text>
-                      </View>
-                    </View>
-                    <View style={[styles.avatarCircle, { backgroundColor: '#3a1a1a', width: 40, height: 40, borderWidth: 2, borderColor: '#f87171' }]}>
-                      <Text style={{ fontSize: 20 }}>🤖</Text>
-                    </View>
-                  </View>
+                  <Text style={[S.hudScore, { color: '#4ade80' }]}>{state.playerScore}</Text>
                 </View>
 
-                {/* ── ARENA ── */}
-                <View style={styles.arenaContainer}>
-
-                  {/* PLAYER SIDE */}
-                  <View style={styles.playerSideHorizontal}>
-                    <View style={styles.currentCardAreaHorizontal}>
-                      <Animated.View style={playerCardAnimatedStyle}>
-                        <LuxuryCharacterCardAnimated
-                          card={displayPlayerCard}
-                          style={{ width: cardWidth, height: cardHeight }}
-                        />
-                        {showPlayerEffect && displayPlayerCard && <ElementEffect element={displayPlayerCard.element} isActive={showPlayerEffect} />}
-                      </Animated.View>
-                      {activeDamageNumbers.filter((n) => n.side === 'player').map((n) => (
-                        <DamageNumber key={n.id} value={n.value} variant={n.variant} x={40} y={-20} onComplete={() => removeDamageNumber(n.id)} />
-                      ))}
-                    </View>
-                    <View style={[styles.effectsBox, { width: cardWidth }]}>
-                      {showResult && lastRoundResult && lastRoundResult.playerElementAdvantage !== 'neutral' ? (
-                        <Text style={[styles.advantageText, { color: getAdvantageColor(lastRoundResult.playerElementAdvantage) }]}>
-                          {ELEMENT_EMOJI[lastRoundResult.playerCard.element]} {getAdvantageText(lastRoundResult.playerElementAdvantage)}
-                        </Text>
-                      ) : <View style={{ height: 20 }} />}
-                    </View>
-                  </View>
-
-                  {/* CENTER VS */}
-                  <View style={styles.centerVSGlow}>
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setIsHistoryModalOpen(true)}>
-                      <Animated.View style={[styles.vsBadgeHorizontal, vsAnimatedStyle, { transform: [{ scale: 1.2 }] }]}>
-                        <Text style={styles.vsBadgeTextHorizontal}>⚔️</Text>
-                        <Text style={styles.vsBadgeVSHorizontal}>VS</Text>
-                      </Animated.View>
-                    </TouchableOpacity>
-
-                    {phase === 'action' && expectedRoundResult && (
-                      <Animated.View style={[styles.previewBadge, { opacity: vsOpacity.value }]}>
-                        <Text style={[styles.previewBadgeText, { color: expectedRoundResult.winner === 'player' ? '#4ade80' : expectedRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24' }]}>
-                          {expectedRoundResult.winner === 'player' ? '👤 المتوقع: فوزك' : expectedRoundResult.winner === 'bot' ? '💀 المتوقع: خسارتك' : '🤝 المتوقع: تعادل'}
-                        </Text>
-                      </Animated.View>
-                    )}
-
-                    {phase === 'action' ? (
-                      <TouchableOpacity style={[styles.unifiedButton, styles.unifiedButtonConfirm]} onPress={handleExecuteAttack} activeOpacity={0.85}>
-                        <Text style={styles.unifiedButtonText}>اعتماد النتيجة</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity style={[styles.unifiedButton, phase === 'waiting' ? styles.unifiedButtonWait : styles.unifiedButtonDisabled]} onPress={phase === 'waiting' ? handleNextRound : undefined} activeOpacity={0.85} disabled={phase !== 'waiting'}>
-                        <Text style={styles.unifiedButtonText}>{isGameOver ? '🏁 إنهاء' : '⚙️ جاري...'}</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity style={[styles.unifiedButton, styles.unifiedButtonAbilities]} onPress={() => setIsAbilitiesModalOpen(true)} activeOpacity={0.8}>
-                      <Text style={styles.unifiedButtonText}>القدرات ⚡</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* BOT SIDE */}
-                  <View style={styles.enemySideHorizontal}>
-                    <View style={styles.currentCardAreaHorizontal}>
-                      <Animated.View style={[botCardAnimatedStyle, { transform: [{ scale: 0.95 }] }]}>
-                        <LuxuryCharacterCardAnimated
-                          card={displayBotCard}
-                          style={{ width: cardWidth, height: cardHeight }}
-                        />
-                        {showBotEffect && displayBotCard && <ElementEffect element={displayBotCard.element} isActive={showBotEffect} />}
-                      </Animated.View>
-                      {activeDamageNumbers.filter((n) => n.side === 'bot').map((n) => (
-                        <DamageNumber key={n.id} value={n.value} variant={n.variant} x={40} y={-20} onComplete={() => removeDamageNumber(n.id)} />
-                      ))}
-                    </View>
-                    <View style={[styles.effectsBox, { width: cardWidth }]}>
-                      {showResult && lastRoundResult && lastRoundResult.botElementAdvantage !== 'neutral' && (
-                        <Text style={[styles.advantageText, { color: getAdvantageColor(lastRoundResult.botElementAdvantage) }]}>
-                          {ELEMENT_EMOJI[lastRoundResult.botCard.element]} {getAdvantageText(lastRoundResult.botElementAdvantage)}
-                        </Text>
-                      )}
-                      {showResult && lastRoundResult ? (
-                        <View style={{ alignItems: 'center' }}>
-                          <Text style={[styles.botResultValue, { color: lastRoundResult.winner === 'bot' ? '#4ade80' : lastRoundResult.winner === 'player' ? '#f87171' : '#fbbf24', fontSize: 13, marginTop: 4 }]}>
-                            {lastRoundResult.winner === 'bot' ? '🏆 البوت فاز' : lastRoundResult.winner === 'player' ? '💀 البوت خسر' : '= تعادل'}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
+                {/* Center */}
+                <View style={S.hudCenter}>
+                  <Text style={S.hudRound}>جولة {state.currentRound + 1} / {state.totalRounds}</Text>
+                  <RoundBar current={state.currentRound} total={state.totalRounds} />
+                  <TouchableOpacity style={S.historyBtn} onPress={() => setIsHistoryModalOpen(true)} activeOpacity={0.75}>
+                    <Text style={S.historyBtnText}>سجل ↗️</Text>
+                  </TouchableOpacity>
                 </View>
 
-                <View style={[styles.floatingActionRight, { bottom: Math.max(insets.bottom, 20) + 20 }]} pointerEvents="none">
-                  <View style={styles.botStatusPillHUD}>
-                    <Text style={styles.botStatusTextHUD}>{phase === 'action' ? 'ينتظر... 🤖' : phase === 'combat' ? 'يقاتل... ⚔️' : '🤖...'}</Text>
+                {/* Bot */}
+                <View style={[S.hudSide, S.hudSideRight]}>
+                  <Text style={[S.hudScore, { color: '#f87171' }]}>{state.botScore}</Text>
+                  <View style={S.hudInfo}>
+                    <Text style={[S.hudName, { color: '#f87171', textAlign: 'right' }]}>بوت</Text>
+                    <ScoreBar score={state.botScore} maxScore={maxScore} color="#f87171" reverse />
+                  </View>
+                  <View style={[S.avatar, { borderColor: '#f87171' }]}>
+                    <Text style={{ fontSize: 18 }}>🤖</Text>
                   </View>
                 </View>
               </View>
-            </View>
 
-            {/* ABILITIES MODAL */}
-            <Modal visible={isAbilitiesModalOpen} transparent animationType="fade" onRequestClose={() => setIsAbilitiesModalOpen(false)}>
-              <TouchableOpacity style={styles.abilitiesModalOverlay} activeOpacity={1} onPress={() => setIsAbilitiesModalOpen(false)}>
-                <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.abilitiesModalContent}>
-                  <View style={styles.abilitiesModalHeader}>
-                    <Text style={styles.abilitiesModalTitle}>القدرات المتاحة ⚡</Text>
-                    <TouchableOpacity onPress={() => setIsAbilitiesModalOpen(false)} style={{ padding: 4 }}>
-                      <Text style={{ color: '#94a3b8', fontSize: 20 }}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {state.playerAbilities.length === 0 ? (
-                    <Text style={{ color: '#94a3b8', textAlign: 'center', marginVertical: 24 }}>لا توجد قدرات متاحة</Text>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
-                      {state.playerAbilities.map((ability, index) => {
-                        const isSealed = state.activeEffects.some((effect) => effect.kind === 'silenceAbilities' && (effect.targetSide === 'player' || effect.targetSide === 'all') && effect.createdAtRound <= roundNumber && (effect.expiresAtRound === undefined || roundNumber <= effect.expiresAtRound));
-                        return (
-                          <View key={index} style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (ability.used || phase !== 'action') return;
-                                if (isSealed) { Alert.alert('القدرات مختومة', 'لا يمكنك تفعيل القدرات خلال مدة الختم.'); return; }
-                                if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(ability.type)) {
-                                  if (upcomingRounds.length === 0) return;
-                                  setPredictionSelections({}); setPredictionAbilityType(ability.type as any);
-                                  setIsAbilitiesModalOpen(false); setShowPredictionModal(true); return;
-                                }
-                                if (['Popularity', 'Rescue', 'Penetration'].includes(ability.type)) {
-                                  if (remainingRounds.length === 0) return;
-                                  setSelectedPopularityRound(null); setPopularityAbilityType(ability.type as any);
-                                  setIsAbilitiesModalOpen(false); setShowPopularityModal(true); return;
-                                }
-                                useAbility(ability.type); setIsAbilitiesModalOpen(false);
-                                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              }}
-                              disabled={ability.used || phase !== 'action'}
-                              activeOpacity={0.9}
-                              style={{ opacity: (ability.used || phase !== 'action') ? 0.5 : 1, transform: [{ scale: 0.85 }] }}
-                            >
-                              <AbilityCard
-                                ability={{ id: index, nameEn: ability.type, nameAr: getAbilityNameAr(ability.type).split('(')[0].trim(), description: getAbilityDescription(ability.type), icon: null, rarity: 'Rare', isActive: !ability.used && phase === 'action' }}
-                                showActionButtons={false}
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </ScrollView>
+              {/* ══ ARENA ══ */}
+              <View style={S.arena}>
+
+                {/* PLAYER PANEL */}
+                <View style={S.playerPanel}>
+                  <Text style={S.panelLabel}>لاعب</Text>
+                  <Animated.View style={playerStyle}>
+                    <LuxuryCharacterCardAnimated card={displayPlayerCard} style={{ width: cardWidth, height: cardHeight }} />
+                    {showPlayerEffect && <ElementEffect element={displayPlayerCard.element} isActive />}
+                  </Animated.View>
+                  {activeDamageNumbers.filter(n => n.side === 'player').map(n => (
+                    <DamageNumber key={n.id} value={n.value} variant={n.variant} x={40} y={-20} onComplete={() => removeDmg(n.id)} />
+                  ))}
+                  {showResult && lastRoundResult && (
+                    <AdvantageChip advantage={lastRoundResult.playerElementAdvantage} element={lastRoundResult.playerCard.element} />
                   )}
-                </TouchableOpacity>
-              </TouchableOpacity>
-            </Modal>
+                </View>
 
-            <PredictionModal visible={showPredictionModal} upcomingRounds={upcomingRounds} selections={predictionSelections} onSelect={handleSelectPrediction} onCancel={handleCancelPrediction} onRequestClose={handleClosePrediction} onConfirm={handleConfirmPrediction} isConfirmDisabled={!predictionComplete} />
-            <PopularityModal visible={showPopularityModal} remainingRounds={remainingRounds} selectedRound={selectedPopularityRound} onSelect={handleSelectPopularity} onCancel={handleCancelPopularity} onRequestClose={handleClosePopularity} onConfirm={handleConfirmPopularity} isConfirmDisabled={!isPopularityReady} />
+                {/* CENTER COLUMN */}
+                <View style={S.centerCol}>
+                  {/* VS badge */}
+                  <Animated.View style={[S.vsBadge, vsStyle]}>
+                    <Text style={S.vsIcon}>⚔️</Text>
+                    <Text style={S.vsText}>VS</Text>
+                  </Animated.View>
 
-            {/* HISTORY MODAL */}
-            <Modal visible={isHistoryModalOpen} transparent animationType="slide" onRequestClose={() => setIsHistoryModalOpen(false)}>
-              <View style={styles.matchHistoryOverlay}>
-                <View style={styles.matchHistoryContent}>
-                  <View style={styles.matchHistoryHeader}>
-                    <Text style={styles.matchHistoryTitle}>تاريخ الجولات السابقة</Text>
-                    <TouchableOpacity onPress={() => setIsHistoryModalOpen(false)}><Text style={styles.matchHistoryCloseBtn}>✕</Text></TouchableOpacity>
-                  </View>
-                  <ScrollView style={styles.matchHistoryScroll}>
-                    {roundHistory.length === 0 ? (
-                      <Text style={styles.matchHistoryEmpty}>لا يوجد سجل بعد</Text>
+                  {/* Expected outcome chip */}
+                  {phase === 'action' && expectedRoundResult && (
+                    <Animated.View style={[S.previewChip, vsStyle, {
+                      borderColor: expectedRoundResult.winner === 'player' ? '#4ade8055' : expectedRoundResult.winner === 'bot' ? '#f8717155' : '#fbbf2455',
+                      backgroundColor: expectedRoundResult.winner === 'player' ? 'rgba(74,222,128,0.08)' : expectedRoundResult.winner === 'bot' ? 'rgba(248,113,113,0.08)' : 'rgba(251,191,36,0.08)',
+                    }]}>
+                      <Text style={[S.previewChipText, {
+                        color: expectedRoundResult.winner === 'player' ? '#4ade80' : expectedRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24',
+                      }]}>
+                        {expectedRoundResult.winner === 'player' ? '👤 متوقع: فوزك' : expectedRoundResult.winner === 'bot' ? '💀 متوقع: خسارتك' : '🤝 متوقع: تعادل'}
+                      </Text>
+                    </Animated.View>
+                  )}
+
+                  {/* Round result badge */}
+                  {(phase === 'result' || phase === 'waiting') && lastRoundResult && (
+                    <View style={[
+                      S.resultBadge,
+                      {
+                        borderColor: lastRoundResult.winner === 'player' ? '#4ade80' : lastRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24',
+                        backgroundColor: lastRoundResult.winner === 'player' ? 'rgba(74,222,128,0.12)' : lastRoundResult.winner === 'bot' ? 'rgba(248,113,113,0.12)' : 'rgba(251,191,36,0.12)',
+                      },
+                    ]}>
+                      <Text style={[S.resultBadgeText, {
+                        color: lastRoundResult.winner === 'player' ? '#4ade80' : lastRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24',
+                      }]}>
+                        {lastRoundResult.winner === 'player' ? '🏆 فزت!' : lastRoundResult.winner === 'bot' ? '💀 خسرت' : '🤝 تعادل'}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* CTA buttons */}
+                  <View style={S.ctaStack}>
+                    {phase === 'action' ? (
+                      <TouchableOpacity style={[S.ctaBtn, S.ctaBtnAttack]} onPress={handleExecuteAttack} activeOpacity={0.85}>
+                        <Text style={S.ctaBtnIcon}>⚔️</Text>
+                        <Text style={S.ctaBtnText}>هجوم!</Text>
+                      </TouchableOpacity>
+                    ) : phase === 'waiting' ? (
+                      <TouchableOpacity style={[S.ctaBtn, S.ctaBtnNext]} onPress={handleNextRound} activeOpacity={0.85}>
+                        <Text style={S.ctaBtnIcon}>{isGameOver ? '🏁' : '▶️'}</Text>
+                        <Text style={S.ctaBtnText}>{isGameOver ? 'إنهاء' : 'التالي'}</Text>
+                      </TouchableOpacity>
                     ) : (
-                      roundHistory.map((item, index) => (
-                        <View key={index} style={styles.matchHistoryRowVisual}>
-                          <View style={styles.matchHistoryCardWrapper}>
-                            {item.winner === 'player' && <Text style={styles.historyCrown}>👑</Text>}
-                            <LuxuryCharacterCardAnimated card={item.playerCard} style={{ width: 80, height: 110 }} />
-                          </View>
-                          <View style={styles.matchHistoryRoundCenter}>
-                            <Text style={styles.matchHistoryRoundText}>الجولة {item.round}</Text>
-                            <Text style={styles.matchHistoryVSCenter}>⚔️</Text>
-                          </View>
-                          <View style={styles.matchHistoryCardWrapper}>
-                            {item.winner === 'bot' && <Text style={styles.historyCrown}>👑</Text>}
-                            <LuxuryCharacterCardAnimated card={item.botCard} style={{ width: 80, height: 110 }} />
-                          </View>
-                        </View>
-                      ))
+                      <View style={[S.ctaBtn, S.ctaBtnDisabled]}>
+                        <Text style={S.ctaBtnText}>{phase === 'combat' ? '⚔️ معركة...' : '⌛ جاري...'}</Text>
+                      </View>
                     )}
-                  </ScrollView>
+
+                    {/* Abilities */}
+                    <TouchableOpacity
+                      style={[S.ctaBtn, S.ctaBtnAbilities, phase !== 'action' && S.ctaBtnDisabled]}
+                      onPress={() => phase === 'action' && setIsAbilitiesModalOpen(true)}
+                      activeOpacity={0.8}
+                      disabled={phase !== 'action'}
+                    >
+                      <Text style={S.ctaBtnIcon}>⚡</Text>
+                      <Text style={S.ctaBtnText}>قدرات</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* BOT PANEL */}
+                <View style={S.botPanel}>
+                  <Text style={S.panelLabel}>بوت</Text>
+                  <Animated.View style={[botStyle, { transform: [{ scale: 0.95 }] }]}>
+                    <LuxuryCharacterCardAnimated card={displayBotCard} style={{ width: cardWidth, height: cardHeight }} />
+                    {showBotEffect && <ElementEffect element={displayBotCard.element} isActive />}
+                  </Animated.View>
+                  {activeDamageNumbers.filter(n => n.side === 'bot').map(n => (
+                    <DamageNumber key={n.id} value={n.value} variant={n.variant} x={40} y={-20} onComplete={() => removeDmg(n.id)} />
+                  ))}
+                  {showResult && lastRoundResult && (
+                    <AdvantageChip advantage={lastRoundResult.botElementAdvantage} element={lastRoundResult.botCard.element} />
+                  )}
+                  {/* Bot status */}
+                  <View style={S.botStatus}>
+                    <Text style={S.botStatusText}>
+                      {phase === 'action' ? '🤖 ينتظر...' : phase === 'combat' ? '⚔️ يقاتل!' : '🤖 جاهز'}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </Modal>
-          </>
+
+              {/* Edit mode FAB */}
+              <TouchableOpacity
+                style={[S.editFab, editMode && S.editFabActive]}
+                onPress={() => setEditMode(!editMode)}
+                activeOpacity={0.8}
+              >
+                <Text style={S.editFabText}>{editMode ? '✅ تم' : '✏️'}</Text>
+              </TouchableOpacity>
+
+            </View>
+          </View>
         )}
       </View>
+
+      {/* ── MODALS ── */}
+
+      {/* Abilities modal */}
+      <Modal visible={isAbilitiesModalOpen} transparent animationType="fade" onRequestClose={() => setIsAbilitiesModalOpen(false)}>
+        <TouchableOpacity style={S.modalOverlay} activeOpacity={1} onPress={() => setIsAbilitiesModalOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={S.abilitiesModal}>
+            <View style={S.modalHeader}>
+              <Text style={S.modalTitle}>⚡ القدرات المتاحة</Text>
+              <TouchableOpacity onPress={() => setIsAbilitiesModalOpen(false)} style={S.modalClose}>
+                <Text style={S.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {state.playerAbilities.length === 0 ? (
+              <Text style={S.emptyText}>لا توجد قدرات متاحة</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ flexDirection: 'row', gap: SPACE.md, paddingHorizontal: SPACE.sm, paddingVertical: SPACE.sm }}
+              >
+                {state.playerAbilities.map((ability, i) => {
+                  const isSealed = state.activeEffects.some(ef =>
+                    ef.kind === 'silenceAbilities' &&
+                    (ef.targetSide === 'player' || ef.targetSide === 'all') &&
+                    ef.createdAtRound <= roundNumber &&
+                    (ef.expiresAtRound === undefined || roundNumber <= ef.expiresAtRound)
+                  );
+                  const canUse = !ability.used && phase === 'action' && !isSealed;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => {
+                        if (!canUse) { if (isSealed) Alert.alert('القدرات مختومة', 'لا يمكنك تفعيل القدرات خلال مدة الختم.'); return; }
+                        if (['LogicalEncounter','Eclipse','Trap','Pool'].includes(ability.type)) {
+                          if (!upcomingRounds.length) return;
+                          setPredictionSelections({}); setPredictionAbilityType(ability.type as any);
+                          setIsAbilitiesModalOpen(false); setShowPredictionModal(true); return;
+                        }
+                        if (['Popularity','Rescue','Penetration'].includes(ability.type)) {
+                          if (!remainingRounds.length) return;
+                          setSelectedPopularityRound(null); setPopularityAbilityType(ability.type as any);
+                          setIsAbilitiesModalOpen(false); setShowPopularityModal(true); return;
+                        }
+                        useAbility(ability.type); setIsAbilitiesModalOpen(false);
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      disabled={!canUse}
+                      activeOpacity={0.85}
+                      style={{ opacity: canUse ? 1 : 0.4, transform: [{ scale: 0.85 }] }}
+                    >
+                      <AbilityCard
+                        ability={{
+                          id: i,
+                          nameEn: ability.type,
+                          nameAr: getAbilityNameAr(ability.type).split('(')[0].trim(),
+                          description: getAbilityDescription(ability.type),
+                          icon: null,
+                          rarity: 'Rare',
+                          isActive: canUse,
+                        }}
+                        showActionButtons={false}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <PredictionModal
+        visible={showPredictionModal}
+        upcomingRounds={upcomingRounds}
+        selections={predictionSelections}
+        onSelect={(r, o) => setPredictionSelections(p => ({ ...p, [r]: o }))}
+        onCancel={() => { setShowPredictionModal(false); setPredictionSelections({}); }}
+        onRequestClose={() => setShowPredictionModal(false)}
+        onConfirm={handleConfirmPrediction}
+        isConfirmDisabled={!predictionComplete}
+      />
+      <PopularityModal
+        visible={showPopularityModal}
+        remainingRounds={remainingRounds}
+        selectedRound={selectedPopularityRound}
+        onSelect={r => setSelectedPopularityRound(r)}
+        onCancel={() => { setShowPopularityModal(false); setSelectedPopularityRound(null); }}
+        onRequestClose={() => setShowPopularityModal(false)}
+        onConfirm={handleConfirmPopularity}
+        isConfirmDisabled={selectedPopularityRound === null}
+      />
+
+      {/* History modal */}
+      <Modal visible={isHistoryModalOpen} transparent animationType="slide" onRequestClose={() => setIsHistoryModalOpen(false)}>
+        <View style={S.modalOverlay}>
+          <View style={S.historyModal}>
+            <View style={S.modalHeader}>
+              <Text style={S.modalTitle}>📜 سجل الجولات</Text>
+              <TouchableOpacity onPress={() => setIsHistoryModalOpen(false)} style={S.modalClose}>
+                <Text style={S.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flexShrink: 1 }}>
+              {roundHistory.length === 0 ? (
+                <Text style={S.emptyText}>لا يوجد سجل بعد</Text>
+              ) : (
+                roundHistory.map((item, idx) => {
+                  const c = item.winner === 'player' ? '#4ade80' : item.winner === 'bot' ? '#f87171' : '#fbbf24';
+                  const l = item.winner === 'player' ? '🏆 فاز اللاعب' : item.winner === 'bot' ? '🤖 فاز البوت' : '🤝 تعادل';
+                  return (
+                    <View key={idx} style={[S.historyRow, { borderLeftColor: c }]}>
+                      <View style={S.historyCardWrap}>
+                        {item.winner === 'player' && <Text style={S.crown}>👑</Text>}
+                        <LuxuryCharacterCardAnimated card={item.playerCard} style={{ width: 72, height: 100 }} />
+                      </View>
+                      <View style={S.historyCenter}>
+                        <Text style={S.historyRound}>جولة {item.round}</Text>
+                        <Text style={[S.historyResult, { color: c }]}>{l}</Text>
+                      </View>
+                      <View style={S.historyCardWrap}>
+                        {item.winner === 'bot' && <Text style={S.crown}>👑</Text>}
+                        <LuxuryCharacterCardAnimated card={item.botCard} style={{ width: 72, height: 100 }} />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  rootScreen: { flex: 1, backgroundColor: '#0a0a0a' },
-  backgroundWrapper: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  sidebar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: '80%', maxWidth: 300, backgroundColor: 'rgba(26, 26, 26, 0.98)', zIndex: 300, borderRightWidth: 3, borderRightColor: '#d4af37' },
-  sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 2, borderBottomColor: '#d4af37', backgroundColor: 'rgba(212, 175, 55, 0.1)' },
-  sidebarTitle: { color: '#d4af37', fontSize: 16, fontWeight: 'bold' },
-  sidebarCloseButton: { width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(248, 113, 113, 0.2)', borderRadius: 15 },
-  sidebarCloseButtonText: { color: '#f87171', fontSize: 18, fontWeight: 'bold' },
-  sidebarContent: { flex: 1, padding: 16 },
-  sidebarSection: { marginBottom: 20, padding: 12, backgroundColor: 'rgba(212, 175, 55, 0.05)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
-  sidebarSectionTitle: { color: '#d4af37', fontSize: 14, fontWeight: 'bold', marginBottom: 12 },
-  sidebarOption: { padding: 12, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
-  sidebarOptionActive: { backgroundColor: 'rgba(212, 175, 55, 0.2)', borderColor: '#d4af37' },
-  sidebarOptionText: { color: '#fff', fontSize: 13, fontWeight: '500' },
-  sidebarActionButton: { padding: 12, backgroundColor: '#d4af37', borderRadius: 8, marginBottom: 8, alignItems: 'center' },
-  sidebarActionButtonText: { color: '#1a1a1a', fontSize: 13, fontWeight: 'bold' },
-  gridContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 },
-  verticalLine: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(212, 175, 55, 0.5)' },
-  horizontalLine: { position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: 'rgba(212, 175, 55, 0.5)' },
-  verticalLineThin: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(212, 175, 55, 0.2)' },
-  horizontalLineThin: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(212, 175, 55, 0.2)' },
-  centerDot: { position: 'absolute', left: '50%', top: '50%', width: 12, height: 12, borderRadius: 6, backgroundColor: '#d4af37', marginLeft: -6, marginTop: -6 },
-  quadrantLabel: { position: 'absolute', width: 30, height: 30, marginLeft: -15, marginTop: -15, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(212, 175, 55, 0.2)', borderRadius: 15 },
-  quadrantText: { color: '#d4af37', fontSize: 16, fontWeight: 'bold' },
-  editInstructions: { position: 'absolute', top: 80, left: 20, right: 20, backgroundColor: 'rgba(212, 175, 55, 0.95)', padding: 12, borderRadius: 12, zIndex: 199 },
-  editInstructionsText: { color: '#1a1a1a', fontSize: 13, fontWeight: 'bold', textAlign: 'center' },
-  battleContainer: { flex: 1, zIndex: 1 },
-  draggableContainer: { position: 'relative' },
-  transformHandlesContainer: { position: 'absolute', top: -30, left: -30, right: -30, bottom: -30 },
+// ──────────────────────────── STYLES ───────────────────────────
+const S = StyleSheet.create({
+  // ─ root
+  root:       { flex: 1, backgroundColor: '#080612' },
+  bgWrap:     { position: 'absolute', inset: 0, zIndex: 0 },
+  battleWrap: { flex: 1, zIndex: 1 },
+  flashOverlay: {
+    position: 'absolute', inset: 0, zIndex: 5,
+    backgroundColor: '#fff', pointerEvents: 'none',
+  },
+
+  // ─ loading
+  loadWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadText: { fontSize: FONT.xl, color: COLOR.textMuted },
+
+  // ─ normal layout
+  normalRoot: { flex: 1 },
+  screen: {
+    flex: 1,
+    flexDirection: 'column',
+    paddingBottom: 8,
+  },
+
+  // ─ TOP HUD
+  topHud: {
+    height: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACE.lg,
+    backgroundColor: 'rgba(8,6,18,0.82)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(228,165,42,0.18)',
+    gap: SPACE.sm,
+  },
+  hudSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+  },
+  hudSideRight: { justifyContent: 'flex-end' },
+  avatar: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  hudInfo: { flex: 1, gap: 4 },
+  hudName: { fontSize: FONT.xs, letterSpacing: 0.5 },
+  hudScore: { fontSize: FONT.xxl, fontVariant: ['tabular-nums'] } as any,
+  hudCenter: {
+    width: 160,
+    alignItems: 'center',
+    gap: SPACE.xs,
+  },
+  hudRound: { color: '#e2e8f0', fontSize: FONT.sm, letterSpacing: 0.4 },
+  historyBtn: {
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(228,165,42,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(228,165,42,0.25)',
+  },
+  historyBtnText: { color: COLOR.gold, fontSize: FONT.xs - 2 },
+
+  // ─ ARENA
+  arena: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACE.lg,
+    paddingTop: SPACE.md,
+    gap: SPACE.sm,
+  },
+  playerPanel: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(10,26,10,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.2)',
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACE.lg,
+    gap: SPACE.sm,
+    height: '100%',
+  },
+  botPanel: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(26,10,10,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.2)',
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACE.lg,
+    gap: SPACE.sm,
+    height: '100%',
+  },
+  panelLabel: {
+    color: COLOR.textMuted,
+    fontSize: FONT.xs - 2,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  botStatus: {
+    marginTop: SPACE.xs,
+    paddingHorizontal: SPACE.md,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  botStatusText: { color: '#94a3b8', fontSize: FONT.xs - 2 },
+
+  // ─ CENTER COLUMN
+  centerCol: {
+    width: 152,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACE.sm,
+    zIndex: 20,
+  },
+  vsBadge: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(8,6,18,0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(228,165,42,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOW.gold,
+  },
+  vsIcon: { fontSize: 18 },
+  vsText: { fontSize: FONT.sm, color: COLOR.gold, letterSpacing: 1 },
+
+  previewChip: {
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs,
+    borderRadius: RADIUS.full, borderWidth: 1,
+    alignItems: 'center',
+  },
+  previewChipText: { fontSize: FONT.xs - 2, textAlign: 'center' },
+
+  resultBadge: {
+    paddingHorizontal: SPACE.lg, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.pill, borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  resultBadgeText: { fontSize: FONT.base, letterSpacing: 0.5 },
+
+  // ─ CTA
+  ctaStack: { gap: SPACE.sm, width: '100%', alignItems: 'center' },
+  ctaBtn: {
+    width: 140, height: 48,
+    borderRadius: RADIUS.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACE.xs,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  ctaBtnAttack: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    borderColor: '#4ade80',
+    shadowColor: '#4ade80',
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  ctaBtnNext: {
+    backgroundColor: 'rgba(96,165,250,0.12)',
+    borderColor: '#60a5fa',
+    shadowColor: '#60a5fa',
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  ctaBtnAbilities: {
+    backgroundColor: 'rgba(168,85,247,0.12)',
+    borderColor: '#a855f7',
+    shadowColor: '#a855f7',
+    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  ctaBtnDisabled: {
+    backgroundColor: 'rgba(71,85,105,0.2)',
+    borderColor: '#475569',
+    shadowOpacity: 0,
+  },
+  ctaBtnIcon: { fontSize: 16 },
+  ctaBtnText: { color: '#f1f5f9', fontSize: FONT.sm, letterSpacing: 0.3 },
+
+  // ─ edit FAB
+  editFab: {
+    position: 'absolute', bottom: 16, right: 16,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(228,165,42,0.15)',
+    borderWidth: 1, borderColor: COLOR.goldDim,
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 50,
+  },
+  editFabActive: { backgroundColor: 'rgba(74,222,128,0.2)', borderColor: '#4ade80' },
+  editFabText: { fontSize: 16 },
+
+  // ─ GRID
+  gridContainer: { position: 'absolute', inset: 0, zIndex: 2 },
+  vLine:     { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
+  hLine:     { position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
+  vLineThin: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(228,165,42,0.15)' },
+  hLineThin: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(228,165,42,0.15)' },
+  gridCenter: { position: 'absolute', left: '50%', top: '50%', width: 12, height: 12, borderRadius: 6, backgroundColor: COLOR.gold, marginLeft: -6, marginTop: -6 },
+
+  // ─ SIDEBAR
+  sidebar: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 280, backgroundColor: 'rgba(20,14,30,0.97)',
+    zIndex: 300, borderRightWidth: 2, borderRightColor: 'rgba(228,165,42,0.3)',
+  },
+  sidebarHead: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: SPACE.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(228,165,42,0.2)',
+    backgroundColor: 'rgba(228,165,42,0.06)',
+  },
+  sidebarTitle: { color: COLOR.gold, fontSize: FONT.base },
+  sidebarClose: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(248,113,113,0.15)', borderRadius: 15 },
+  sidebarSection: { marginBottom: SPACE.lg, padding: SPACE.md, backgroundColor: 'rgba(228,165,42,0.04)', borderRadius: RADIUS.md, borderWidth: 1, borderColor: 'rgba(228,165,42,0.12)' },
+  sidebarSectionTitle: { color: COLOR.gold, fontSize: FONT.sm, marginBottom: SPACE.sm },
+  sidebarOpt: { padding: SPACE.md, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: RADIUS.sm, marginBottom: SPACE.xs, borderWidth: 1, borderColor: 'rgba(228,165,42,0.15)' },
+  sidebarOptActive: { backgroundColor: 'rgba(228,165,42,0.15)', borderColor: COLOR.gold },
+  sidebarOptText: { color: '#f1f5f9', fontSize: FONT.sm },
+  sidebarAction: { padding: SPACE.md, backgroundColor: COLOR.gold, borderRadius: RADIUS.md, alignItems: 'center' },
+  sidebarActionText: { color: '#1A0D1A', fontSize: FONT.sm },
+
+  // ─ DraggableResizable
   resizeHandle: { position: 'absolute', width: 12, height: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2196F3', borderRadius: 2, zIndex: 10 },
   resizeHandleInner: { width: '100%', height: '100%', backgroundColor: '#2196F3' },
-  resizeHandle_topleft: { top: 0, left: 0 },
-  resizeHandle_topright: { top: 0, right: 0 },
-  resizeHandle_bottomleft: { bottom: 50, left: 0 },
-  resizeHandle_bottomright: { bottom: 50, right: 0 },
-  resizeHandle_top: { top: 0, left: '50%', marginLeft: -6 },
-  resizeHandle_bottom: { bottom: 50, left: '50%', marginLeft: -6 },
-  resizeHandle_left: { top: '50%', left: 0, marginTop: -6 },
-  resizeHandle_right: { top: '50%', right: 0, marginTop: -6 },
-  centerDotHandle: { position: 'absolute', left: '50%', top: '50%', width: 16, height: 16, marginLeft: -8, marginTop: -8, justifyContent: 'center', alignItems: 'center' },
-  centerDotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2196F3', borderWidth: 2, borderColor: '#fff' },
-  fixedScaleControls: { position: 'absolute', bottom: -60, left: '50%', transform: [{ translateX: -85 }], flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(33, 33, 33, 0.95)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, gap: 10, borderWidth: 2, borderColor: '#2196F3' },
-  scaleControlButton: { backgroundColor: '#2196F3', width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  scaleControlButtonDisabled: { backgroundColor: '#555', opacity: 0.5 },
-  scaleControlButtonText: { color: '#fff', fontSize: 24, fontWeight: 'bold', lineHeight: 24 },
-  scaleControlDisplay: { backgroundColor: 'rgba(255, 255, 255, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, minWidth: 60, alignItems: 'center' },
-  scaleControlText: { color: '#4ade80', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
-  editElement: { alignItems: 'center' },
-  elementLabel: { color: '#d4af37', fontSize: 13, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  vsEditText: { color: '#e94560', fontSize: 24, fontWeight: 'bold', padding: 12 },
-  scoreEditText: { color: '#fff', fontSize: 22, fontWeight: 'bold', padding: 8 },
-  roundEditText: { color: '#d4af37', fontSize: 15, fontWeight: 'bold', padding: 8 },
-  abilitiesEditBox: { gap: 6, minHeight: 300 },
-  abilityEditItem: { backgroundColor: '#d4af37', padding: 10, borderRadius: 12, minWidth: 120 },
-  abilityEditText: { color: '#1a1a1a', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-  resultEditText: { fontSize: 20, fontWeight: 'bold', padding: 12 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { fontSize: 18, color: '#a0a0a0' },
-  normalPlayContainer: { flex: 1, flexDirection: 'column' },
-  battleRoot: { flex: 1, backgroundColor: 'transparent', justifyContent: 'space-between' },
-  topHud: { height: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: 'rgba(20, 10, 15, 0.85)', borderBottomWidth: 1, borderBottomColor: 'rgba(212,175,55,0.3)', zIndex: 10 },
-  hudPlayer: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  hudBot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flex: 1 },
-  hudInfo: { justifyContent: 'center', gap: 2 },
-  hudCenter: { alignItems: 'center', justifyContent: 'center', flex: 0.5 },
-  arenaContainer: { flex: 1, flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-start', marginTop: 20, paddingHorizontal: 16, gap: 12 },
-  playerSideHorizontal: { flex: 1, flexDirection: 'column', backgroundColor: 'rgba(10, 20, 10, 0.35)', borderWidth: 1, borderColor: 'rgba(74, 222, 128, 0.25)', borderRadius: 16, padding: 12, alignItems: 'center', justifyContent: 'flex-start' },
-  enemySideHorizontal: { flex: 1, flexDirection: 'column', backgroundColor: 'rgba(20, 10, 10, 0.35)', borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.25)', borderRadius: 16, padding: 12, alignItems: 'center', justifyContent: 'flex-start' },
-  centerVSGlow: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 0, gap: 8, zIndex: 20 },
-  vsBadgeHorizontal: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: 'rgba(212,175,55,0.8)', backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
-  vsBadgeTextHorizontal: { fontSize: 10 },
-  vsBadgeVSHorizontal: { fontSize: 18, fontWeight: '900', color: '#d4af37', marginTop: -2 },
-  currentCardAreaHorizontal: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  effectsBox: { marginTop: 10, alignItems: 'center', justifyContent: 'center', minHeight: 40, backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: 8, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  advantageText: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
-  botResultValue: { fontSize: 14, fontWeight: 'bold', color: '#ff4444' },
-  previewBadge: { marginTop: 12, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center' },
-  previewBadgeText: { fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
-  floatingActionRight: { position: 'absolute', right: 20, zIndex: 100 },
-  botStatusPillHUD: { backgroundColor: 'rgba(15, 15, 20, 0.85)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, justifyContent: 'center', alignItems: 'center' },
-  botStatusTextHUD: { fontSize: 12, color: '#cbd5e1', fontWeight: '600' },
-  unifiedButton: { width: 150, height: 45, borderRadius: 22, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.4)', borderWidth: 1.5 },
-  unifiedButtonText: { fontSize: 14, fontWeight: 'bold', color: '#ffffff' },
-  unifiedButtonConfirm: { borderColor: '#4ade80', shadowColor: '#4ade80', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, elevation: 4 },
-  unifiedButtonAbilities: { borderColor: '#a855f7', shadowColor: '#a855f7', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, elevation: 4 },
-  unifiedButtonWait: { borderColor: '#3b82f6', shadowColor: '#60a5fa', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8 },
-  unifiedButtonDisabled: { borderColor: '#475569', backgroundColor: 'rgba(71, 85, 105, 0.4)' },
-  abilitiesModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  abilitiesModalContent: { width: '92%', maxWidth: 800, backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(51, 65, 85, 0.8)', overflow: 'hidden', padding: 16, paddingBottom: 12 },
-  abilitiesModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  abilitiesModalTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
-  combatantName: { fontSize: 16, fontWeight: '700', color: '#e0c8a0' },
-  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2a1a2a', borderWidth: 1.5, borderColor: '#d4af37', alignItems: 'center', justifyContent: 'center' },
-  matchHistoryOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-  matchHistoryContent: { backgroundColor: '#1a1a24', borderRadius: 16, width: '90%', maxHeight: '80%', padding: 20, borderWidth: 1, borderColor: '#334155' },
-  matchHistoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#2a2a35', paddingBottom: 10 },
-  matchHistoryTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
-  matchHistoryCloseBtn: { fontSize: 22, color: '#94a3b8', fontWeight: 'bold' },
-  matchHistoryScroll: { flexShrink: 1 },
-  matchHistoryEmpty: { color: '#a0a0a0', textAlign: 'center', marginTop: 20, fontSize: 16 },
-  matchHistoryRowVisual: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 10 },
-  matchHistoryCardWrapper: { alignItems: 'center', justifyContent: 'center', position: 'relative', width: 80, height: 110 },
-  historyCrown: { position: 'absolute', top: -20, alignSelf: 'center', fontSize: 24, zIndex: 10 },
-  matchHistoryRoundCenter: { alignItems: 'center', justifyContent: 'center' },
-  matchHistoryRoundText: { fontSize: 14, color: '#d4af37', fontWeight: 'bold', marginBottom: 6 },
-  matchHistoryVSCenter: { fontSize: 18, color: '#e94560' },
+  rh_topleft:     { top: 0, left: 0 },
+  rh_topright:    { top: 0, right: 0 },
+  rh_bottomleft:  { bottom: 50, left: 0 },
+  rh_bottomright: { bottom: 50, right: 0 },
+  rh_top:    { top: 0, left: '50%', marginLeft: -6 },
+  rh_bottom: { bottom: 50, left: '50%', marginLeft: -6 },
+  rh_left:   { top: '50%', left: 0, marginTop: -6 },
+  rh_right:  { top: '50%', right: 0, marginTop: -6 },
+  transformHandles: { position: 'absolute', top: -30, left: -30, right: -30, bottom: -30 },
+  scaleControls: {
+    position: 'absolute', bottom: -60, left: '50%',
+    transform: [{ translateX: -85 }],
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(28,28,40,0.95)',
+    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.md, gap: SPACE.sm,
+    borderWidth: 1.5, borderColor: '#2196F3',
+  },
+  scaleBtn: { backgroundColor: '#2196F3', width: 34, height: 34, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  scaleBtnDisabled: { backgroundColor: '#555', opacity: 0.5 },
+  scaleBtnText: { color: '#fff', fontSize: 22, lineHeight: 22 },
+  scaleDisplay: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: SPACE.md, paddingVertical: 4, borderRadius: 6, minWidth: 56, alignItems: 'center' },
+  scaleDisplayText: { color: '#4ade80', fontSize: FONT.sm },
+  editElem: { alignItems: 'center' },
+  editLabel: { color: COLOR.gold, fontSize: FONT.sm, marginBottom: SPACE.sm },
+
+  // ─ MODALS
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
+  abilitiesModal: {
+    width: '92%', maxWidth: 820,
+    backgroundColor: 'rgba(12,18,36,0.97)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: 'rgba(51,65,85,0.7)',
+    padding: SPACE.xl, paddingBottom: SPACE.lg,
+  },
+  historyModal: {
+    backgroundColor: 'rgba(18,14,28,0.97)',
+    borderRadius: RADIUS.lg,
+    width: '90%', maxHeight: '82%',
+    padding: SPACE.xl,
+    borderWidth: 1, borderColor: '#1e293b',
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: SPACE.lg,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
+    paddingBottom: SPACE.md,
+  },
+  modalTitle: { color: '#f8fafc', fontSize: FONT.xl },
+  modalClose: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(248,113,113,0.12)', borderRadius: 16 },
+  modalCloseText: { color: '#f87171', fontSize: 18 },
+  emptyText: { color: '#64748b', textAlign: 'center', marginVertical: SPACE.xxl, fontSize: FONT.base },
+
+  historyRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderLeftWidth: 3, paddingLeft: SPACE.lg,
+    paddingVertical: SPACE.md, marginBottom: SPACE.lg,
+    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: RADIUS.md,
+    gap: SPACE.lg,
+  },
+  historyCardWrap: { alignItems: 'center', position: 'relative' },
+  crown: { fontSize: 20, position: 'absolute', top: -20, alignSelf: 'center', zIndex: 10 },
+  historyCenter: { flex: 1, alignItems: 'center', gap: SPACE.xs },
+  historyRound: { color: COLOR.gold, fontSize: FONT.sm },
+  historyResult: { fontSize: FONT.base },
 });
