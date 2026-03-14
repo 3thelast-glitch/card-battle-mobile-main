@@ -1,27 +1,16 @@
 /**
- * LuxuryCharacterCardAnimated — Elven Luxury style
- * Clean professional design inspired by card-battle-card-maker elven-luxury template
- * Features:
- * - Full-bleed art image
- * - Foil sweep (Epic & Legendary)
- * - Slow-rotating runic ring behind stat badges (Epic & Legendary)
- * - Breathing golden border pulse (Legendary only)
- * - Elven SVG corner filigree (Rare, Epic, Legendary)
- * - Only Attack + Defense stats — no description box, no clutter
+ * LuxuryCharacterCardAnimated — Elven Luxury Enhanced
+ * - Epic:      Purple foil + dual runic rings + 2 ornate corners + side vines + purple shimmer bar
+ * - Legendary: Gold breathing border + triple runic rings + 4 ornate corners + full edge chains + golden particle dots
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withTiming,
-    withSequence,
-    interpolate,
-    Easing,
+    useSharedValue, useAnimatedStyle, withRepeat, withTiming,
+    withSequence, interpolate, Easing,
 } from 'react-native-reanimated';
-import { Svg, Circle, Line, Polygon, Ellipse } from 'react-native-svg';
+import { Svg, Circle, Line, Polygon, Ellipse, Path, Rect } from 'react-native-svg';
 import { Card, CardRarity } from '@/lib/game/types';
 
 interface LuxuryCharacterCardAnimatedProps {
@@ -31,96 +20,51 @@ interface LuxuryCharacterCardAnimatedProps {
 
 const RARITY_THEMES = {
     common: {
-        label: 'عادي',
-        color: '#9CA3AF',
-        borderColor: '#6B7280',
-        borderWidth: 1,
-        shadowColor: '#6B7280',
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 4,
-        hasFoil: false,
-        hasRunicRing: false,
-        hasFiligree: false,
-        hasPulse: false,
-        foilDuration: 0,
-        atkColor: '#9CA3AF',
-        defColor: '#9CA3AF',
+        label: 'عادي', color: '#9CA3AF', borderColor: '#6B7280', borderWidth: 1,
+        shadowColor: '#6B7280', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4,
+        hasFoil: false, hasRunicRing: false, hasFiligree: false, hasPulse: false,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: false,
+        ringCount: 0, foilDuration: 0, atkColor: '#9CA3AF', defColor: '#9CA3AF',
+        foilColors: ['transparent', 'transparent'] as any,
     },
     rare: {
-        label: 'نادر',
-        color: '#CD7F32',
-        borderColor: '#CD7F32',
-        borderWidth: 1.5,
-        shadowColor: '#CD7F32',
-        shadowOpacity: 0.35,
-        shadowRadius: 10,
-        elevation: 6,
-        hasFoil: false,
-        hasRunicRing: false,
-        hasFiligree: true,
-        hasPulse: false,
-        foilDuration: 0,
-        atkColor: '#D97706',
-        defColor: '#92C5FD',
+        label: 'نادر', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
+        shadowColor: '#CD7F32', shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+        hasFoil: false, hasRunicRing: false, hasFiligree: true, hasPulse: false,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: false,
+        ringCount: 0, foilDuration: 0, atkColor: '#D97706', defColor: '#92C5FD',
+        foilColors: ['transparent', 'transparent'] as any,
     },
     epic: {
-        label: 'ملحمي',
-        color: '#A855F7',
-        borderColor: '#A855F7',
-        borderWidth: 2,
-        shadowColor: '#A855F7',
-        shadowOpacity: 0.55,
-        shadowRadius: 16,
-        elevation: 8,
-        hasFoil: true,
-        hasRunicRing: true,
-        hasFiligree: true,
-        hasPulse: false,
-        foilDuration: 3200,
-        atkColor: '#F0ABFC',
-        defColor: '#93C5FD',
+        label: 'ملحمي', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
+        shadowColor: '#A855F7', shadowOpacity: 0.65, shadowRadius: 18, elevation: 9,
+        hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: false,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: true,
+        ringCount: 2, foilDuration: 3000,
+        atkColor: '#F0ABFC', defColor: '#93C5FD',
+        foilColors: ['transparent', 'rgba(200,100,255,0.12)', 'rgba(150,80,255,0.25)', 'rgba(200,100,255,0.12)', 'transparent'] as any,
     },
     legendary: {
-        label: 'أسطوري',
-        color: '#FFD700',
-        borderColor: '#FFD700',
-        borderWidth: 2,
-        shadowColor: '#FFD700',
-        shadowOpacity: 0.8,
-        shadowRadius: 22,
-        elevation: 10,
-        hasFoil: true,
-        hasRunicRing: true,
-        hasFiligree: true,
-        hasPulse: true,
-        foilDuration: 2400,
-        atkColor: '#FDE68A',
-        defColor: '#BAE6FD',
+        label: 'أسطوري', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
+        shadowColor: '#FFD700', shadowOpacity: 0.9, shadowRadius: 26, elevation: 12,
+        hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: true,
+        hasEdgeChain: true, hasParticles: true, hasSideVines: false,
+        ringCount: 3, foilDuration: 2200,
+        atkColor: '#FDE68A', defColor: '#BAE6FD',
+        foilColors: ['transparent', 'rgba(255,215,0,0.1)', 'rgba(255,200,50,0.28)', 'rgba(255,180,0,0.18)', 'rgba(255,215,0,0.1)', 'transparent'] as any,
     },
 } as const;
 
 // ─── Runic Ring ───────────────────────────────────────────────────────────────
-const RunicRing = ({ color, size = 64, reverse = false }: { color: string; size?: number; reverse?: boolean }) => {
+const RunicRing = ({ color, size = 64, reverse = false, speed = 10000 }: { color: string; size?: number; reverse?: boolean; speed?: number }) => {
     const rotation = useSharedValue(0);
     useEffect(() => {
-        rotation.value = withRepeat(
-            withTiming(reverse ? -360 : 360, { duration: 10000, easing: Easing.linear }),
-            -1, false
-        );
+        rotation.value = withRepeat(withTiming(reverse ? -360 : 360, { duration: speed, easing: Easing.linear }), -1, false);
     }, []);
-    const animStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${rotation.value}deg` }],
-    }));
+    const animStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
     const spokes = Array.from({ length: 8 }).map((_, i) => {
         const a = (i * 45) * Math.PI / 180;
-        return (
-            <Line key={i}
-                x1={50 + 28 * Math.cos(a)} y1={50 + 28 * Math.sin(a)}
-                x2={50 + 44 * Math.cos(a)} y2={50 + 44 * Math.sin(a)}
-                stroke={color} strokeWidth={0.7} opacity={0.6}
-            />
-        );
+        return <Line key={i} x1={50 + 28 * Math.cos(a)} y1={50 + 28 * Math.sin(a)} x2={50 + 44 * Math.cos(a)} y2={50 + 44 * Math.sin(a)} stroke={color} strokeWidth={0.7} opacity={0.6} />;
     });
     const gems = [0, 90, 180, 270].map((deg, i) => {
         const r = deg * Math.PI / 180;
@@ -133,45 +77,133 @@ const RunicRing = ({ color, size = 64, reverse = false }: { color: string; size?
                 <Circle cx={50} cy={50} r={46} stroke={color} strokeWidth={0.8} strokeDasharray="4 3" fill="none" opacity={0.5} />
                 <Circle cx={50} cy={50} r={36} stroke={color} strokeWidth={0.5} fill="none" opacity={0.4} />
                 <Circle cx={50} cy={50} r={26} stroke={color} strokeWidth={0.8} strokeDasharray="3 4" fill="none" opacity={0.35} />
-                {spokes}
-                {gems}
+                {spokes}{gems}
                 <Circle cx={50} cy={50} r={2} fill={color} opacity={0.8} />
             </Svg>
         </Animated.View>
     );
 };
 
-// ─── Elven Corner Filigree ────────────────────────────────────────────────────
-const ElvenCorner = ({ position, color }: { position: 'tl' | 'tr' | 'bl' | 'br'; color: string }) => {
+// ─── Rich Elven Corner (4 levels of detail) ──────────────────────────────────
+const ElvenCorner = ({ position, color, rich = false }: { position: 'tl' | 'tr' | 'bl' | 'br'; color: string; rich?: boolean }) => {
     const rot = position === 'tl' ? 0 : position === 'tr' ? 90 : position === 'bl' ? -90 : 180;
     const posStyle: ViewStyle =
         position === 'tl' ? { top: 2, left: 2 } :
         position === 'tr' ? { top: 2, right: 2 } :
-        position === 'bl' ? { bottom: 2, left: 2 } :
-        { bottom: 2, right: 2 };
+        position === 'bl' ? { bottom: 2, left: 2 } : { bottom: 2, right: 2 };
+    const sz = rich ? 54 : 40;
     const spokes = Array.from({ length: 8 }).map((_, i) => {
         const a = (i * 45) * Math.PI / 180;
-        return (
-            <Line key={i}
-                x1={14 + 5 * Math.cos(a)} y1={14 + 5 * Math.sin(a)}
-                x2={14 + 10 * Math.cos(a)} y2={14 + 10 * Math.sin(a)}
-                stroke={color} strokeWidth={0.6} opacity={0.7}
-            />
-        );
+        return <Line key={i} x1={14 + 5 * Math.cos(a)} y1={14 + 5 * Math.sin(a)} x2={14 + 10 * Math.cos(a)} y2={14 + 10 * Math.sin(a)} stroke={color} strokeWidth={0.6} opacity={0.7} />;
     });
     return (
-        <View style={[styles.filigreeCorner, posStyle]} pointerEvents="none">
-            <Svg width={40} height={40} viewBox="0 0 80 80" style={{ transform: [{ rotate: `${rot}deg` }] }}>
-                <Line x1={10} y1={14} x2={60} y2={12} stroke={color} strokeWidth={1.2} opacity={0.85} />
-                <Line x1={14} y1={10} x2={12} y2={60} stroke={color} strokeWidth={1.2} opacity={0.85} />
-                {[32, 42, 52].map((x, i) => <Ellipse key={`hx${i}`} cx={x} cy={11} rx={3} ry={1.5} fill={color} opacity={0.55} />)}
-                {[32, 42, 52].map((y, i) => <Ellipse key={`vy${i}`} cx={11} cy={y} rx={1.5} ry={3} fill={color} opacity={0.55} />)}
-                <Circle cx={14} cy={14} r={7} stroke={color} strokeWidth={1} fill="none" opacity={0.8} />
-                <Circle cx={14} cy={14} r={4} fill={color} opacity={0.9} />
+        <View style={[styles.filigreeCorner, posStyle, { width: sz, height: sz }]} pointerEvents="none">
+            <Svg width={sz} height={sz} viewBox="0 0 80 80" style={{ transform: [{ rotate: `${rot}deg` }] }}>
+                {/* Main arms */}
+                <Line x1={8} y1={14} x2={68} y2={11} stroke={color} strokeWidth={1.4} opacity={0.9} />
+                <Line x1={14} y1={8} x2={11} y2={68} stroke={color} strokeWidth={1.4} opacity={0.9} />
+                {/* Secondary arms */}
+                <Line x1={8} y1={22} x2={50} y2={20} stroke={color} strokeWidth={0.7} opacity={0.5} />
+                <Line x1={22} y1={8} x2={20} y2={50} stroke={color} strokeWidth={0.7} opacity={0.5} />
+                {/* Gems on arms */}
+                {[28, 40, 52, 64].map((x, i) => <Ellipse key={`hx${i}`} cx={x} cy={11} rx={rich ? 3.5 : 2.5} ry={rich ? 2 : 1.5} fill={color} opacity={0.6} />)}
+                {[28, 40, 52, 64].map((y, i) => <Ellipse key={`vy${i}`} cx={11} cy={y} rx={rich ? 2 : 1.5} ry={rich ? 3.5 : 2.5} fill={color} opacity={0.6} />)}
+                {/* Center medallion */}
+                <Circle cx={14} cy={14} r={rich ? 9 : 7} stroke={color} strokeWidth={1.2} fill="none" opacity={0.85} />
+                <Circle cx={14} cy={14} r={rich ? 6 : 4} fill={color} opacity={0.9} />
+                {rich && <Circle cx={14} cy={14} r={2} fill="#fff" opacity={0.7} />}
                 {spokes}
-                <Circle cx={12.5} cy={12.5} r={1} fill="#fff" opacity={0.7} />
-                {[20, 28, 36, 44].map((x, i) => <Circle key={`chi${i}`} cx={x} cy={13} r={0.8} fill={color} opacity={0.5} />)}
-                {[20, 28, 36, 44].map((y, i) => <Circle key={`cvi${i}`} cx={13} cy={y} r={0.8} fill={color} opacity={0.5} />)}
+                {/* Dot chains */}
+                {[20, 28, 36, 44, 52, 60].map((x, i) => <Circle key={`chi${i}`} cx={x} cy={13} r={rich ? 1.1 : 0.8} fill={color} opacity={0.5} />)}
+                {[20, 28, 36, 44, 52, 60].map((y, i) => <Circle key={`cvi${i}`} cx={13} cy={y} r={rich ? 1.1 : 0.8} fill={color} opacity={0.5} />)}
+                {/* Diagonal leaf (rich only) */}
+                {rich && <Path d="M22 22 Q30 18 28 28 Q18 30 22 22" fill={color} fillOpacity={0.35} stroke={color} strokeWidth={0.6} />}
+                {rich && <Path d="M30 14 L34 10 L36 16 Z" fill={color} fillOpacity={0.7} />}
+                {rich && <Path d="M14 30 L10 34 L16 36 Z" fill={color} fillOpacity={0.7} />}
+            </Svg>
+        </View>
+    );
+};
+
+// ─── Edge Chain (Legendary only) ──────────────────────────────────────────────
+const EdgeChain = ({ color }: { color: string }) => (
+    <View style={styles.edgeChainWrapper} pointerEvents="none">
+        {/* Top edge */}
+        <Svg style={styles.edgeTop} width="100%" height={10} viewBox="0 0 220 10" preserveAspectRatio="none">
+            {Array.from({ length: 18 }).map((_, i) => (
+                <React.Fragment key={i}>
+                    <Circle cx={12 + i * 11} cy={5} r={2.5} fill={color} fillOpacity={0.5} />
+                    {i < 17 && <Line x1={14.5 + i * 11} y1={5} x2={20.5 + i * 11} y2={5} stroke={color} strokeWidth={0.8} opacity={0.35} />}
+                </React.Fragment>
+            ))}
+        </Svg>
+        {/* Bottom edge */}
+        <Svg style={styles.edgeBottom} width="100%" height={10} viewBox="0 0 220 10" preserveAspectRatio="none">
+            {Array.from({ length: 18 }).map((_, i) => (
+                <React.Fragment key={i}>
+                    <Circle cx={12 + i * 11} cy={5} r={2.5} fill={color} fillOpacity={0.5} />
+                    {i < 17 && <Line x1={14.5 + i * 11} y1={5} x2={20.5 + i * 11} y2={5} stroke={color} strokeWidth={0.8} opacity={0.35} />}
+                </React.Fragment>
+            ))}
+        </Svg>
+        {/* Left edge */}
+        <Svg style={styles.edgeLeft} width={10} height="100%" viewBox="0 0 10 320" preserveAspectRatio="none">
+            {Array.from({ length: 26 }).map((_, i) => (
+                <React.Fragment key={i}>
+                    <Circle cx={5} cy={12 + i * 11} r={2.5} fill={color} fillOpacity={0.4} />
+                    {i < 25 && <Line x1={5} y1={14.5 + i * 11} x2={5} y2={20.5 + i * 11} stroke={color} strokeWidth={0.8} opacity={0.3} />}
+                </React.Fragment>
+            ))}
+        </Svg>
+        {/* Right edge */}
+        <Svg style={styles.edgeRight} width={10} height="100%" viewBox="0 0 10 320" preserveAspectRatio="none">
+            {Array.from({ length: 26 }).map((_, i) => (
+                <React.Fragment key={i}>
+                    <Circle cx={5} cy={12 + i * 11} r={2.5} fill={color} fillOpacity={0.4} />
+                    {i < 25 && <Line x1={5} y1={14.5 + i * 11} x2={5} y2={20.5 + i * 11} stroke={color} strokeWidth={0.8} opacity={0.3} />}
+                </React.Fragment>
+            ))}
+        </Svg>
+    </View>
+);
+
+// ─── Side Vines (Epic only) ───────────────────────────────────────────────────
+const SideVines = ({ color }: { color: string }) => (
+    <View style={styles.sideVinesWrapper} pointerEvents="none">
+        <Svg style={styles.vineLeft} width={14} height="60%" viewBox="0 0 14 180">
+            <Path d="M7 0 Q12 20 7 40 Q2 60 7 80 Q12 100 7 120 Q2 140 7 160 Q12 170 7 180" stroke={color} strokeWidth={1.2} fill="none" opacity={0.45} />
+            {[20, 50, 80, 110, 140].map((y, i) => (
+                <Ellipse key={i} cx={i % 2 === 0 ? 10 : 4} cy={y} rx={3} ry={4.5} fill={color} fillOpacity={0.3} stroke={color} strokeWidth={0.5} opacity={0.6} />
+            ))}
+        </Svg>
+        <Svg style={styles.vineRight} width={14} height="60%" viewBox="0 0 14 180">
+            <Path d="M7 0 Q2 20 7 40 Q12 60 7 80 Q2 100 7 120 Q12 140 7 160 Q2 170 7 180" stroke={color} strokeWidth={1.2} fill="none" opacity={0.45} />
+            {[20, 50, 80, 110, 140].map((y, i) => (
+                <Ellipse key={i} cx={i % 2 === 0 ? 4 : 10} cy={y} rx={3} ry={4.5} fill={color} fillOpacity={0.3} stroke={color} strokeWidth={0.5} opacity={0.6} />
+            ))}
+        </Svg>
+    </View>
+);
+
+// ─── Floating Particles (Legendary only) ─────────────────────────────────
+const FloatingParticles = ({ color }: { color: string }) => {
+    const dots = [
+        { x: 30, y: 60 }, { x: 185, y: 80 }, { x: 55, y: 140 },
+        { x: 165, y: 155 }, { x: 110, y: 50 }, { x: 20, y: 200 }, { x: 195, y: 210 },
+    ];
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Svg width="100%" height="100%" viewBox="0 0 220 320">
+                {dots.map((d, i) => (
+                    <React.Fragment key={i}>
+                        <Circle cx={d.x} cy={d.y} r={1.8} fill={color} fillOpacity={0.6} />
+                        <Circle cx={d.x} cy={d.y} r={3.5} fill={color} fillOpacity={0.12} />
+                    </React.Fragment>
+                ))}
+                {/* Diamond accents */}
+                {[[40, 90], [175, 100], [110, 200]].map(([x, y], i) => (
+                    <Polygon key={`d${i}`} points={`${x},${y - 5} ${x + 4},${y} ${x},${y + 5} ${x - 4},${y}`} fill={color} fillOpacity={0.5} />
+                ))}
             </Svg>
         </View>
     );
@@ -186,32 +218,22 @@ const BreathingBorder = () => {
     const animStyle = useAnimatedStyle(() => ({
         opacity: interpolate(pulse.value, [0, 1], [0.45, 1]),
         shadowOpacity: interpolate(pulse.value, [0, 1], [0.3, 0.95]),
-        shadowRadius: interpolate(pulse.value, [0, 1], [8, 30]),
-        transform: [{ scale: interpolate(pulse.value, [0, 1], [0.997, 1.005]) }],
+        shadowRadius: interpolate(pulse.value, [0, 1], [10, 36]),
+        transform: [{ scale: interpolate(pulse.value, [0, 1], [0.997, 1.006]) }],
     }));
-    return (
-        <Animated.View style={[styles.breathingBorder, animStyle]} pointerEvents="none" />
-    );
+    return <Animated.View style={[styles.breathingBorder, animStyle]} pointerEvents="none" />;
 };
 
-// ─── Glow Ring (Epic / Legendary) ────────────────────────────────────────────
+// ─── Glow Ring ────────────────────────────────────────────────────────────────────
 const GlowRing = ({ color }: { color: string }) => {
     const opacity = useSharedValue(0.4);
     useEffect(() => {
-        opacity.value = withRepeat(
-            withSequence(
-                withTiming(1, { duration: 1800 }),
-                withTiming(0.4, { duration: 1800 }),
-            ), -1, false
-        );
+        opacity.value = withRepeat(withSequence(withTiming(1, { duration: 1800 }), withTiming(0.4, { duration: 1800 })), -1, false);
     }, []);
     const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-    return (
-        <Animated.View style={[styles.glowRing, { borderColor: color, shadowColor: color }, animStyle]} pointerEvents="none" />
-    );
+    return <Animated.View style={[styles.glowRing, { borderColor: color, shadowColor: color }, animStyle]} pointerEvents="none" />;
 };
 
-// ─── Resolve image source ─────────────────────────────────────────────────────
 function resolveSource(src: any) {
     if (!src) return null;
     if (typeof src === 'string') return { uri: src };
@@ -228,49 +250,32 @@ export function LuxuryCharacterCardAnimated({ card, style }: LuxuryCharacterCard
     const foilPos = useSharedValue(-120);
     useEffect(() => {
         if (theme.hasFoil) {
-            foilPos.value = withRepeat(
-                withTiming(320, { duration: theme.foilDuration, easing: Easing.linear }),
-                -1, false
-            );
+            foilPos.value = withRepeat(withTiming(320, { duration: theme.foilDuration, easing: Easing.linear }), -1, false);
         }
     }, [rarity]);
     const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: foilPos.value }] }));
-
     const imgSource = resolveSource(card.finalImage);
 
     return (
-        <Animated.View
-            style={[
-                styles.cardContainer,
-                {
-                    borderColor: theme.borderColor,
-                    borderWidth: theme.borderWidth,
-                    shadowColor: theme.shadowColor,
-                    shadowOpacity: theme.shadowOpacity,
-                    shadowRadius: theme.shadowRadius,
-                    elevation: theme.elevation,
-                },
-                style,
-            ]}
-        >
+        <Animated.View style={[
+            styles.cardContainer,
+            { borderColor: theme.borderColor, borderWidth: theme.borderWidth,
+              shadowColor: theme.shadowColor, shadowOpacity: theme.shadowOpacity,
+              shadowRadius: theme.shadowRadius, elevation: theme.elevation },
+            style,
+        ]}>
             {theme.hasPulse && <BreathingBorder />}
             {(rarity === 'epic' || rarity === 'legendary') && <GlowRing color={theme.color} />}
 
             <View style={styles.cardInner}>
-                {imgSource && (
-                    <Image source={imgSource} style={styles.bgImage} resizeMode="cover" />
-                )}
+                {imgSource && <Image source={imgSource} style={styles.bgImage} resizeMode="cover" />}
 
                 <View style={styles.contentLayer}>
-                    {/* Foil sweep */}
+                    {/* Foil */}
                     {theme.hasFoil && (
                         <View style={styles.foilContainer} pointerEvents="none">
                             <Animated.View style={[styles.foilStrip, foilStyle]}>
-                                <LinearGradient
-                                    colors={['transparent', 'rgba(255,255,255,0.08)', 'rgba(180,120,255,0.22)', 'rgba(255,220,80,0.18)', 'transparent']}
-                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                                    style={styles.foilGradient}
-                                />
+                                <LinearGradient colors={theme.foilColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.foilGradient} />
                             </Animated.View>
                         </View>
                     )}
@@ -278,83 +283,93 @@ export function LuxuryCharacterCardAnimated({ card, style }: LuxuryCharacterCard
                     {/* Inner border */}
                     <View style={[styles.innerBorder, { borderColor: theme.borderColor + '55' }]} pointerEvents="none" />
 
-                    {/* Bottom dark gradient */}
+                    {/* Bottom gradient */}
                     <LinearGradient
-                        colors={['transparent', 'transparent', 'rgba(0,0,0,0.65)', 'rgba(0,0,0,0.92)']}
-                        style={styles.gradientOverlay}
-                        start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                        colors={['transparent', 'transparent', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.92)']}
+                        style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                         pointerEvents="none"
                     />
 
-                    {/* Elven corners */}
+                    {/* Legendary: edge chains + particles */}
+                    {theme.hasEdgeChain && <EdgeChain color={theme.color} />}
+                    {theme.hasParticles && <FloatingParticles color={theme.color} />}
+
+                    {/* Epic: side vines */}
+                    {theme.hasSideVines && <SideVines color={theme.color} />}
+
+                    {/* Corners — all 4 for legendary (rich), top 2 for epic/rare */}
                     {theme.hasFiligree && (
                         <>
-                            <ElvenCorner position="tl" color={theme.color} />
-                            <ElvenCorner position="tr" color={theme.color} />
-                            {theme.hasPulse && <ElvenCorner position="bl" color={theme.color} />}
-                            {theme.hasPulse && <ElvenCorner position="br" color={theme.color} />}
+                            <ElvenCorner position="tl" color={theme.color} rich={rarity === 'legendary'} />
+                            <ElvenCorner position="tr" color={theme.color} rich={rarity === 'legendary'} />
+                            {(rarity === 'legendary' || rarity === 'epic') && (
+                                <>
+                                    <ElvenCorner position="bl" color={theme.color} rich={rarity === 'legendary'} />
+                                    <ElvenCorner position="br" color={theme.color} rich={rarity === 'legendary'} />
+                                </>
+                            )}
                         </>
                     )}
 
                     {/* Rarity badge */}
-                    <View style={[styles.rarityBadge, { borderColor: theme.color + 'AA' }]}>
+                    <View style={[styles.rarityBadge, { borderColor: theme.color + 'AA',
+                        backgroundColor: rarity === 'legendary' ? 'rgba(30,20,0,0.75)' : rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)' }]}>
                         <Text style={[styles.rarityBadgeText, { color: theme.color }]}>
-                            {theme.label} ✦
+                            {rarity === 'legendary' ? '✧ ' : '✦ '}{theme.label}{rarity === 'legendary' ? ' ✧' : ' ✦'}
                         </Text>
                     </View>
 
-                    {/* Card name */}
+                    {/* Name */}
                     <View style={styles.nameContainer}>
-                        <Text style={[styles.cardName, { textShadowColor: theme.color }]} numberOfLines={1}>
+                        {rarity === 'legendary' && (
+                            <View style={styles.legendaryNameBar}>
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(255,215,0,0.18)', 'transparent']}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
+                            </View>
+                        )}
+                        <Text style={[styles.cardName, { textShadowColor: theme.color,
+                            fontSize: rarity === 'legendary' ? 18 : 17 }]} numberOfLines={1}>
                             {card.nameAr || card.name}
                         </Text>
                     </View>
 
-                    {/* Stats row */}
+                    {/* Stats */}
                     <View style={styles.statsRow}>
-                        {/* ⚔️ Attack */}
-                        <View style={styles.statWrapper}>
-                            {theme.hasRunicRing && (
-                                <View style={styles.ringWrapper}>
-                                    <RunicRing color={theme.color} size={64} />
-                                    <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                                        <RunicRing color={theme.color} size={48} reverse />
+                        {[{ icon: '⚔️', value: card.attack, col: theme.atkColor, rev: false },
+                          { icon: '🛡️', value: card.defense, col: theme.defColor, rev: true }]
+                          .map(({ icon, value, col, rev }) => (
+                            <View key={icon} style={styles.statWrapper}>
+                                {theme.hasRunicRing && (
+                                    <View style={styles.ringWrapper}>
+                                        <RunicRing color={theme.color} size={64} reverse={rev} speed={rarity === 'legendary' ? 7000 : 10000} />
+                                        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+                                            <RunicRing color={theme.color} size={48} reverse={!rev} speed={rarity === 'legendary' ? 5000 : 8000} />
+                                        </View>
+                                        {rarity === 'legendary' && (
+                                            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+                                                <RunicRing color={theme.color} size={32} reverse={rev} speed={3500} />
+                                            </View>
+                                        )}
                                     </View>
+                                )}
+                                <View style={[styles.statBadge, { borderColor: theme.color, shadowColor: theme.color,
+                                    borderWidth: rarity === 'legendary' ? 2 : 1.5 }]}>
+                                    <LinearGradient
+                                        colors={rarity === 'legendary'
+                                            ? ['rgba(15,10,0,0.9)', 'rgba(40,30,0,0.95)']
+                                            : ['rgba(0,0,0,0.82)', 'rgba(20,18,30,0.95)']}
+                                        style={styles.badgeGradient}
+                                    >
+                                        <Text style={styles.statIcon}>{icon}</Text>
+                                        <Text style={[styles.statValue, { color: col }]}>{value}</Text>
+                                    </LinearGradient>
                                 </View>
-                            )}
-                            <View style={[styles.statBadge, { borderColor: theme.color, shadowColor: theme.color }]}>
-                                <LinearGradient
-                                    colors={['rgba(0,0,0,0.82)', 'rgba(20,18,30,0.95)']}
-                                    style={styles.badgeGradient}
-                                >
-                                    <Text style={styles.statIcon}>⚔️</Text>
-                                    <Text style={[styles.statValue, { color: theme.atkColor }]}>{card.attack}</Text>
-                                </LinearGradient>
                             </View>
-                        </View>
-
-                        {/* 🛡️ Defense */}
-                        <View style={styles.statWrapper}>
-                            {theme.hasRunicRing && (
-                                <View style={styles.ringWrapper}>
-                                    <RunicRing color={theme.color} size={64} reverse />
-                                    <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                                        <RunicRing color={theme.color} size={48} />
-                                    </View>
-                                </View>
-                            )}
-                            <View style={[styles.statBadge, { borderColor: theme.color, shadowColor: theme.color }]}>
-                                <LinearGradient
-                                    colors={['rgba(0,0,0,0.82)', 'rgba(20,18,30,0.95)']}
-                                    style={styles.badgeGradient}
-                                >
-                                    <Text style={styles.statIcon}>🛡️</Text>
-                                    <Text style={[styles.statValue, { color: theme.defColor }]}>{card.defense}</Text>
-                                </LinearGradient>
-                            </View>
-                        </View>
+                        ))}
                     </View>
-
                 </View>
             </View>
         </Animated.View>
@@ -363,157 +378,75 @@ export function LuxuryCharacterCardAnimated({ card, style }: LuxuryCharacterCard
 
 const styles = StyleSheet.create({
     cardContainer: {
-        width: 220,
-        height: 320,
-        borderRadius: 14,
-        backgroundColor: '#0a0a0e',
-        shadowOffset: { width: 0, height: 0 },
+        width: 220, height: 320, borderRadius: 14,
+        backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 },
     },
-    cardInner: {
-        flex: 1,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    bgImage: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        width: '100%',
-        height: '100%',
-    },
-    contentLayer: {
-        flex: 1,
-        position: 'relative',
-    },
+    cardInner: { flex: 1, borderRadius: 12, overflow: 'hidden' },
+    bgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+    contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: {
-        position: 'absolute',
-        top: -5, left: -5, right: -5, bottom: -5,
-        borderRadius: 18,
-        borderWidth: 2,
-        borderColor: '#FFD700',
-        shadowOffset: { width: 0, height: 0 },
-        zIndex: 20,
+        position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
+        borderRadius: 19, borderWidth: 2.5, borderColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 }, zIndex: 20,
     },
     glowRing: {
-        position: 'absolute',
-        top: -3, left: -3, right: -3, bottom: -3,
-        borderRadius: 16,
-        borderWidth: 1.5,
-        shadowOffset: { width: 0, height: 0 },
-        shadowRadius: 14,
-        zIndex: 19,
+        position: 'absolute', top: -3, left: -3, right: -3, bottom: -3,
+        borderRadius: 16, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 },
+        shadowRadius: 14, zIndex: 19,
     },
-    foilContainer: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 1,
-        overflow: 'hidden',
-    },
-    foilStrip: {
-        position: 'absolute',
-        top: 0, bottom: 0,
-        width: 80,
-    },
-    foilGradient: {
-        flex: 1,
-        transform: [{ rotate: '-45deg' }],
-    },
+    foilContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1, overflow: 'hidden' },
+    foilStrip: { position: 'absolute', top: 0, bottom: 0, width: 90 },
+    foilGradient: { flex: 1, transform: [{ rotate: '-45deg' }] },
     innerBorder: {
-        position: 'absolute',
-        top: 5, left: 5, right: 5, bottom: 5,
-        borderRadius: 9,
-        borderWidth: 1,
-        zIndex: 5,
+        position: 'absolute', top: 5, left: 5, right: 5, bottom: 5,
+        borderRadius: 9, borderWidth: 1, zIndex: 5,
     },
-    gradientOverlay: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 2,
-    },
-    filigreeCorner: {
-        position: 'absolute',
-        width: 40,
-        height: 40,
-        zIndex: 6,
-        opacity: 0.9,
-    },
+    gradientOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 },
+    filigreeCorner: { position: 'absolute', zIndex: 6, opacity: 0.92 },
+    // Edge chains
+    edgeChainWrapper: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 4 },
+    edgeTop: { position: 'absolute', top: 3, left: 0, right: 0 },
+    edgeBottom: { position: 'absolute', bottom: 3, left: 0, right: 0 },
+    edgeLeft: { position: 'absolute', left: 3, top: 0, bottom: 0 },
+    edgeRight: { position: 'absolute', right: 3, top: 0, bottom: 0 },
+    // Side vines
+    sideVinesWrapper: { position: 'absolute', top: '20%', left: 0, right: 0, bottom: '15%', zIndex: 3 },
+    vineLeft: { position: 'absolute', left: 2 },
+    vineRight: { position: 'absolute', right: 2 },
+    // Badge
     rarityBadge: {
-        position: 'absolute',
-        top: 9,
-        left: 9,
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: 7,
-        borderWidth: 1,
-        backgroundColor: 'rgba(0,0,0,0.65)',
-        zIndex: 10,
+        position: 'absolute', top: 9, left: 9,
+        paddingHorizontal: 10, paddingVertical: 3,
+        borderRadius: 7, borderWidth: 1, zIndex: 10,
     },
-    rarityBadgeText: {
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
+    rarityBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
     nameContainer: {
-        position: 'absolute',
-        bottom: 56,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        zIndex: 8,
+        position: 'absolute', bottom: 56, left: 0, right: 0,
+        alignItems: 'center', paddingHorizontal: 12, zIndex: 8,
+    },
+    legendaryNameBar: {
+        position: 'absolute', top: -4, left: -12, right: -12, bottom: -4,
     },
     cardName: {
-        fontSize: 17,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        textAlign: 'center',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 8,
-        letterSpacing: 0.3,
+        fontWeight: '800', color: '#FFFFFF', textAlign: 'center',
+        textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 10, letterSpacing: 0.3,
     },
     statsRow: {
-        position: 'absolute',
-        bottom: 8,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        zIndex: 10,
+        position: 'absolute', bottom: 8, left: 0, right: 0,
+        flexDirection: 'row', justifyContent: 'space-between',
+        paddingHorizontal: 12, zIndex: 10,
     },
-    statWrapper: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    statWrapper: { alignItems: 'center', justifyContent: 'center' },
     ringWrapper: {
-        position: 'absolute',
-        width: 64,
-        height: 64,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 0,
+        position: 'absolute', width: 64, height: 64,
+        alignItems: 'center', justifyContent: 'center', zIndex: 0,
     },
     statBadge: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        borderWidth: 1.5,
-        overflow: 'hidden',
-        shadowOffset: { width: 0, height: 0 },
-        shadowRadius: 10,
-        elevation: 6,
-        zIndex: 1,
+        width: 46, height: 46, borderRadius: 23,
+        overflow: 'hidden', shadowOffset: { width: 0, height: 0 },
+        shadowRadius: 10, elevation: 6, zIndex: 1,
     },
-    badgeGradient: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    statIcon: {
-        fontSize: 12,
-        marginBottom: 1,
-    },
-    statValue: {
-        fontSize: 13,
-        fontWeight: 'bold',
-    },
+    badgeGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    statIcon: { fontSize: 12, marginBottom: 1 },
+    statValue: { fontSize: 13, fontWeight: 'bold' },
 });
