@@ -13,7 +13,7 @@ import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
-import { useLandscapeLayout, LAYOUT_PADDING } from '@/utils/layout';
+import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
@@ -97,6 +97,10 @@ export default function CardsGalleryScreen() {
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
+  // ── Responsive card sizes ──────────────────────────────────────────────────
+  const { cardW: galleryCardW, cardH: galleryCardH } = useCardSize('gallery');
+  const { cardW: modalCardW,   cardH: modalCardH   } = useCardSize('modal');
+
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
@@ -173,7 +177,6 @@ export default function CardsGalleryScreen() {
     { label: 'أسطورية', cls: 'border-amber-500 text-amber-500 bg-amber-500/10' },
   ];
 
-  // FIX: استخدم badgeColor بدل .color (غير موجود في RarityConfig)
   const rarityColor = selectedCard
     ? getRarityConfig(selectedCard.rarity).badgeColor
     : '#d4af37';
@@ -219,7 +222,11 @@ export default function CardsGalleryScreen() {
           <View style={[styles.grid, { gap: gridGap, paddingHorizontal: padding }]}>
             {sortedCards.map(card => (
               <TouchableOpacity key={card.id} onPress={() => handleCardPress(card)} activeOpacity={0.85}>
-                <LuxuryCharacterCardAnimated card={card} />
+                {/* ✅ حجم responsive بدل الحجم الثابت */}
+                <LuxuryCharacterCardAnimated
+                  card={card}
+                  style={{ width: galleryCardW, height: galleryCardH }}
+                />
               </TouchableOpacity>
             ))}
           </View>
@@ -230,8 +237,12 @@ export default function CardsGalleryScreen() {
         <View style={styles.overlay}>
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow}>
+              {/* ✅ معاينة الكرت بحجم modal responsive */}
               <View pointerEvents="none">
-                <LuxuryCharacterCardAnimated card={previewCard} style={{ width: 260, height: 380 }} />
+                <LuxuryCharacterCardAnimated
+                  card={previewCard}
+                  style={{ width: modalCardW, height: modalCardH }}
+                />
               </View>
 
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>

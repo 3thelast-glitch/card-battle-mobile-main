@@ -14,7 +14,12 @@ import { AbilityCard, AbilityData } from '@/components/game/ability-card';
 import { abilities as allAbilitiesData } from '@/data/abilities';
 import { ProButton } from '@/components/ui/ProButton';
 import { COLOR, SPACE, RADIUS, FONT_FAMILY } from '@/components/ui/design-tokens';
-import { useLandscapeLayout, GRID_COLUMNS, CARD_SCALE, LAYOUT_PADDING } from '@/utils/layout';
+import {
+  useLandscapeLayout,
+  useCardSize,
+  GRID_COLUMNS,
+  LAYOUT_PADDING,
+} from '@/utils/layout';
 
 function abilityTypeToNameEn(type: AbilityType): string {
   return type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
@@ -43,10 +48,9 @@ export default function CardSelectionScreen() {
   const numColumns = GRID_COLUMNS[size];
   const padding = LAYOUT_PADDING[size];
 
-  // حجم الكرت في شبكة الاختيار — صغير بعض الشيء عشان تتركب في الشبكة
-  const CARD_W = size === 'sm' ? 130 : size === 'md' ? 150 : size === 'lg' ? 165 : 180;
-  const CARD_H = Math.round(CARD_W * (320 / 220));
-  const CARD_SCALE_VAL = CARD_W / 220;
+  // ── Responsive card sizes ──────────────────────────────────────────────────
+  const { cardW: gridCardW, cardH: gridCardH } = useCardSize('selection');
+  const { cardW: modalCardW, cardH: modalCardH } = useCardSize('modal');
 
   useEffect(() => {
     const shuffled = [...allCards].sort(() => Math.random() - 0.5);
@@ -97,10 +101,10 @@ export default function CardSelectionScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.cardWrapper}>
-        {/* نفس تصميم cards-gallery تماماً */}
+        {/* ✅ حجم responsive */}
         <LuxuryCharacterCardAnimated
           card={item.card}
-          style={{ width: CARD_W, height: CARD_H }}
+          style={{ width: gridCardW, height: gridCardH }}
         />
         {item.round !== null ? (
           <View style={styles.roundOverlay}>
@@ -186,12 +190,12 @@ export default function CardSelectionScreen() {
               })}
             </View>
 
-            {/* معاينة الكرت — نفس تصميم gallery */}
+            {/* ✅ معاينة الكرت بحجم modal responsive */}
             {focusedCardIndex !== null && cardRounds[focusedCardIndex] && (
               <View style={styles.focusModalRightCol}>
                 <LuxuryCharacterCardAnimated
                   card={cardRounds[focusedCardIndex].card}
-                  style={{ width: 220, height: 320 }}
+                  style={{ width: modalCardW, height: modalCardH }}
                 />
               </View>
             )}
