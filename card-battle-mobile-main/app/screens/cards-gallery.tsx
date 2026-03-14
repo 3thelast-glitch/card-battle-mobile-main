@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
   TextInput, Switch, Text as RNText,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -10,23 +11,16 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data';
-import { Card, ELEMENT_COLORS, ELEMENT_EMOJI } from '@/lib/game/types';
+import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
-import { useLandscapeLayout, CARD_SCALE, LAYOUT_PADDING } from '@/utils/layout';
+import { useLandscapeLayout, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 
-// ─── Mutable card store (persists within app session) ────────────────────────
-// We clone ALL_CARDS into a ref so edits survive re-renders without touching the source file
-const _savedCards: Map<string, Partial<Card>> = new Map();
-
-function applyOverrides(card: Card): Card {
-  const o = _savedCards.get(card.id);
-  return o ? { ...card, ...o } : card;
-}
+const STORAGE_KEY = 'card_edits_v1';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CardEdits = {
-  stars: number;           // 0 = no stars
+  stars: number;
   hasAbility: boolean;
   specialAbility: string;
   attack: number;
@@ -45,19 +39,17 @@ function toEdits(card: Card): CardEdits {
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-// ─── Stars Picker — 0 to 5 ──────────────────────────────────────────────────
+// ─── Stars Picker ─────────────────────────────────────────────────────────────
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <View style={ep.starRow}>
-      {/* ✕ button = 0 stars */}
       <TouchableOpacity
         onPress={() => onChange(0)}
         activeOpacity={0.7}
-        style={[ep.starBtn, ep.clearBtn, value === 0 && ep.clearBtnActive]}
+        style={[ep.clearBtn, value === 0 && ep.clearBtnActive]}
       >
         <RNText style={[ep.clearBtnTxt, value === 0 && { color: '#f87171' }]}>✕</RNText>
       </TouchableOpacity>
-
       {[1, 2, 3, 4, 5].map(n => (
         <TouchableOpacity key={n} onPress={() => onChange(n)} activeOpacity={0.7} style={ep.starBtn}>
           <RNText style={[ep.starIcon, { color: n <= value ? '#FFD700' : '#2a2a2a' }]}>★</RNText>
@@ -67,7 +59,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
   );
 }
 
-// ─── Stat Stepper ────────────────────────────────────────────────────────────
+// ─── Stat Stepper ─────────────────────────────────────────────────────────────
 function StatStepper({ icon, label, value, color, onChange }: {
   icon: string; label: string; value: number; color: string;
   onChange: (v: number) => void;
@@ -76,11 +68,7 @@ function StatStepper({ icon, label, value, color, onChange }: {
     <View style={ep.statCol}>
       <RNText style={ep.statIcon}>{icon}</RNText>
       <View style={ep.statRow}>
-        <TouchableOpacity
-          onPress={() => onChange(clamp(value - 1, 0, 999))}
-          style={[ep.stepBtn, { borderColor: color + '55' }]}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={() => onChange(clamp(value - 1, 0, 999))} style={[ep.stepBtn, { borderColor: color + '55' }]} activeOpacity={0.7}>
           <Minus size={12} color={color} />
         </TouchableOpacity>
         <TextInput
@@ -89,11 +77,7 @@ function StatStepper({ icon, label, value, color, onChange }: {
           keyboardType="numeric"
           onChangeText={t => { const n = parseInt(t); if (!isNaN(n)) onChange(clamp(n, 0, 999)); }}
         />
-        <TouchableOpacity
-          onPress={() => onChange(clamp(value + 1, 0, 999))}
-          style={[ep.stepBtn, { borderColor: color + '55' }]}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={() => onChange(clamp(value + 1, 0, 999))} style={[ep.stepBtn, { borderColor: color + '55' }]} activeOpacity={0.7}>
           <Plus size={12} color={color} />
         </TouchableOpacity>
       </View>
@@ -105,7 +89,8 @@ function StatStepper({ icon, label, value, color, onChange }: {
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function CardsGalleryScreen() {
   const router = useRouter();
-  const [cards, setCards] = useState<Card[]>(() => ALL_CARDS.map(applyOverrides));
+  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card>>>({});
+  const [cards, setCards] = useState<Card[]>(ALL_CARDS);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<Card | null>(null);
@@ -115,7 +100,19 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // Live preview sync
+  // ── Load saved edits from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+      if (!raw) return;
+      try {
+        const map: Record<string, Partial<Card>> = JSON.parse(raw);
+        setSavedMap(map);
+        setCards(ALL_CARDS.map(c => map[c.id] ? { ...c, ...map[c.id] } : c));
+      } catch {}
+    });
+  }, []);
+
+  // ── Live preview sync
   useEffect(() => {
     if (!selectedCard || !edits) { setPreviewCard(null); return; }
     setPreviewCard({
@@ -132,8 +129,8 @@ export default function CardsGalleryScreen() {
     setEdits(toEdits(card));
   };
 
-  // ── SAVE: persist edits to in-memory store + update cards list ──────────
-  const handleSave = () => {
+  // ── SAVE: write to AsyncStorage + update state
+  const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
     const overrides: Partial<Card> = {
       stars: edits.stars,
@@ -141,10 +138,10 @@ export default function CardsGalleryScreen() {
       attack: edits.attack,
       defense: edits.defense,
     };
-    _savedCards.set(selectedCard.id, overrides);
-    setCards(prev => prev.map(c =>
-      c.id === selectedCard.id ? { ...c, ...overrides } : c
-    ));
+    const newMap = { ...savedMap, [selectedCard.id]: overrides };
+    setSavedMap(newMap);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMap));
+    setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...overrides } : c));
     handleClose();
   };
 
@@ -160,7 +157,7 @@ export default function CardsGalleryScreen() {
 
   const filteredCards = cards.filter(card => {
     if (activeFilter === 'All') return true;
-    const map: Record<string, string> = { common:'Common', rare:'Rare', epic:'ملحمية', legendary:'أسطورية' };
+    const map: Record<string, string> = { common: 'Common', rare: 'Rare', epic: 'ملحمية', legendary: 'أسطورية' };
     const id = (card.rarity ?? 'common').toLowerCase();
     return id === activeFilter.toLowerCase() || map[id] === activeFilter;
   });
@@ -209,7 +206,7 @@ export default function CardsGalleryScreen() {
               <TouchableOpacity
                 key={tab.label}
                 onPress={() => setActiveFilter(tab.label)}
-                className={`px-4 py-1.5 rounded-full border border-white/10 bg-[#0f172a]/80 ${active ? tab.cls.split(' ').slice(0,3).join(' ') : ''}`}
+                className={`px-4 py-1.5 rounded-full border border-white/10 bg-[#0f172a]/80 ${active ? tab.cls.split(' ').slice(0, 3).join(' ') : ''}`}
                 activeOpacity={0.7}
               >
                 <Text className={`text-sm font-bold ${active ? tab.cls.split(' ')[1] : 'text-gray-400'}`}>
@@ -231,14 +228,21 @@ export default function CardsGalleryScreen() {
         </ScrollView>
       </View>
 
-      {/* ── Edit Modal ── */}
+      {/* ── Edit Modal ──
+           FIX: overlay is a plain View, close button is explicit — so tapping
+           the card preview or panel no longer accidentally closes the modal.
+      */}
       <Modal visible={!!selectedCard} animationType="fade" transparent onRequestClose={handleClose}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose}>
+        <View style={styles.overlay}>
           {selectedCard && edits && previewCard && (
-            <View style={styles.modalRow} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalRow}>
 
-              <LuxuryCharacterCardAnimated card={previewCard} style={{ width: 260, height: 380 }} />
+              {/* Card preview — tapping it does nothing (no accidental close) */}
+              <View pointerEvents="none">
+                <LuxuryCharacterCardAnimated card={previewCard} style={{ width: 260, height: 380 }} />
+              </View>
 
+              {/* Edit Panel */}
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
@@ -247,7 +251,7 @@ export default function CardsGalleryScreen() {
 
                   <View style={ep.divider} />
 
-                  {/* ① Stars — 0 (✕ no stars) to 5 */}
+                  {/* Stars */}
                   <RNText style={ep.label}>⭐ عدد النجوم</RNText>
                   <StarPicker value={edits.stars} onChange={n => patch({ stars: n })} />
                   {edits.stars === 0 && (
@@ -256,7 +260,7 @@ export default function CardsGalleryScreen() {
 
                   <View style={ep.divider} />
 
-                  {/* ② Has Ability */}
+                  {/* Has Ability */}
                   <View style={ep.switchRow}>
                     <RNText style={ep.label}>✦ يملك قدرة خاصة</RNText>
                     <Switch
@@ -267,7 +271,7 @@ export default function CardsGalleryScreen() {
                     />
                   </View>
 
-                  {/* ③ Ability text */}
+                  {/* Ability text — FIX: maxHeight + scrollable so it never overflows */}
                   {edits.hasAbility && (
                     <View style={ep.abilityBox}>
                       <TextInput
@@ -279,13 +283,14 @@ export default function CardsGalleryScreen() {
                         multiline
                         textAlign="right"
                         textAlignVertical="top"
+                        scrollEnabled
                       />
                     </View>
                   )}
 
                   <View style={ep.divider} />
 
-                  {/* ④ Stats */}
+                  {/* Stats */}
                   <RNText style={ep.label}>⚙️ الطاقات</RNText>
                   <View style={ep.steppers}>
                     <StatStepper icon="⚔️" label="هجوم" value={edits.attack}   color="#f87171" onChange={v => patch({ attack: v })} />
@@ -294,30 +299,22 @@ export default function CardsGalleryScreen() {
 
                   <View style={ep.divider} />
 
-                  {/* Action buttons */}
+                  {/* Buttons */}
                   <View style={ep.actionRow}>
-                    <TouchableOpacity
-                      style={[ep.actionBtn, { borderColor: '#444' }]}
-                      onPress={handleClose}
-                      activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={[ep.actionBtn, { borderColor: '#444' }]} onPress={handleClose} activeOpacity={0.8}>
                       <RNText style={{ color: '#888', fontWeight: '700', fontSize: 13 }}>إلغاء</RNText>
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[ep.actionBtn, { borderColor: rarityColor + '88', backgroundColor: rarityColor + '18' }]}
-                      onPress={handleSave}
-                      activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={[ep.actionBtn, { borderColor: rarityColor + '88', backgroundColor: rarityColor + '18' }]} onPress={handleSave} activeOpacity={0.8}>
                       <RNText style={{ color: rarityColor, fontWeight: '800', fontSize: 13 }}>✔ حفظ</RNText>
                     </TouchableOpacity>
                   </View>
 
                 </ScrollView>
               </View>
+
             </View>
           )}
-        </TouchableOpacity>
+        </View>
       </Modal>
     </ScreenContainer>
   );
@@ -328,14 +325,13 @@ const ep = StyleSheet.create({
   panel: {
     backgroundColor: 'rgba(10,10,16,0.97)',
     padding: 18, borderRadius: 20, borderWidth: 1.5,
-    width: 280, maxHeight: 480,
+    width: 290, maxHeight: 500,
   },
-  title: { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 2 },
-  sub:   { fontSize: 11, color: '#555', textAlign: 'center', marginBottom: 2 },
+  title:   { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 2 },
+  sub:     { fontSize: 11, color: '#555', textAlign: 'center', marginBottom: 2 },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
-  label: { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
-  hint:  { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
-  // Stars
+  label:   { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
+  hint:    { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
   starRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginBottom: 2 },
   starBtn: { padding: 3 },
   starIcon: { fontSize: 26 },
@@ -346,22 +342,21 @@ const ep = StyleSheet.create({
   },
   clearBtnActive: { borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)' },
   clearBtnTxt: { fontSize: 13, color: '#555', fontWeight: '800' },
-  // Switch
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-  // Ability
   abilityBox: { marginTop: 6 },
   abilityInput: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1, borderRadius: 10,
     padding: 10, color: '#e2e8f0',
-    fontSize: 12, minHeight: 58,
+    fontSize: 12,
+    minHeight: 58,
+    maxHeight: 110,   // FIX: caps height so text doesn't overflow panel
     writingDirection: 'rtl',
   },
-  // Stat steppers
-  steppers: { flexDirection: 'row', justifyContent: 'space-around', gap: 10 },
-  statCol:  { alignItems: 'center', gap: 4, flex: 1 },
-  statIcon: { fontSize: 18 },
-  statRow:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  steppers:  { flexDirection: 'row', justifyContent: 'space-around', gap: 10 },
+  statCol:   { alignItems: 'center', gap: 4, flex: 1 },
+  statIcon:  { fontSize: 18 },
+  statRow:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
   stepBtn: {
     width: 26, height: 26, borderRadius: 7, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -373,7 +368,6 @@ const ep = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   statLabel: { fontSize: 10, fontWeight: '600' },
-  // Action row
   actionRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 2 },
   actionBtn: {
     flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
@@ -384,13 +378,14 @@ const ep = StyleSheet.create({
 
 // ─── Screen Styles ───────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  bg: { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:0 },
-  container: { flex:1, zIndex:1, alignItems:'center', width:'100%' },
-  title: { fontSize:32, fontWeight:'bold', color:'#d4af37', textAlign:'center' },
-  subtitle: { fontSize:13, color:'#a0a0a0', marginTop:4, textAlign:'center' },
-  scroll: { flex:1, width:'100%' },
-  scrollContent: { alignItems:'center', paddingBottom:20 },
-  grid: { flexDirection:'row', flexWrap:'wrap', justifyContent:'center', maxWidth:1100 },
-  overlay: { flex:1, backgroundColor:'rgba(0,0,0,0.92)', justifyContent:'center', alignItems:'center' },
-  modalRow: { flexDirection:'row', alignItems:'center', gap:26 },
+  bg:             { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
+  container:      { flex: 1, zIndex: 1, alignItems: 'center', width: '100%' },
+  title:          { fontSize: 32, fontWeight: 'bold', color: '#d4af37', textAlign: 'center' },
+  subtitle:       { fontSize: 13, color: '#a0a0a0', marginTop: 4, textAlign: 'center' },
+  scroll:         { flex: 1, width: '100%' },
+  scrollContent:  { alignItems: 'center', paddingBottom: 20 },
+  grid:           { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1100 },
+  // FIX: overlay is now a plain View (not TouchableOpacity) — prevents card tap from closing modal
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
+  modalRow:       { flexDirection: 'row', alignItems: 'center', gap: 26 },
 });
