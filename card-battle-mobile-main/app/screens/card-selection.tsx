@@ -9,7 +9,7 @@ import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { useGame } from '@/lib/game/game-context';
 import { useCards } from '@/lib/game/useCards';
 import { Card, AbilityType } from '@/lib/game/types';
-import { getRandomAbilities } from '@/lib/game/abilities';
+import { getRandomAbilities, loadDisabledAbilities } from '@/lib/game/abilities';
 import { AbilityCard, AbilityData } from '@/components/game/ability-card';
 import { abilities as allAbilitiesData } from '@/data/abilities';
 import { ProButton } from '@/components/ui/ProButton';
@@ -48,15 +48,17 @@ export default function CardSelectionScreen() {
   const numColumns = GRID_COLUMNS[size];
   const padding = LAYOUT_PADDING[size];
 
-  // ── Responsive card sizes ──────────────────────────────────────────────────
   const { cardW: gridCardW, cardH: gridCardH } = useCardSize('selection');
   const { cardW: modalCardW, cardH: modalCardH } = useCardSize('modal');
 
   useEffect(() => {
-    const shuffled = [...allCards].sort(() => Math.random() - 0.5);
-    const initialCards = shuffled.slice(0, totalRounds).map(card => ({ card, round: null }));
-    setCardRounds(initialCards);
-    setAssignedAbilities(getRandomAbilities(3));
+    // نحمّل القدرات المعطّلة أولاً من AsyncStorage قبل اختيار القدرات العشوائية
+    loadDisabledAbilities().then(() => {
+      const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+      const initialCards = shuffled.slice(0, totalRounds).map(card => ({ card, round: null }));
+      setCardRounds(initialCards);
+      setAssignedAbilities(getRandomAbilities(3));
+    });
   }, [totalRounds, allCards]);
 
   const handleRoundSelect = (round: number) => {
@@ -101,7 +103,6 @@ export default function CardSelectionScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.cardWrapper}>
-        {/* ✅ حجم responsive */}
         <LuxuryCharacterCardAnimated
           card={item.card}
           style={{ width: gridCardW, height: gridCardH }}
@@ -190,7 +191,6 @@ export default function CardSelectionScreen() {
               })}
             </View>
 
-            {/* ✅ معاينة الكرت بحجم modal responsive */}
             {focusedCardIndex !== null && cardRounds[focusedCardIndex] && (
               <View style={styles.focusModalRightCol}>
                 <LuxuryCharacterCardAnimated
