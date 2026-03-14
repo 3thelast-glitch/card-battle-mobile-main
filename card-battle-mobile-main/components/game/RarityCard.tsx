@@ -582,21 +582,21 @@ export function RarityCard({
 
     const dim = SIZES[size];
     const config = RARITY_CONFIG[rarity];
-    
+
     // Theme-based overrides
     const isElven = theme === 'elven';
     const baseBorderColor = isElven ? ELVEN_BORDERS[rarity] : config.borderColor;
     const baseGlowColor = isElven ? ELVEN_GLOW[rarity] : CARD_GLOWS[rarity];
-    
+
     // Gradient mapping to 3-layer system
-    const gradient = isElven 
+    const gradient = isElven
         ? {
-            base: ELVEN_GRADIENTS[rarity].length >= 3 
+            base: ELVEN_GRADIENTS[rarity].length >= 3
                 ? [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1], ELVEN_GRADIENTS[rarity][2]] as const
                 : [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0]] as const,
             mid: [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], 'transparent'] as const,
             top: [ELVEN.mist, 'rgba(255,255,255,0.05)', 'transparent'] as const,
-          }
+        }
         : CARD_GRADIENTS[rarity];
 
     const glowColor = baseGlowColor;
