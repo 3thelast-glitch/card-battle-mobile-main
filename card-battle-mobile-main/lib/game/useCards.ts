@@ -6,8 +6,8 @@
  * reading ALL_CARDS directly, so gallery changes propagate everywhere.
  *
  * Usage:
- *   const cards = useCards();          // all cards, edits applied
- *   const cards = useCards([id1,id2]); // filtered subset
+ *   const cards = useCards();           // all cards, edits applied
+ *   const cards = useCards([id1,id2]);  // filtered subset
  */
 
 import { useState, useEffect } from 'react';
@@ -15,9 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_CARDS } from './cards-data';
 import { Card } from './types';
 
-export const CARD_EDITS_KEY = 'card_edits_v1'; // must match cards-gallery
+/** Must match CARD_EDITS_KEY in cards-gallery.tsx */
+export const CARD_EDITS_KEY = 'card_edits_v1';
 
-/** Merge ALL_CARDS with any saved edits from the gallery. */
+/** Returns ALL_CARDS merged with any saved edits from the gallery. */
 export async function getCardsWithEdits(): Promise<Card[]> {
   try {
     const raw = await AsyncStorage.getItem(CARD_EDITS_KEY);
@@ -30,12 +31,11 @@ export async function getCardsWithEdits(): Promise<Card[]> {
 }
 
 /**
- * React hook — returns cards (with gallery edits applied).
- * @param ids  Optional list of card IDs to return. If omitted, returns all.
+ * React hook — returns cards with gallery edits applied.
+ * @param ids  Optional card IDs to filter. Omit to get all cards.
  */
 export function useCards(ids?: string[]): Card[] {
   const [cards, setCards] = useState<Card[]>(
-    // Seed with raw data instantly so first render is never empty
     ids ? ALL_CARDS.filter(c => ids.includes(c.id)) : ALL_CARDS
   );
 
@@ -46,6 +46,7 @@ export function useCards(ids?: string[]): Card[] {
       setCards(ids ? merged.filter(c => ids.includes(c.id)) : merged);
     });
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids?.join(',')]);
 
   return cards;

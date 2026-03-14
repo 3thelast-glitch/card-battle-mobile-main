@@ -16,7 +16,7 @@ import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 
-const STORAGE_KEY = 'card_edits_v1';
+export const CARD_EDITS_KEY = 'card_edits_v1';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CardEdits = {
@@ -100,9 +100,8 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // ── Load saved edits from AsyncStorage on mount
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+    AsyncStorage.getItem(CARD_EDITS_KEY).then(raw => {
       if (!raw) return;
       try {
         const map: Record<string, Partial<Card>> = JSON.parse(raw);
@@ -112,7 +111,6 @@ export default function CardsGalleryScreen() {
     });
   }, []);
 
-  // ── Live preview sync
   useEffect(() => {
     if (!selectedCard || !edits) { setPreviewCard(null); return; }
     setPreviewCard({
@@ -129,7 +127,6 @@ export default function CardsGalleryScreen() {
     setEdits(toEdits(card));
   };
 
-  // ── SAVE: write to AsyncStorage + update state
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
     const overrides: Partial<Card> = {
@@ -140,7 +137,7 @@ export default function CardsGalleryScreen() {
     };
     const newMap = { ...savedMap, [selectedCard.id]: overrides };
     setSavedMap(newMap);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMap));
+    await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
     setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...overrides } : c));
     handleClose();
   };
@@ -176,8 +173,9 @@ export default function CardsGalleryScreen() {
     { label: 'أسطورية', cls: 'border-amber-500 text-amber-500 bg-amber-500/10' },
   ];
 
+  // FIX: استخدم badgeColor بدل .color (غير موجود في RarityConfig)
   const rarityColor = selectedCard
-    ? (getRarityConfig(selectedCard.rarity).color ?? '#d4af37')
+    ? getRarityConfig(selectedCard.rarity).badgeColor
     : '#d4af37';
 
   return (
@@ -228,39 +226,27 @@ export default function CardsGalleryScreen() {
         </ScrollView>
       </View>
 
-      {/* ── Edit Modal ──
-           FIX: overlay is a plain View, close button is explicit — so tapping
-           the card preview or panel no longer accidentally closes the modal.
-      */}
       <Modal visible={!!selectedCard} animationType="fade" transparent onRequestClose={handleClose}>
         <View style={styles.overlay}>
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow}>
-
-              {/* Card preview — tapping it does nothing (no accidental close) */}
               <View pointerEvents="none">
                 <LuxuryCharacterCardAnimated card={previewCard} style={{ width: 260, height: 380 }} />
               </View>
 
-              {/* Edit Panel */}
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
                   <RNText style={[ep.title, { color: rarityColor }]}>{selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
-
                   <View style={ep.divider} />
 
-                  {/* Stars */}
                   <RNText style={ep.label}>⭐ عدد النجوم</RNText>
                   <StarPicker value={edits.stars} onChange={n => patch({ stars: n })} />
                   {edits.stars === 0 && (
                     <RNText style={ep.hint}>الكرت بدون نجوم</RNText>
                   )}
-
                   <View style={ep.divider} />
 
-                  {/* Has Ability */}
                   <View style={ep.switchRow}>
                     <RNText style={ep.label}>✦ يملك قدرة خاصة</RNText>
                     <Switch
@@ -271,7 +257,6 @@ export default function CardsGalleryScreen() {
                     />
                   </View>
 
-                  {/* Ability text — FIX: maxHeight + scrollable so it never overflows */}
                   {edits.hasAbility && (
                     <View style={ep.abilityBox}>
                       <TextInput
@@ -287,19 +272,15 @@ export default function CardsGalleryScreen() {
                       />
                     </View>
                   )}
-
                   <View style={ep.divider} />
 
-                  {/* Stats */}
                   <RNText style={ep.label}>⚙️ الطاقات</RNText>
                   <View style={ep.steppers}>
                     <StatStepper icon="⚔️" label="هجوم" value={edits.attack}   color="#f87171" onChange={v => patch({ attack: v })} />
                     <StatStepper icon="🛡️" label="درع"  value={edits.defense} color="#60a5fa" onChange={v => patch({ defense: v })} />
                   </View>
-
                   <View style={ep.divider} />
 
-                  {/* Buttons */}
                   <View style={ep.actionRow}>
                     <TouchableOpacity style={[ep.actionBtn, { borderColor: '#444' }]} onPress={handleClose} activeOpacity={0.8}>
                       <RNText style={{ color: '#888', fontWeight: '700', fontSize: 13 }}>إلغاء</RNText>
@@ -308,10 +289,8 @@ export default function CardsGalleryScreen() {
                       <RNText style={{ color: rarityColor, fontWeight: '800', fontSize: 13 }}>✔ حفظ</RNText>
                     </TouchableOpacity>
                   </View>
-
                 </ScrollView>
               </View>
-
             </View>
           )}
         </View>
@@ -320,7 +299,6 @@ export default function CardsGalleryScreen() {
   );
 }
 
-// ─── Edit Panel Styles ───────────────────────────────────────────────────────
 const ep = StyleSheet.create({
   panel: {
     backgroundColor: 'rgba(10,10,16,0.97)',
@@ -350,7 +328,7 @@ const ep = StyleSheet.create({
     padding: 10, color: '#e2e8f0',
     fontSize: 12,
     minHeight: 58,
-    maxHeight: 110,   // FIX: caps height so text doesn't overflow panel
+    maxHeight: 110,
     writingDirection: 'rtl',
   },
   steppers:  { flexDirection: 'row', justifyContent: 'space-around', gap: 10 },
@@ -376,7 +354,6 @@ const ep = StyleSheet.create({
   },
 });
 
-// ─── Screen Styles ───────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   bg:             { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   container:      { flex: 1, zIndex: 1, alignItems: 'center', width: '100%' },
@@ -385,7 +362,6 @@ const styles = StyleSheet.create({
   scroll:         { flex: 1, width: '100%' },
   scrollContent:  { alignItems: 'center', paddingBottom: 20 },
   grid:           { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1100 },
-  // FIX: overlay is now a plain View (not TouchableOpacity) — prevents card tap from closing modal
   overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
   modalRow:       { flexDirection: 'row', alignItems: 'center', gap: 26 },
 });

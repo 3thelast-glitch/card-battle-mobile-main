@@ -44,8 +44,12 @@ export interface Card {
   videoUrl?: string;
   /** Visual rarity tier — defaults to 'common' if absent */
   rarity?: CardRarity;
-  /** Star rating 1–5 shown on the card */
-  stars?: 1 | 2 | 3 | 4 | 5;
+  /**
+   * Star rating shown on the card.
+   * Stored as plain number (0–5) so AsyncStorage round-trips work without type errors.
+   * 0 = no stars displayed.
+   */
+  stars?: number;
   /** Special ability text displayed on the card (Arabic) */
   specialAbility?: string;
   /** Special gameplay effects this card carries */
