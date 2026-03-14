@@ -9,16 +9,6 @@ const KEY = 'disabled_abilities_v1';
 
 /** اقرأ مجموعة الـ IDs المعطّلة */
 export async function getDisabledAbilityIds(): Promise<Set<number>> {
-<<<<<<< HEAD
-    try {
-        const raw = await AsyncStorage.getItem(KEY);
-        if (!raw) return new Set();
-        const arr = JSON.parse(raw) as number[];
-        return new Set(arr);
-    } catch {
-        return new Set();
-    }
-=======
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return new Set();
@@ -27,18 +17,11 @@ export async function getDisabledAbilityIds(): Promise<Set<number>> {
   } catch {
     return new Set();
   }
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
 }
 
 /** احفظ مجموعة الـ IDs المعطّلة */
 export async function saveDisabledAbilityIds(ids: Set<number>): Promise<void> {
-<<<<<<< HEAD
-    try {
-        await AsyncStorage.setItem(KEY, JSON.stringify([...ids]));
-    } catch { }
-=======
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify([...ids]));
   } catch {}
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
 }

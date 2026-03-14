@@ -89,17 +89,10 @@ const RARITY_THEMES: Record<string, {
     borderWidth: number; glowRadius: number; glowPeak: number; artOpacity: number;
     stars: number; cornerOrnament: boolean; shimmer: boolean; titleSize: number;
 }> = {
-<<<<<<< HEAD
     Common: { primary: '#10b981', glow: '#10b981', border: 'rgba(16,185,129,0.40)', badgeBg: 'rgba(16,185,129,0.18)', label: 'COMMON', borderWidth: 1, glowRadius: 10, glowPeak: 0.35, artOpacity: 0.18, stars: 1, cornerOrnament: false, shimmer: false, titleSize: 15 },
     Rare: { primary: '#3b82f6', glow: '#60a5fa', border: 'rgba(59,130,246,0.55)', badgeBg: 'rgba(59,130,246,0.22)', label: 'RARE', borderWidth: 1.5, glowRadius: 16, glowPeak: 0.55, artOpacity: 0.12, stars: 2, cornerOrnament: false, shimmer: false, titleSize: 16 },
     Epic: { primary: '#a855f7', glow: '#c084fc', border: 'rgba(168,85,247,0.65)', badgeBg: 'rgba(168,85,247,0.25)', label: 'EPIC', borderWidth: 2, glowRadius: 22, glowPeak: 0.72, artOpacity: 0.06, stars: 3, cornerOrnament: true, shimmer: false, titleSize: 17 },
     Legendary: { primary: '#f59e0b', glow: '#fcd34d', border: 'rgba(245,158,11,0.80)', badgeBg: 'rgba(245,158,11,0.28)', label: 'LEGENDARY', borderWidth: 2.5, glowRadius: 32, glowPeak: 0.95, artOpacity: 0.0, stars: 4, cornerOrnament: true, shimmer: true, titleSize: 18 },
-=======
-    Common:    { primary:'#10b981', glow:'#10b981', border:'rgba(16,185,129,0.40)',  badgeBg:'rgba(16,185,129,0.18)',  label:'COMMON',    borderWidth:1,   glowRadius:10, glowPeak:0.35, artOpacity:0.18, stars:1, cornerOrnament:false, shimmer:false, titleSize:15 },
-    Rare:      { primary:'#3b82f6', glow:'#60a5fa', border:'rgba(59,130,246,0.55)',  badgeBg:'rgba(59,130,246,0.22)',  label:'RARE',      borderWidth:1.5, glowRadius:16, glowPeak:0.55, artOpacity:0.12, stars:2, cornerOrnament:false, shimmer:false, titleSize:16 },
-    Epic:      { primary:'#a855f7', glow:'#c084fc', border:'rgba(168,85,247,0.65)', badgeBg:'rgba(168,85,247,0.25)', label:'EPIC',      borderWidth:2,   glowRadius:22, glowPeak:0.72, artOpacity:0.06, stars:3, cornerOrnament:true,  shimmer:false, titleSize:17 },
-    Legendary: { primary:'#f59e0b', glow:'#fcd34d', border:'rgba(245,158,11,0.80)', badgeBg:'rgba(245,158,11,0.28)', label:'LEGENDARY', borderWidth:2.5, glowRadius:32, glowPeak:0.95, artOpacity:0.0,  stars:4, cornerOrnament:true,  shimmer:true,  titleSize:18 },
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
 };
 
 function CornerOrnament({ color }: { color: string }) {
@@ -287,22 +280,14 @@ export function AbilityCard({ ability, showActionButtons = true, onToggleDisable
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
     outerShell: { width: CARD_W, height: CARD_H, shadowOffset: { width: 0, height: 0 }, elevation: 14 },
     cardContainer: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0a0a12' },
     artImage: { borderRadius: 20 },
     legendaryEdgeGlow: {
-=======
-    outerShell:       { width: CARD_W, height: CARD_H, shadowOffset: { width: 0, height: 0 }, elevation: 14 },
-    cardContainer:    { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0a0a12' },
-    artImage:         { borderRadius: 20 },
-    legendaryEdgeGlow:{
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
         ...StyleSheet.absoluteFillObject,
         borderWidth: 2, borderColor: 'rgba(245,158,11,0.30)', borderRadius: 20,
         shadowColor: '#f59e0b', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 22, elevation: 10,
     },
-<<<<<<< HEAD
     shimmerStreak: { position: 'absolute', top: 0, bottom: 0, width: 28, backgroundColor: 'rgba(255,255,255,0.06)', borderLeftWidth: 1, borderRightWidth: 1, transform: [{ skewX: '-18deg' }] },
     cornerTL: { position: 'absolute', top: 8, left: 8, zIndex: 18 },
     cornerTR: { position: 'absolute', top: 8, right: 8, zIndex: 18 },
@@ -328,30 +313,3 @@ const styles = StyleSheet.create({
     star: { fontSize: 10 },
     bottomRarityLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
 });
-=======
-    shimmerStreak:    { position:'absolute', top:0, bottom:0, width:28, backgroundColor:'rgba(255,255,255,0.06)', borderLeftWidth:1, borderRightWidth:1, transform:[{skewX:'-18deg'}] },
-    cornerTL:         { position:'absolute', top:8,  left:8,  zIndex:18 },
-    cornerTR:         { position:'absolute', top:8,  right:8, zIndex:18 },
-    cornerBL:         { position:'absolute', bottom:44, left:8,  zIndex:18 },
-    cornerBR:         { position:'absolute', bottom:44, right:8, zIndex:18 },
-    cornerDiamond:    { width:8, height:8, borderWidth:1.5, transform:[{rotate:'45deg'}] },
-    devControls:      { position:'absolute', top:36, left:10, zIndex:50, flexDirection:'row', gap:4 },
-    devBtn:           { width:22, height:22, borderRadius:11, alignItems:'center', justifyContent:'center', backgroundColor:'rgba(0,0,0,0.5)', borderWidth:1, borderColor:'rgba(255,255,255,0.2)' },
-    disabledOverlay:  { ...StyleSheet.absoluteFillObject, zIndex:40, alignItems:'center', justifyContent:'center', backgroundColor:'rgba(0,0,0,0.3)' },
-    disabledStamp:    { backgroundColor:'rgba(220,38,38,0.9)', paddingHorizontal:14, paddingVertical:5, borderRadius:8, borderWidth:2, borderColor:'#f87171', transform:[{rotate:'-12deg'}] },
-    disabledText:     { color:'#fff', fontWeight:'900', fontSize:10, letterSpacing:3, textTransform:'uppercase' },
-    rarityBadge:      { position:'absolute', top:10, right:10, zIndex:20, paddingHorizontal:8, paddingVertical:3, borderRadius:10, borderWidth:1 },
-    rarityText:       { fontSize:8, fontWeight:'800', letterSpacing:1.5, textTransform:'uppercase' },
-    titlePanel:       { position:'absolute', bottom:50, left:12, right:12, zIndex:15 },
-    titlePanelInner:  { backgroundColor:'rgba(6,3,18,0.75)', borderRadius:14, borderWidth:1, paddingVertical:12, paddingHorizontal:14, alignItems:'center', shadowColor:'#000', shadowOffset:{width:0,height:4}, shadowOpacity:0.6, shadowRadius:10, elevation:6 },
-    nameEn:           { color:'#fff', fontSize:12, fontWeight:'900', letterSpacing:1.2, textTransform:'uppercase', textAlign:'center', textShadowColor:'rgba(0,0,0,0.9)', textShadowOffset:{width:0,height:1}, textShadowRadius:4 },
-    nameAr:           { color:'#FFD700', fontWeight:'900', textAlign:'center', marginTop:3, textShadowOffset:{width:0,height:0}, textShadowRadius:8, letterSpacing:0.5 },
-    divider:          { width:36, height:1.5, borderRadius:1, marginVertical:8 },
-    description:      { color:'rgba(203,213,225,0.85)', fontSize:10, fontWeight:'500', textAlign:'center', lineHeight:15, writingDirection:'rtl' },
-    bottomBar:        { position:'absolute', bottom:0, left:0, right:0, zIndex:15, flexDirection:'row', alignItems:'center', backgroundColor:'rgba(6,3,18,0.82)', borderTopWidth:1, paddingVertical:7, paddingHorizontal:10, gap:6 },
-    iconCircle:       { width:28, height:28, borderRadius:14, borderWidth:1.5, alignItems:'center', justifyContent:'center' },
-    starRow:          { flex:1, flexDirection:'row', gap:2 },
-    star:             { fontSize:10 },
-    bottomRarityLabel:{ fontSize:9, fontWeight:'700', letterSpacing:0.8, textTransform:'uppercase' },
-});
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639

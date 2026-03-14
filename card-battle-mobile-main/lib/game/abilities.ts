@@ -22,7 +22,6 @@ export const ALL_ABILITIES: AbilityType[] = [
  * لأن الأسماء تختلف قليلاً بين الملفين.
  */
 export const NAME_TO_ABILITY_TYPE: Record<string, AbilityType> = {
-<<<<<<< HEAD
   'Logical Encounter': 'LogicalEncounter',
   'Recall': 'Recall',
   'Protection': 'Protection',
@@ -74,59 +73,6 @@ export const NAME_TO_ABILITY_TYPE: Record<string, AbilityType> = {
   'Cancel Ability': 'CancelAbility',
   'Elemental Mastery': 'ElementalMastery',
   'Deprivation (Ability)': 'Deprivation',
-=======
-  'Logical Encounter':    'LogicalEncounter',
-  'Recall':               'Recall',
-  'Protection':           'Protection',
-  'Wipe':                 'Wipe',
-  'Halve Points':         'HalvePoints',
-  'Seal':                 'Seal',
-  'Reduction':            'Reduction',
-  'Sacrifice':            'Sacrifice',
-  'Suicide':              'Suicide',
-  'Compensation':         'Compensation',
-  'Arise':                'Arise',
-  'Reinforcement':        'Reinforcement',
-  'Purge':                'Purge',
-  'Double Or Nothing':    'DoubleOrNothing',
-  'Disaster':             'Disaster',
-  'Rescue':               'Rescue',
-  'Trap':                 'Trap',
-  'Sniping':              'Sniping',
-  'Merge':                'Merge',
-  'Revive':               'Revive',
-  'Consecutive Loss Buff':'ConsecutiveLossBuff',
-  'Weakening':            'Weakening',
-  'Subhan':               'Subhan',
-  'Swap Class':           'SwapClass',
-  'Lifesteal':            'Lifesteal',
-  'Revenge':              'Revenge',
-  'Popularity':           'Popularity',
-  'Misdirection':         'Misdirection',
-  'Steal Ability':        'StealAbility',
-  'Convert Debuffs':      'ConvertDebuffsToBuffs',
-  'Double Next Cards':    'DoubleNextCards',
-  'Deprivation':          'Deprivation',
-  'Greed':                'Greed',
-  'Dilemma':              'Dilemma',
-  'Propaganda':           'Propaganda',
-  'Double Your Buffs':    'DoubleYourBuffs',
-  'Avatar':               'Avatar',
-  'Penetration':          'Penetration',
-  'Pool':                 'Pool',
-  'Conversion':           'Conversion',
-  'Shield':               'Shield',
-  'Take It':              'TakeIt',
-  'Skip':                 'Skip',
-  'Add Element':          'AddElement',
-  'Explosion':            'Explosion',
-  'Double Points':        'DoublePoints',
-  'Star Superiority':     'StarSuperiority',
-  'Eclipse':              'Eclipse',
-  'Cancel Ability':       'CancelAbility',
-  'Elemental Mastery':    'ElementalMastery',
-  'Deprivation (Ability)':'Deprivation',
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
 };
 
 /** قراءة القدرات المعطّلة من AsyncStorage (sync-safe عبر cache) */
@@ -181,7 +127,6 @@ export type AbilityExecutor = (
 // خريطة لتخزين دوال تنفيذ القدرات
 export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
   LogicalEncounter: (state, isPlayer) => ({ newEffects: [] }),
-<<<<<<< HEAD
   Recall: (state, isPlayer) => ({ newEffects: [] }),
   Arise: (state, isPlayer) => ({ newEffects: [] }),
   Popularity: (state, isPlayer) => ({ newEffects: [] }),
@@ -189,15 +134,6 @@ export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
   Sniping: (state, isPlayer) => ({ newEffects: [] }),
   Subhan: (state, isPlayer) => ({ newEffects: [] }),
   Propaganda: (state, isPlayer) => ({ newEffects: [] }),
-=======
-  Recall:           (state, isPlayer) => ({ newEffects: [] }),
-  Arise:            (state, isPlayer) => ({ newEffects: [] }),
-  Popularity:       (state, isPlayer) => ({ newEffects: [] }),
-  Revive:           (state, isPlayer) => ({ newEffects: [] }),
-  Sniping:          (state, isPlayer) => ({ newEffects: [] }),
-  Subhan:           (state, isPlayer) => ({ newEffects: [] }),
-  Propaganda:       (state, isPlayer) => ({ newEffects: [] }),
->>>>>>> 765f6de734d6ad6d1dd61f8dfa220559988ac639
 
   Protection: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
