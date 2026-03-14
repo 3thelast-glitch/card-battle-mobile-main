@@ -1,11 +1,9 @@
 /**
- * LuxuryCharacterCardAnimated — Elven Luxury Enhanced
- * FIXES:
- *  - Stats circles no longer cover ability text (statsRow bottom offset auto-calculated)
- *  - stars=0 shows nothing (no stars row)
+ * LuxuryCharacterCardAnimated — Fully Responsive
+ * All internal sizes/offsets scale with the card's actual width/height.
  */
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Image, ViewStyle, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
@@ -13,6 +11,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Svg, Circle, Line, Polygon, Ellipse, Path } from 'react-native-svg';
 import { Card, CardRarity } from '@/lib/game/types';
+
+const BASE_W = 220;
+const BASE_H = 320;
 
 interface Props { card: Card; style?: ViewStyle; }
 
@@ -97,12 +98,13 @@ const RunicRing = ({ color, size = 64, reverse = false, speed = 10000 }: { color
 };
 
 // ─── Rich Elven Corner ─────────────────────────────────────────────────────────
-const ElvenCorner = ({ position, color, rich=false }: { position:'tl'|'tr'|'bl'|'br'; color:string; rich?:boolean }) => {
+const ElvenCorner = ({ position, color, rich=false, scale=1 }: { position:'tl'|'tr'|'bl'|'br'; color:string; rich?:boolean; scale?: number }) => {
     const rot = position==='tl'?0:position==='tr'?90:position==='bl'?-90:180;
     const posStyle: ViewStyle =
         position==='tl'?{top:2,left:2}:position==='tr'?{top:2,right:2}:
         position==='bl'?{bottom:2,left:2}:{bottom:2,right:2};
-    const sz = rich ? 54 : 40;
+    const baseSz = rich ? 54 : 40;
+    const sz = baseSz * scale;
     const spokes = Array.from({length:8}).map((_,i)=>{
         const a=(i*45)*Math.PI/180;
         return <Line key={i} x1={14+5*Math.cos(a)} y1={14+5*Math.sin(a)} x2={14+10*Math.cos(a)} y2={14+10*Math.sin(a)} stroke={color} strokeWidth={0.6} opacity={0.7}/>;
@@ -229,33 +231,38 @@ const GlowRing = ({ color }: { color: string }) => {
 };
 
 // ─── Stars Row ─────────────────────────────────────────────────────────────────
-const StarsRow = ({ count, color, emptyColor }: { count: number; color: string; emptyColor: string }) => (
+const StarsRow = ({ count, color, emptyColor, sc }: { count: number; color: string; emptyColor: string; sc: number }) => (
     <View style={styles.starsRow}>
         {Array.from({length:5}).map((_,i) => (
-            <Text key={i} style={[styles.star, { color: i < count ? color : emptyColor }]}>★</Text>
+            <Text key={i} style={[styles.star, { color: i < count ? color : emptyColor, fontSize: Math.max(7, 11 * sc), lineHeight: Math.max(10, 14 * sc) }]}>★</Text>
         ))}
     </View>
 );
 
 // ─── Special Ability Banner ────────────────────────────────────────────────────
 const AbilityBanner = ({
-    text, rarity, theme,
-}: { text: string; rarity: CardRarity; theme: typeof RARITY_THEMES['legendary'] }) => {
+    text, rarity, theme, sc,
+}: { text: string; rarity: CardRarity; theme: typeof RARITY_THEMES['legendary']; sc: number }) => {
+    const textSize = Math.max(7, 9.5 * sc);
+    const iconSize = Math.max(8, 11 * sc);
+    const padH = Math.max(4, 8 * sc);
+    const padV = Math.max(3, 5 * sc);
+
     if (rarity === 'legendary') {
         return (
             <View style={styles.abilityWrapperLegendary}>
                 <View style={styles.legendaryDivider}>
                     <View style={[styles.dividerLine,{backgroundColor:theme.color}]}/>
-                    <Text style={[styles.dividerGem,{color:theme.color}]}>✦</Text>
+                    <Text style={[styles.dividerGem,{color:theme.color, fontSize: Math.max(7, 10*sc)}]}>✦</Text>
                     <View style={[styles.dividerLine,{backgroundColor:theme.color}]}/>
                 </View>
                 <LinearGradient
                     colors={theme.abilityBg}
                     start={{x:0,y:0}} end={{x:1,y:0}}
-                    style={[styles.abilityBannerBase,{borderColor:theme.abilityBorder, borderWidth:1.2}]}
+                    style={[styles.abilityBannerBase,{borderColor:theme.abilityBorder, borderWidth:1.2, paddingHorizontal:padH, paddingVertical:padV}]}
                 >
-                    <Text style={[styles.abilityIcon,{color:theme.abilityIconColor}]}>⚜️</Text>
-                    <Text style={[styles.abilityText,{color:theme.abilityTextColor}]} numberOfLines={2}>{text}</Text>
+                    <Text style={[styles.abilityIcon,{color:theme.abilityIconColor, fontSize:iconSize}]}>⚜️</Text>
+                    <Text style={[styles.abilityText,{color:theme.abilityTextColor, fontSize:textSize, lineHeight:textSize*1.35}]} numberOfLines={2}>{text}</Text>
                 </LinearGradient>
             </View>
         );
@@ -266,10 +273,10 @@ const AbilityBanner = ({
                 <View style={[styles.epicAccentBar,{backgroundColor:theme.color}]}/>
                 <LinearGradient
                     colors={theme.abilityBg}
-                    style={[styles.abilityBannerBase,{borderColor:theme.abilityBorder, borderWidth:1, borderLeftWidth:0}]}
+                    style={[styles.abilityBannerBase,{borderColor:theme.abilityBorder, borderWidth:1, borderLeftWidth:0, paddingHorizontal:padH, paddingVertical:padV}]}
                 >
-                    <Text style={[styles.abilityIcon,{color:theme.abilityIconColor}]}>✦</Text>
-                    <Text style={[styles.abilityText,{color:theme.abilityTextColor}]} numberOfLines={2}>{text}</Text>
+                    <Text style={[styles.abilityIcon,{color:theme.abilityIconColor, fontSize:iconSize}]}>✦</Text>
+                    <Text style={[styles.abilityText,{color:theme.abilityTextColor, fontSize:textSize, lineHeight:textSize*1.35}]} numberOfLines={2}>{text}</Text>
                 </LinearGradient>
             </View>
         );
@@ -277,10 +284,10 @@ const AbilityBanner = ({
     return (
         <LinearGradient
             colors={theme.abilityBg}
-            style={[styles.abilityBannerSimple,{borderColor:theme.abilityBorder}]}
+            style={[styles.abilityBannerSimple,{borderColor:theme.abilityBorder, paddingHorizontal:padH, paddingVertical:padV-1}]}
         >
-            <Text style={[styles.abilityIcon,{color:theme.abilityIconColor}]}>◆</Text>
-            <Text style={[styles.abilityText,{color:theme.abilityTextColor}]} numberOfLines={2}>{text}</Text>
+            <Text style={[styles.abilityIcon,{color:theme.abilityIconColor, fontSize:iconSize}]}>◆</Text>
+            <Text style={[styles.abilityText,{color:theme.abilityTextColor, fontSize:textSize, lineHeight:textSize*1.35}]} numberOfLines={2}>{text}</Text>
         </LinearGradient>
     );
 };
@@ -300,54 +307,86 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
 
-    const foilPos = useSharedValue(-120);
+    // ── Resolve actual card dimensions ──────────────────────────────────────
+    const { width: screenW } = useWindowDimensions();
+    const styleW = (style as any)?.width;
+    const styleH = (style as any)?.height;
+    const cardW: number = typeof styleW === 'number' ? styleW : BASE_W;
+    const cardH: number = typeof styleH === 'number' ? styleH : BASE_H;
+
+    // scale factor relative to the BASE design (220×320)
+    const scW = cardW / BASE_W;   // width scale
+    const scH = cardH / BASE_H;   // height scale
+    const sc  = Math.min(scW, scH); // uniform scale for fonts/icons
+
+    // ── Animated foil ───────────────────────────────────────────────────────
+    const foilPos = useSharedValue(-cardW * 0.55);
     useEffect(() => {
         if (theme.hasFoil) {
-            foilPos.value = withRepeat(withTiming(320,{duration:theme.foilDuration,easing:Easing.linear}),-1,false);
+            foilPos.value = withRepeat(
+                withTiming(cardW * 1.45, { duration: theme.foilDuration, easing: Easing.linear }),
+                -1, false
+            );
         }
-    }, [rarity]);
+    }, [rarity, cardW]);
     const foilStyle = useAnimatedStyle(() => ({ transform:[{translateX:foilPos.value}] }));
     const imgSource = resolveSource(card.finalImage);
 
-    // ── Height calculations ──────────────────────────────────────────────────
-    // Ability banner height estimate: legendary ~46px, others ~38px
-    // Stats circle diameter: 46px + ring overhead ~64px → needs ~70px from bottom
-    // We stack: stats at bottom, then ability just above stats
-    const STAT_AREA_H  = 62;  // height occupied by stat circles from bottom
-    const ABILITY_H    = hasAbility ? (rarity === 'legendary' ? 50 : 42) : 0;
-    const ABILITY_GAP  = hasAbility ? 4 : 0;
+    // ── Scaled layout values ─────────────────────────────────────────────────
+    const statBadgeSize  = Math.round(46 * sc);
+    const ringSize       = Math.round(64 * sc);
+    const innerRingSize  = Math.round(48 * sc);
+    const innerRing2Size = Math.round(32 * sc);
+    const foilStripW     = Math.round(90 * scW);
 
-    // bottom of stats row
-    const statsBottom  = 6;
-    // bottom of ability container = just above stats
+    // vertical stack from bottom
+    const statsBottom   = Math.round(6 * scH);
+    const STAT_AREA_H   = Math.round(62 * scH);
+    const ABILITY_H     = hasAbility ? Math.round((rarity === 'legendary' ? 50 : 42) * scH) : 0;
+    const ABILITY_GAP   = hasAbility ? Math.round(4 * scH) : 0;
     const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
-    // bottom of name container = just above ability (or stats if no ability)
-    const nameBottom   = abilityBottom + (hasAbility ? ABILITY_H + 4 : 0) + (stars > 0 ? 4 : 6);
+    const nameBottom    = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4*scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
+
+    // font sizes
+    const nameFontSize    = Math.max(10, (rarity === 'legendary' ? 18 : 17) * sc);
+    const badgeFontSize   = Math.max(7, 10 * sc);
+    const statIconSize    = Math.max(8, 12 * sc);
+    const statValueSize   = Math.max(9, 13 * sc);
+
+    // badge padding
+    const badgePadH = Math.max(5, 10 * sc);
+    const badgePadV = Math.max(2, 3 * sc);
+    const badgeTop  = Math.max(4, 9 * scH);
+    const badgeLeft = Math.max(4, 9 * scW);
 
     return (
         <Animated.View style={[
             styles.cardContainer,
-            { borderColor:theme.borderColor, borderWidth:theme.borderWidth,
-              shadowColor:theme.shadowColor, shadowOpacity:theme.shadowOpacity,
-              shadowRadius:theme.shadowRadius, elevation:theme.elevation },
+            {
+                width: cardW, height: cardH,
+                borderRadius: Math.round(14 * sc),
+                borderColor: theme.borderColor, borderWidth: theme.borderWidth,
+                shadowColor: theme.shadowColor, shadowOpacity: theme.shadowOpacity,
+                shadowRadius: theme.shadowRadius, elevation: theme.elevation,
+            },
             style,
         ]}>
             {theme.hasPulse && <BreathingBorder/>}
             {(rarity==='epic'||rarity==='legendary') && <GlowRing color={theme.color}/>}
 
-            <View style={styles.cardInner}>
+            <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
                 {imgSource && <Image source={imgSource} style={styles.bgImage} resizeMode="cover"/>}
 
                 <View style={styles.contentLayer}>
                     {theme.hasFoil && (
                         <View style={styles.foilContainer} pointerEvents="none">
-                            <Animated.View style={[styles.foilStrip,foilStyle]}>
+                            <Animated.View style={[{position:'absolute',top:0,bottom:0,width:foilStripW},foilStyle]}>
                                 <LinearGradient colors={theme.foilColors} start={{x:0,y:0}} end={{x:1,y:1}} style={styles.foilGradient}/>
                             </Animated.View>
                         </View>
                     )}
 
-                    <View style={[styles.innerBorder,{borderColor:theme.borderColor+'55'}]} pointerEvents="none"/>
+                    <View style={[styles.innerBorder,{borderColor:theme.borderColor+'55', borderRadius:Math.round(9*sc)}]} pointerEvents="none"/>
 
                     <LinearGradient
                         colors={['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)']}
@@ -361,28 +400,32 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
                     {theme.hasFiligree && (
                         <>
-                            <ElvenCorner position="tl" color={theme.color} rich={rarity==='legendary'}/>
-                            <ElvenCorner position="tr" color={theme.color} rich={rarity==='legendary'}/>
+                            <ElvenCorner position="tl" color={theme.color} rich={rarity==='legendary'} scale={sc}/>
+                            <ElvenCorner position="tr" color={theme.color} rich={rarity==='legendary'} scale={sc}/>
                             {(rarity==='legendary'||rarity==='epic') && (
                                 <>
-                                    <ElvenCorner position="bl" color={theme.color} rich={rarity==='legendary'}/>
-                                    <ElvenCorner position="br" color={theme.color} rich={rarity==='legendary'}/>
+                                    <ElvenCorner position="bl" color={theme.color} rich={rarity==='legendary'} scale={sc}/>
+                                    <ElvenCorner position="br" color={theme.color} rich={rarity==='legendary'} scale={sc}/>
                                 </>
                             )}
                         </>
                     )}
 
+                    {/* Rarity Badge */}
                     <View style={[styles.rarityBadge, {
+                        top: badgeTop, left: badgeLeft,
+                        paddingHorizontal: badgePadH, paddingVertical: badgePadV,
+                        borderRadius: Math.round(7 * sc),
                         borderColor: theme.color+'AA',
                         backgroundColor: rarity==='legendary'?'rgba(30,20,0,0.75)':rarity==='epic'?'rgba(20,0,30,0.75)':'rgba(0,0,0,0.65)',
                     }]}>
-                        <Text style={[styles.rarityBadgeText,{color:theme.color}]}>
+                        <Text style={[styles.rarityBadgeText,{color:theme.color, fontSize:badgeFontSize}]}>
                             {rarity==='legendary'?'✧ ':'✦ '}{theme.label}{rarity==='legendary'?' ✧':' ✦'}
                         </Text>
                     </View>
 
-                    {/* Name + Stars — pushed above ability */}
-                    <View style={[styles.nameContainer, { bottom: nameBottom }]}>
+                    {/* Name + Stars */}
+                    <View style={[styles.nameContainer, { bottom: nameBottom, paddingHorizontal: Math.max(4, 10*scW) }]}>
                         {rarity==='legendary' && (
                             <View style={styles.legendaryNameBar}>
                                 <LinearGradient
@@ -392,46 +435,54 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                                 />
                             </View>
                         )}
-                        <Text style={[styles.cardName,{textShadowColor:theme.color, fontSize:rarity==='legendary'?18:17}]} numberOfLines={1}>
+                        <Text style={[styles.cardName,{textShadowColor:theme.color, fontSize:nameFontSize}]} numberOfLines={1}>
                             {card.nameAr || card.name}
                         </Text>
-                        {/* stars=0 → no stars row */}
-                        {stars > 0 && <StarsRow count={stars} color={theme.starColor} emptyColor={theme.starEmpty}/>}
+                        {stars > 0 && <StarsRow count={stars} color={theme.starColor} emptyColor={theme.starEmpty} sc={sc}/>}
                     </View>
 
-                    {/* Ability — sits between name and stats, never overlaps */}
+                    {/* Ability Banner */}
                     {hasAbility && (
-                        <View style={[styles.abilityContainer, { bottom: abilityBottom }]}>
-                            <AbilityBanner text={card.specialAbility!} rarity={rarity} theme={theme as any}/>
+                        <View style={[styles.abilityContainer, { bottom: abilityBottom, left: Math.max(4,8*scW), right: Math.max(4,8*scW) }]}>
+                            <AbilityBanner text={card.specialAbility!} rarity={rarity} theme={theme as any} sc={sc}/>
                         </View>
                     )}
 
-                    {/* Stats — always pinned at the very bottom */}
-                    <View style={[styles.statsRow, { bottom: statsBottom }]}>
+                    {/* Stats Row */}
+                    <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 12*scW) }]}>
                         {[{icon:'⚔️',value:card.attack,col:theme.atkColor,rev:false},
                           {icon:'🛡️',value:card.defense,col:theme.defColor,rev:true}]
                           .map(({icon,value,col,rev})=>(
                             <View key={icon} style={styles.statWrapper}>
                                 {theme.hasRunicRing && (
-                                    <View style={styles.ringWrapper}>
-                                        <RunicRing color={theme.color} size={64} reverse={rev} speed={rarity==='legendary'?7000:10000}/>
+                                    <View style={[styles.ringWrapper, { width:ringSize, height:ringSize }]}>
+                                        <RunicRing color={theme.color} size={ringSize} reverse={rev} speed={rarity==='legendary'?7000:10000}/>
                                         <View style={[StyleSheet.absoluteFill,{alignItems:'center',justifyContent:'center'}]}>
-                                            <RunicRing color={theme.color} size={48} reverse={!rev} speed={rarity==='legendary'?5000:8000}/>
+                                            <RunicRing color={theme.color} size={innerRingSize} reverse={!rev} speed={rarity==='legendary'?5000:8000}/>
                                         </View>
                                         {rarity==='legendary' && (
                                             <View style={[StyleSheet.absoluteFill,{alignItems:'center',justifyContent:'center'}]}>
-                                                <RunicRing color={theme.color} size={32} reverse={rev} speed={3500}/>
+                                                <RunicRing color={theme.color} size={innerRing2Size} reverse={rev} speed={3500}/>
                                             </View>
                                         )}
                                     </View>
                                 )}
-                                <View style={[styles.statBadge,{borderColor:theme.color,shadowColor:theme.color,borderWidth:rarity==='legendary'?2:1.5}]}>
+                                <View style={[
+                                    styles.statBadge,
+                                    {
+                                        width: statBadgeSize, height: statBadgeSize,
+                                        borderRadius: statBadgeSize / 2,
+                                        borderColor: theme.color,
+                                        shadowColor: theme.color,
+                                        borderWidth: rarity==='legendary' ? 2 : 1.5,
+                                    }
+                                ]}>
                                     <LinearGradient
                                         colors={rarity==='legendary'?['rgba(15,10,0,0.9)','rgba(40,30,0,0.95)']:['rgba(0,0,0,0.82)','rgba(20,18,30,0.95)']}
                                         style={styles.badgeGradient}
                                     >
-                                        <Text style={styles.statIcon}>{icon}</Text>
-                                        <Text style={[styles.statValue,{color:col}]}>{value}</Text>
+                                        <Text style={[styles.statIcon, { fontSize: statIconSize }]}>{icon}</Text>
+                                        <Text style={[styles.statValue,{color:col, fontSize: statValueSize}]}>{value}</Text>
                                     </LinearGradient>
                                 </View>
                             </View>
@@ -446,10 +497,9 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
 const styles = StyleSheet.create({
     cardContainer: {
-        width: 220, height: 320, borderRadius: 14,
         backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 },
     },
-    cardInner: { flex: 1, borderRadius: 12, overflow: 'hidden' },
+    cardInner: { flex: 1, overflow: 'hidden' },
     bgImage: { position: 'absolute', top:0, left:0, right:0, bottom:0, width:'100%', height:'100%' },
     contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: {
@@ -463,11 +513,10 @@ const styles = StyleSheet.create({
         shadowOffset:{width:0,height:0}, shadowRadius:14, zIndex:19,
     },
     foilContainer: { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:1, overflow:'hidden' },
-    foilStrip: { position:'absolute', top:0, bottom:0, width:90 },
     foilGradient: { flex:1, transform:[{rotate:'-45deg'}] },
     innerBorder: {
         position:'absolute', top:5, left:5, right:5, bottom:5,
-        borderRadius:9, borderWidth:1, zIndex:5,
+        borderWidth:1, zIndex:5,
     },
     gradientOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:2 },
     filigreeCorner: { position:'absolute', zIndex:6, opacity:0.92 },
@@ -480,14 +529,12 @@ const styles = StyleSheet.create({
     vineLeft: { position:'absolute', left:2 },
     vineRight: { position:'absolute', right:2 },
     rarityBadge: {
-        position:'absolute', top:9, left:9,
-        paddingHorizontal:10, paddingVertical:3,
-        borderRadius:7, borderWidth:1, zIndex:10,
+        position:'absolute', borderWidth:1, zIndex:10,
     },
-    rarityBadgeText: { fontSize:10, fontWeight:'700', letterSpacing:0.5 },
+    rarityBadgeText: { fontWeight:'700', letterSpacing:0.5 },
     nameContainer: {
         position:'absolute', left:0, right:0,
-        alignItems:'center', paddingHorizontal:10, zIndex:8,
+        alignItems:'center', zIndex:8,
     },
     legendaryNameBar: { position:'absolute', top:-4, left:-10, right:-10, bottom:-4 },
     cardName: {
@@ -495,18 +542,16 @@ const styles = StyleSheet.create({
         textShadowOffset:{width:0,height:1}, textShadowRadius:10, letterSpacing:0.3,
     },
     starsRow: { flexDirection:'row', gap:2, marginTop:3 },
-    star: { fontSize:11, lineHeight:14 },
+    star: { fontWeight:'bold' },
     abilityContainer: {
-        position:'absolute', left:8, right:8, zIndex:9,
+        position:'absolute', zIndex:9,
     },
     abilityBannerBase: {
         flexDirection:'row', alignItems:'center', gap:5,
-        paddingHorizontal:8, paddingVertical:5,
         borderRadius:6,
     },
     abilityBannerSimple: {
         flexDirection:'row', alignItems:'center', gap:5,
-        paddingHorizontal:8, paddingVertical:4,
         borderRadius:6, borderWidth:0.8,
     },
     abilityWrapperLegendary: { gap:0 },
@@ -515,30 +560,28 @@ const styles = StyleSheet.create({
         marginBottom:3, paddingHorizontal:4,
     },
     dividerLine: { flex:1, height:0.8, opacity:0.6 },
-    dividerGem: { fontSize:10, fontWeight:'800' },
+    dividerGem: { fontWeight:'800' },
     abilityWrapperEpic: { flexDirection:'row', alignItems:'stretch' },
     epicAccentBar: { width:3, borderRadius:2, marginRight:0 },
-    abilityIcon: { fontSize:11 },
+    abilityIcon: {},
     abilityText: {
-        flex:1, fontSize:9.5, fontWeight:'600',
-        lineHeight:13, writingDirection:'rtl',
+        flex:1, fontWeight:'600', writingDirection:'rtl',
     },
     statsRow: {
         position:'absolute', left:0, right:0,
         flexDirection:'row', justifyContent:'space-between',
-        paddingHorizontal:12, zIndex:10,
+        zIndex:10,
     },
     statWrapper: { alignItems:'center', justifyContent:'center' },
     ringWrapper: {
-        position:'absolute', width:64, height:64,
+        position:'absolute',
         alignItems:'center', justifyContent:'center', zIndex:0,
     },
     statBadge: {
-        width:46, height:46, borderRadius:23,
         overflow:'hidden', shadowOffset:{width:0,height:0},
         shadowRadius:10, elevation:6, zIndex:1,
     },
     badgeGradient: { flex:1, alignItems:'center', justifyContent:'center' },
-    statIcon: { fontSize:12, marginBottom:1 },
-    statValue: { fontSize:13, fontWeight:'bold' },
+    statIcon: { marginBottom:1 },
+    statValue: { fontWeight:'bold' },
 });
