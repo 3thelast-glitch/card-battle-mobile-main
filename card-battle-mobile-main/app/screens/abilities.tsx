@@ -6,9 +6,11 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Save } from 'lucide-react-native';
 import * as AbilitiesData from '@/data/abilities';
 import {
-  getDisabledAbilityIds,
-  saveDisabledAbilityIds,
-} from '@/lib/game/abilities-store';
+  loadDisabledAbilities,
+  saveDisabledAbilities,
+  NAME_TO_ABILITY_TYPE,
+} from '@/lib/game/abilities';
+import type { AbilityType } from '@/lib/game/types';
 
 type FilterType = 'All' | 'Common' | 'Rare' | 'Epic' | 'Legendary';
 
@@ -24,17 +26,24 @@ export default function AbilitiesScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>('All');
   const [saveText, setSaveText] = useState('حفظ التعديلات');
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  // Set يحتوي nameEn للكروت المعطّلة (نستخدم nameEn لأنه المفتاح الموحّد)
+  const [disabledNames, setDisabledNames] = useState<Set<string>>(new Set());
 
-  // حالة محلية: أي IDs معطّلة (temporary, ما تحفظ إلا بعد ضغطة حفظ)
-  const [disabledIds, setDisabledIds] = useState<Set<number>>(new Set());
-  const [loaded, setLoaded] = useState(false);
-
-  // تحميل الحالة المحفوظة عند فتح الشاشة (يحل مشكلة refresh)
+  // تحميل القدرات المعطّلة عند الفتح
   useEffect(() => {
-    getDisabledAbilityIds().then(ids => {
-      setDisabledIds(ids);
-      setLoaded(true);
+    loadDisabledAbilities().then(disabledTypes => {
+      // نحوّل AbilityType → nameEn (عكس الخريطة)
+      const typeToName: Record<string, string> = {};
+      Object.entries(NAME_TO_ABILITY_TYPE).forEach(([name, type]) => {
+        typeToName[type] = name;
+      });
+      const names = new Set<string>();
+      disabledTypes.forEach(type => {
+        if (typeToName[type]) names.add(typeToName[type]);
+      });
+      setDisabledNames(names);
+      setLoading(false);
     });
   }, []);
 
@@ -56,26 +65,31 @@ export default function AbilitiesScreen() {
     return allAbilities.filter((a: any) => a.rarity === filter);
   }, [allAbilities, filter]);
 
-  // تبديل حالة كرت محلياً — لا يحفظ حتى الآن
-  const toggleCard = useCallback((id: number) => {
-    setDisabledIds(prev => {
+  /** تبديل حالة تعطيل كرت */
+  const handleToggleDisabled = useCallback((nameEn: string, nowDisabled: boolean) => {
+    setDisabledNames(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (nowDisabled) next.add(nameEn);
+      else next.delete(nameEn);
       return next;
     });
   }, []);
 
-  // حفظ في AsyncStorage — فقط بعد الضغط
+  /** حفظ التعديلات في AsyncStorage */
   const handleSave = useCallback(async () => {
-    setSaving(true);
-    await saveDisabledAbilityIds(disabledIds);
-    setSaving(false);
-    setSaveText('Saved ✓');
+    setSaveText('جاري الحفظ...');
+    // نحوّل nameEn → AbilityType
+    const disabledTypes = new Set<AbilityType>();
+    disabledNames.forEach(name => {
+      const type = NAME_TO_ABILITY_TYPE[name];
+      if (type) disabledTypes.add(type);
+    });
+    await saveDisabledAbilities(disabledTypes);
+    setSaveText('تم الحفظ ✓');
     setTimeout(() => setSaveText('حفظ التعديلات'), 2000);
-  }, [disabledIds]);
+  }, [disabledNames]);
 
-  if (!loaded) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -88,17 +102,16 @@ export default function AbilitiesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View className="flex-1 px-4">
-        {/* Back button */}
+        {/* Back */}
         <TouchableOpacity
           onPress={() => router.back()}
-          className="absolute top-6 left-6 z-50 flex-row items-center justify-center gap-2 px-4 py-2 bg-slate-800/80 backdrop-blur-md rounded-xl border border-white/10 cursor-pointer"
+          className="absolute top-6 left-6 z-50 flex-row items-center justify-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur-md rounded-xl border border-white/10 transition-all cursor-pointer"
           activeOpacity={0.7}
         >
           <ArrowLeft size={16} color="#fff" />
           <ThemedText className="text-white text-sm font-bold">رجوع</ThemedText>
         </TouchableOpacity>
 
-        {/* Title */}
         <View className="pt-6 pb-4 items-center justify-center mt-12">
           <ThemedText
             className="text-[40px] text-orange-500"
@@ -129,28 +142,26 @@ export default function AbilitiesScreen() {
           })}
         </View>
 
-        {/* Cards grid */}
         <ScrollView
           className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ alignItems: 'center', paddingBottom: 100 }}
+          contentContainerStyle={{ alignItems: 'center', paddingBottom: 40 }}
         >
           {filteredAbilities.length > 0 ? (
             <View className="flex-row flex-wrap justify-center gap-4 w-full">
               {filteredAbilities.map((item: any, index: number) => {
-                const isDisabled = disabledIds.has(item.id);
+                const isDisabled = disabledNames.has(item.nameEn);
                 return (
-                  <TouchableOpacity
-                    key={item.id ?? `ability-${index}`}
-                    onPress={() => toggleCard(item.id)}
-                    activeOpacity={0.85}
+                  <View
+                    key={item.id ? item.id.toString() : `ability-${index}`}
+                    className="shrink-0"
                     style={{ width: 220, height: 330 }}
                   >
                     <AbilityCard
                       ability={{ ...item, isActive: !isDisabled }}
-                      showActionButtons={false}
+                      onToggleDisabled={(nowDisabled) => handleToggleDisabled(item.nameEn, nowDisabled)}
                     />
-                  </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -161,19 +172,13 @@ export default function AbilitiesScreen() {
           )}
         </ScrollView>
 
-        {/* Floating Save Button */}
+        {/* Save FAB */}
         <TouchableOpacity
           onPress={handleSave}
-          disabled={saving}
-          className="absolute bottom-8 right-8 z-50 flex-row items-center justify-center gap-2 px-6 py-3 bg-emerald-600 rounded-full cursor-pointer"
-          style={{ shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 20, elevation: 8 }}
+          className="absolute bottom-8 right-8 z-50 flex-row items-center justify-center gap-2 px-6 py-3 bg-emerald-600 rounded-full shadow-[0_4px_20px_rgba(16,185,129,0.4)] transition-all duration-300 cursor-pointer"
           activeOpacity={0.8}
         >
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Save size={18} color="#fff" />
-          )}
+          <Save size={18} color="#fff" />
           <ThemedText className="text-white font-bold text-base">{saveText}</ThemedText>
         </TouchableOpacity>
       </View>
@@ -182,8 +187,5 @@ export default function AbilitiesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#020617',
-  },
+  safeArea: { flex: 1, backgroundColor: '#020617' },
 });
