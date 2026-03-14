@@ -1,10 +1,8 @@
 /**
  * LuxuryCharacterCardAnimated — Elven Luxury Enhanced
- * - Stars row below the name (styled per rarity)
- * - Special ability banner styled per rarity:
- *     common/rare  → simple dark strip at bottom
- *     epic         → frosted purple panel with left accent bar
- *     legendary    → full gold gradient scroll with ornate top divider
+ * FIXES:
+ *  - Stats circles no longer cover ability text (statsRow bottom offset auto-calculated)
+ *  - stars=0 shows nothing (no stars row)
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -246,7 +244,6 @@ const AbilityBanner = ({
     if (rarity === 'legendary') {
         return (
             <View style={styles.abilityWrapperLegendary}>
-                {/* Ornate divider */}
                 <View style={styles.legendaryDivider}>
                     <View style={[styles.dividerLine,{backgroundColor:theme.color}]}/>
                     <Text style={[styles.dividerGem,{color:theme.color}]}>✦</Text>
@@ -277,7 +274,6 @@ const AbilityBanner = ({
             </View>
         );
     }
-    // common / rare — simple strip
     return (
         <LinearGradient
             colors={theme.abilityBg}
@@ -313,8 +309,20 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const foilStyle = useAnimatedStyle(() => ({ transform:[{translateX:foilPos.value}] }));
     const imgSource = resolveSource(card.finalImage);
 
-    // Dynamic bottom offset: if ability exists push name+stars up more
-    const nameBottomOffset = hasAbility ? (rarity==='legendary' ? 82 : 74) : 56;
+    // ── Height calculations ──────────────────────────────────────────────────
+    // Ability banner height estimate: legendary ~46px, others ~38px
+    // Stats circle diameter: 46px + ring overhead ~64px → needs ~70px from bottom
+    // We stack: stats at bottom, then ability just above stats
+    const STAT_AREA_H  = 62;  // height occupied by stat circles from bottom
+    const ABILITY_H    = hasAbility ? (rarity === 'legendary' ? 50 : 42) : 0;
+    const ABILITY_GAP  = hasAbility ? 4 : 0;
+
+    // bottom of stats row
+    const statsBottom  = 6;
+    // bottom of ability container = just above stats
+    const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
+    // bottom of name container = just above ability (or stats if no ability)
+    const nameBottom   = abilityBottom + (hasAbility ? ABILITY_H + 4 : 0) + (stars > 0 ? 4 : 6);
 
     return (
         <Animated.View style={[
@@ -331,7 +339,6 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                 {imgSource && <Image source={imgSource} style={styles.bgImage} resizeMode="cover"/>}
 
                 <View style={styles.contentLayer}>
-                    {/* Foil */}
                     {theme.hasFoil && (
                         <View style={styles.foilContainer} pointerEvents="none">
                             <Animated.View style={[styles.foilStrip,foilStyle]}>
@@ -340,22 +347,18 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                         </View>
                     )}
 
-                    {/* Inner border */}
                     <View style={[styles.innerBorder,{borderColor:theme.borderColor+'55'}]} pointerEvents="none"/>
 
-                    {/* Bottom gradient */}
                     <LinearGradient
                         colors={['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)']}
                         style={styles.gradientOverlay} start={{x:0,y:0}} end={{x:0,y:1}}
                         pointerEvents="none"
                     />
 
-                    {/* Legendary extras */}
                     {theme.hasEdgeChain && <EdgeChain color={theme.color}/>}
                     {theme.hasParticles && <FloatingParticles color={theme.color}/>}
                     {theme.hasSideVines && <SideVines color={theme.color}/>}
 
-                    {/* Corners */}
                     {theme.hasFiligree && (
                         <>
                             <ElvenCorner position="tl" color={theme.color} rich={rarity==='legendary'}/>
@@ -369,7 +372,6 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                         </>
                     )}
 
-                    {/* Rarity badge */}
                     <View style={[styles.rarityBadge, {
                         borderColor: theme.color+'AA',
                         backgroundColor: rarity==='legendary'?'rgba(30,20,0,0.75)':rarity==='epic'?'rgba(20,0,30,0.75)':'rgba(0,0,0,0.65)',
@@ -379,8 +381,8 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                         </Text>
                     </View>
 
-                    {/* Name + Stars */}
-                    <View style={[styles.nameContainer,{bottom:nameBottomOffset}]}>
+                    {/* Name + Stars — pushed above ability */}
+                    <View style={[styles.nameContainer, { bottom: nameBottom }]}>
                         {rarity==='legendary' && (
                             <View style={styles.legendaryNameBar}>
                                 <LinearGradient
@@ -393,18 +395,19 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                         <Text style={[styles.cardName,{textShadowColor:theme.color, fontSize:rarity==='legendary'?18:17}]} numberOfLines={1}>
                             {card.nameAr || card.name}
                         </Text>
+                        {/* stars=0 → no stars row */}
                         {stars > 0 && <StarsRow count={stars} color={theme.starColor} emptyColor={theme.starEmpty}/>}
                     </View>
 
-                    {/* Special Ability */}
+                    {/* Ability — sits between name and stats, never overlaps */}
                     {hasAbility && (
-                        <View style={styles.abilityContainer}>
+                        <View style={[styles.abilityContainer, { bottom: abilityBottom }]}>
                             <AbilityBanner text={card.specialAbility!} rarity={rarity} theme={theme as any}/>
                         </View>
                     )}
 
-                    {/* Stats */}
-                    <View style={styles.statsRow}>
+                    {/* Stats — always pinned at the very bottom */}
+                    <View style={[styles.statsRow, { bottom: statsBottom }]}>
                         {[{icon:'⚔️',value:card.attack,col:theme.atkColor,rev:false},
                           {icon:'🛡️',value:card.defense,col:theme.defColor,rev:true}]
                           .map(({icon,value,col,rev})=>(
@@ -468,24 +471,20 @@ const styles = StyleSheet.create({
     },
     gradientOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:2 },
     filigreeCorner: { position:'absolute', zIndex:6, opacity:0.92 },
-    // Edge chains
     edgeChainWrapper: { position:'absolute', top:0, left:0, right:0, bottom:0, zIndex:4 },
     edgeTop: { position:'absolute', top:3, left:0, right:0 },
     edgeBottom: { position:'absolute', bottom:3, left:0, right:0 },
     edgeLeft: { position:'absolute', left:3, top:0, bottom:0 },
     edgeRight: { position:'absolute', right:3, top:0, bottom:0 },
-    // Side vines
     sideVinesWrapper: { position:'absolute', top:'20%', left:0, right:0, bottom:'15%', zIndex:3 },
     vineLeft: { position:'absolute', left:2 },
     vineRight: { position:'absolute', right:2 },
-    // Badge
     rarityBadge: {
         position:'absolute', top:9, left:9,
         paddingHorizontal:10, paddingVertical:3,
         borderRadius:7, borderWidth:1, zIndex:10,
     },
     rarityBadgeText: { fontSize:10, fontWeight:'700', letterSpacing:0.5 },
-    // Name + Stars
     nameContainer: {
         position:'absolute', left:0, right:0,
         alignItems:'center', paddingHorizontal:10, zIndex:8,
@@ -495,12 +494,10 @@ const styles = StyleSheet.create({
         fontWeight:'800', color:'#FFFFFF', textAlign:'center',
         textShadowOffset:{width:0,height:1}, textShadowRadius:10, letterSpacing:0.3,
     },
-    // Stars
     starsRow: { flexDirection:'row', gap:2, marginTop:3 },
     star: { fontSize:11, lineHeight:14 },
-    // Ability
     abilityContainer: {
-        position:'absolute', bottom:8, left:8, right:8, zIndex:9,
+        position:'absolute', left:8, right:8, zIndex:9,
     },
     abilityBannerBase: {
         flexDirection:'row', alignItems:'center', gap:5,
@@ -526,9 +523,8 @@ const styles = StyleSheet.create({
         flex:1, fontSize:9.5, fontWeight:'600',
         lineHeight:13, writingDirection:'rtl',
     },
-    // Stats
     statsRow: {
-        position:'absolute', bottom:8, left:0, right:0,
+        position:'absolute', left:0, right:0,
         flexDirection:'row', justifyContent:'space-between',
         paddingHorizontal:12, zIndex:10,
     },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
   TextInput, Switch, Text as RNText,
@@ -15,9 +15,18 @@ import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, CARD_SCALE, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 
-// ─── Local edits state ───────────────────────────────────────────────────────
+// ─── Mutable card store (persists within app session) ────────────────────────
+// We clone ALL_CARDS into a ref so edits survive re-renders without touching the source file
+const _savedCards: Map<string, Partial<Card>> = new Map();
+
+function applyOverrides(card: Card): Card {
+  const o = _savedCards.get(card.id);
+  return o ? { ...card, ...o } : card;
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 type CardEdits = {
-  stars: 1 | 2 | 3 | 4 | 5;
+  stars: number;           // 0 = no stars
   hasAbility: boolean;
   specialAbility: string;
   attack: number;
@@ -26,7 +35,7 @@ type CardEdits = {
 
 function toEdits(card: Card): CardEdits {
   return {
-    stars: (card.stars ?? 1) as 1 | 2 | 3 | 4 | 5,
+    stars: card.stars ?? 0,
     hasAbility: !!card.specialAbility,
     specialAbility: card.specialAbility ?? '',
     attack: card.attack,
@@ -36,11 +45,20 @@ function toEdits(card: Card): CardEdits {
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-// ─── Stars Picker ─────────────────────────────────────────────────────────────
-function StarPicker({ value, onChange }: { value: number; onChange: (n: 1|2|3|4|5) => void }) {
+// ─── Stars Picker — 0 to 5 ──────────────────────────────────────────────────
+function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <View style={ep.starRow}>
-      {([1, 2, 3, 4, 5] as const).map(n => (
+      {/* ✕ button = 0 stars */}
+      <TouchableOpacity
+        onPress={() => onChange(0)}
+        activeOpacity={0.7}
+        style={[ep.starBtn, ep.clearBtn, value === 0 && ep.clearBtnActive]}
+      >
+        <RNText style={[ep.clearBtnTxt, value === 0 && { color: '#f87171' }]}>✕</RNText>
+      </TouchableOpacity>
+
+      {[1, 2, 3, 4, 5].map(n => (
         <TouchableOpacity key={n} onPress={() => onChange(n)} activeOpacity={0.7} style={ep.starBtn}>
           <RNText style={[ep.starIcon, { color: n <= value ? '#FFD700' : '#2a2a2a' }]}>★</RNText>
         </TouchableOpacity>
@@ -49,7 +67,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: 1|2|3|4|
   );
 }
 
-// ─── Stat Stepper ─────────────────────────────────────────────────────────────
+// ─── Stat Stepper ────────────────────────────────────────────────────────────
 function StatStepper({ icon, label, value, color, onChange }: {
   icon: string; label: string; value: number; color: string;
   onChange: (v: number) => void;
@@ -84,9 +102,10 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function CardsGalleryScreen() {
   const router = useRouter();
+  const [cards, setCards] = useState<Card[]>(() => ALL_CARDS.map(applyOverrides));
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<Card | null>(null);
@@ -96,7 +115,7 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // sync preview with edits live
+  // Live preview sync
   useEffect(() => {
     if (!selectedCard || !edits) { setPreviewCard(null); return; }
     setPreviewCard({
@@ -113,6 +132,22 @@ export default function CardsGalleryScreen() {
     setEdits(toEdits(card));
   };
 
+  // ── SAVE: persist edits to in-memory store + update cards list ──────────
+  const handleSave = () => {
+    if (!selectedCard || !edits) { handleClose(); return; }
+    const overrides: Partial<Card> = {
+      stars: edits.stars,
+      specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
+      attack: edits.attack,
+      defense: edits.defense,
+    };
+    _savedCards.set(selectedCard.id, overrides);
+    setCards(prev => prev.map(c =>
+      c.id === selectedCard.id ? { ...c, ...overrides } : c
+    ));
+    handleClose();
+  };
+
   const handleClose = () => {
     setSelectedCard(null);
     setEdits(null);
@@ -123,7 +158,7 @@ export default function CardsGalleryScreen() {
 
   if (!isLandscape) return <RotateHintScreen />;
 
-  const filteredCards = ALL_CARDS.filter(card => {
+  const filteredCards = cards.filter(card => {
     if (activeFilter === 'All') return true;
     const map: Record<string, string> = { common:'Common', rare:'Rare', epic:'ملحمية', legendary:'أسطورية' };
     const id = (card.rarity ?? 'common').toLowerCase();
@@ -202,22 +237,22 @@ export default function CardsGalleryScreen() {
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow} onStartShouldSetResponder={() => true}>
 
-              {/* Live card preview */}
               <LuxuryCharacterCardAnimated card={previewCard} style={{ width: 260, height: 380 }} />
 
-              {/* Edit Panel */}
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                  {/* Header */}
                   <RNText style={[ep.title, { color: rarityColor }]}>{selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
 
                   <View style={ep.divider} />
 
-                  {/* ① Stars */}
+                  {/* ① Stars — 0 (✕ no stars) to 5 */}
                   <RNText style={ep.label}>⭐ عدد النجوم</RNText>
                   <StarPicker value={edits.stars} onChange={n => patch({ stars: n })} />
+                  {edits.stars === 0 && (
+                    <RNText style={ep.hint}>الكرت بدون نجوم</RNText>
+                  )}
 
                   <View style={ep.divider} />
 
@@ -259,14 +294,24 @@ export default function CardsGalleryScreen() {
 
                   <View style={ep.divider} />
 
-                  {/* Close */}
-                  <TouchableOpacity
-                    style={[ep.closeBtn, { borderColor: rarityColor + '55' }]}
-                    onPress={handleClose}
-                    activeOpacity={0.8}
-                  >
-                    <RNText style={[ep.closeTxt, { color: rarityColor }]}>إغلاق</RNText>
-                  </TouchableOpacity>
+                  {/* Action buttons */}
+                  <View style={ep.actionRow}>
+                    <TouchableOpacity
+                      style={[ep.actionBtn, { borderColor: '#444' }]}
+                      onPress={handleClose}
+                      activeOpacity={0.8}
+                    >
+                      <RNText style={{ color: '#888', fontWeight: '700', fontSize: 13 }}>إلغاء</RNText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[ep.actionBtn, { borderColor: rarityColor + '88', backgroundColor: rarityColor + '18' }]}
+                      onPress={handleSave}
+                      activeOpacity={0.8}
+                    >
+                      <RNText style={{ color: rarityColor, fontWeight: '800', fontSize: 13 }}>✔ حفظ</RNText>
+                    </TouchableOpacity>
+                  </View>
 
                 </ScrollView>
               </View>
@@ -283,16 +328,24 @@ const ep = StyleSheet.create({
   panel: {
     backgroundColor: 'rgba(10,10,16,0.97)',
     padding: 18, borderRadius: 20, borderWidth: 1.5,
-    width: 280, maxHeight: 460,
+    width: 280, maxHeight: 480,
   },
   title: { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 2 },
   sub:   { fontSize: 11, color: '#555', textAlign: 'center', marginBottom: 2 },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 11 },
-  label: { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 8, textAlign: 'right' },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
+  label: { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
+  hint:  { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
   // Stars
-  starRow: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginBottom: 2 },
+  starRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginBottom: 2 },
   starBtn: { padding: 3 },
-  starIcon: { fontSize: 28 },
+  starIcon: { fontSize: 26 },
+  clearBtn: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 1,
+    borderColor: '#333', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  clearBtnActive: { borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)' },
+  clearBtnTxt: { fontSize: 13, color: '#555', fontWeight: '800' },
   // Switch
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
   // Ability
@@ -320,14 +373,13 @@ const ep = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   statLabel: { fontSize: 10, fontWeight: '600' },
-  // Close
-  closeBtn: {
-    alignSelf: 'center', paddingHorizontal: 30, paddingVertical: 9,
-    borderRadius: 20, borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginBottom: 2,
+  // Action row
+  actionRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 2 },
+  actionBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  closeTxt: { fontSize: 14, fontWeight: '700' },
 });
 
 // ─── Screen Styles ───────────────────────────────────────────────────────────
@@ -338,13 +390,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize:13, color:'#a0a0a0', marginTop:4, textAlign:'center' },
   scroll: { flex:1, width:'100%' },
   scrollContent: { alignItems:'center', paddingBottom:20 },
-  grid: {
-    flexDirection:'row', flexWrap:'wrap', justifyContent:'center',
-    maxWidth:1100,
-  },
-  overlay: {
-    flex:1, backgroundColor:'rgba(0,0,0,0.92)',
-    justifyContent:'center', alignItems:'center',
-  },
+  grid: { flexDirection:'row', flexWrap:'wrap', justifyContent:'center', maxWidth:1100 },
+  overlay: { flex:1, backgroundColor:'rgba(0,0,0,0.92)', justifyContent:'center', alignItems:'center' },
   modalRow: { flexDirection:'row', alignItems:'center', gap:26 },
 });
