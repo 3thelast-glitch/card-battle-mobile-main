@@ -10,7 +10,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Human Warrior',
     nameAr: 'المحارب البشري',
     finalImage: require('../../assets/cards/final/human-warrior.png'),
-    hp: 100, attack: 28, defense: 18, speed: 12,
+    attack: 28, defense: 18,
     race: 'human', cardClass: 'warrior', element: 'fire',
     tags: ['sword'], emoji: '⚔️',
     rarity: 'common', stars: 2,
@@ -21,7 +21,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Human Knight',
     nameAr: 'الفارس البشري',
     finalImage: require('../../assets/cards/final/human-knight.png'),
-    hp: 120, attack: 25, defense: 25, speed: 10,
+    attack: 25, defense: 25,
     race: 'human', cardClass: 'knight', element: 'earth',
     tags: ['sword', 'shield'], emoji: '🛡️',
     rarity: 'rare', stars: 3,
@@ -32,7 +32,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Human Paladin',
     nameAr: 'البالادين البشري',
     finalImage: require('../../assets/cards/final/human-paladin.png'),
-    hp: 110, attack: 30, defense: 22, speed: 11,
+    attack: 30, defense: 22,
     race: 'human', cardClass: 'paladin', element: 'lightning',
     tags: ['sword', 'shield', 'magic'], emoji: '⚡',
     rarity: 'epic', stars: 4,
@@ -45,7 +45,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Human Mage',
     nameAr: 'الساحر البشري',
     finalImage: require('../../assets/cards/final/human-mage.png'),
-    hp: 75, attack: 22, defense: 12, speed: 15,
+    attack: 22, defense: 12,
     race: 'human', cardClass: 'mage', element: 'ice',
     tags: ['magic'], emoji: '❄️',
     rarity: 'common', stars: 2,
@@ -60,7 +60,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Elf Archer',
     nameAr: 'الرامي الجني',
     finalImage: require('../../assets/cards/final/elf-archer.png'),
-    hp: 80, attack: 32, defense: 12, speed: 18,
+    attack: 32, defense: 12,
     race: 'elf', cardClass: 'archer', element: 'wind',
     tags: ['bow'], emoji: '🏹',
     rarity: 'rare', stars: 3,
@@ -71,7 +71,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Elf Mage',
     nameAr: 'الساحر الجني',
     finalImage: require('../../assets/cards/final/elf-mage.png'),
-    hp: 70, attack: 20, defense: 10, speed: 16,
+    attack: 20, defense: 10,
     race: 'elf', cardClass: 'mage', element: 'lightning',
     tags: ['magic'], emoji: '🔮',
     rarity: 'common', stars: 1,
@@ -82,7 +82,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Elf Knight',
     nameAr: 'الفارس الجني',
     finalImage: require('../../assets/cards/final/elf-knight.png'),
-    hp: 95, attack: 24, defense: 20, speed: 14,
+    attack: 24, defense: 20,
     race: 'elf', cardClass: 'knight', element: 'water',
     tags: ['sword', 'shield'], emoji: '💧',
     rarity: 'rare', stars: 3,
@@ -93,7 +93,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Elf Berserker',
     nameAr: 'البيرسركر الجني',
     finalImage: require('../../assets/cards/final/elf-archer.png'),
-    hp: 78, attack: 38, defense: 8, speed: 19,
+    attack: 38, defense: 8,
     race: 'elf', cardClass: 'berserker', element: 'wind',
     tags: ['sword'], emoji: '💨',
     rarity: 'epic', stars: 4,
@@ -110,7 +110,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Orc Berserker',
     nameAr: 'البيرسركر الأورك',
     finalImage: require('../../assets/cards/final/orc-berserker.png'),
-    hp: 110, attack: 35, defense: 10, speed: 8,
+    attack: 35, defense: 10,
     race: 'orc', cardClass: 'berserker', element: 'fire',
     tags: ['sword'], emoji: '🗡️',
     rarity: 'rare', stars: 3,
@@ -121,7 +121,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Orc Warrior',
     nameAr: 'المحارب الأورك',
     finalImage: require('../../assets/cards/final/orc-warrior.png'),
-    hp: 130, attack: 30, defense: 15, speed: 7,
+    attack: 30, defense: 15,
     race: 'orc', cardClass: 'warrior', element: 'earth',
     tags: ['sword', 'shield'], emoji: '⚔️',
     rarity: 'common', stars: 2,
@@ -132,7 +132,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Orc Shaman',
     nameAr: 'الشامان الأورك',
     finalImage: require('../../assets/cards/final/orc-mage.png'),
-    hp: 85, attack: 26, defense: 14, speed: 13,
+    attack: 26, defense: 14,
     race: 'orc', cardClass: 'mage', element: 'wind',
     tags: ['magic'], emoji: '🌪️',
     rarity: 'common', stars: 1,
@@ -143,7 +143,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Orc Warlord',
     nameAr: 'أمير الحرب الأورك',
     finalImage: require('../../assets/cards/final/orc-warrior.png'),
-    hp: 145, attack: 26, defense: 28, speed: 5,
+    attack: 26, defense: 28,
     race: 'orc', cardClass: 'knight', element: 'earth',
     tags: ['sword', 'shield', 'crown'], emoji: '👑',
     rarity: 'epic', stars: 4,
@@ -160,7 +160,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Dragon Mage',
     nameAr: 'ساحر التنين',
     finalImage: require('../../assets/cards/final/dragon-mage.png'),
-    hp: 90, attack: 38, defense: 14, speed: 14,
+    attack: 38, defense: 14,
     race: 'dragon', cardClass: 'mage', element: 'fire',
     tags: ['magic', 'crown'], emoji: '🐉',
     rarity: 'epic', stars: 4,
@@ -173,7 +173,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Dragon Knight',
     nameAr: 'فارس التنين',
     finalImage: require('../../assets/cards/final/dragon-knight.png'),
-    hp: 140, attack: 28, defense: 28, speed: 12,
+    attack: 28, defense: 28,
     race: 'dragon', cardClass: 'knight', element: 'fire',
     tags: ['sword', 'shield', 'crown'], emoji: '🐲',
     rarity: 'rare', stars: 3,
@@ -184,7 +184,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Dragon Archer',
     nameAr: 'رامي التنين',
     finalImage: require('../../assets/cards/final/dragon-archer.png'),
-    hp: 82, attack: 34, defense: 10, speed: 17,
+    attack: 34, defense: 10,
     race: 'dragon', cardClass: 'archer', element: 'lightning',
     tags: ['bow'], emoji: '⚡',
     rarity: 'rare', stars: 3,
@@ -195,7 +195,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Phoenix Lord',
     nameAr: 'سيد الفينيق',
     finalImage: require('../../assets/cards/final/dragon-mage.png'),
-    hp: 85, attack: 42, defense: 12, speed: 16,
+    attack: 42, defense: 12,
     race: 'dragon', cardClass: 'mage', element: 'fire',
     tags: ['magic', 'crown'], emoji: '🔥',
     rarity: 'legendary', stars: 5,
@@ -212,7 +212,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Demon Berserker',
     nameAr: 'البيرسركر الشيطاني',
     finalImage: require('../../assets/cards/final/demon-berserker.png'),
-    hp: 85, attack: 40, defense: 8, speed: 15,
+    attack: 40, defense: 8,
     race: 'demon', cardClass: 'berserker', element: 'fire',
     tags: ['sword'], emoji: '😈',
     rarity: 'epic', stars: 4,
@@ -225,7 +225,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Demon Mage',
     nameAr: 'الساحر الشيطاني',
     finalImage: require('../../assets/cards/final/demon-mage.png'),
-    hp: 75, attack: 36, defense: 6, speed: 17,
+    attack: 36, defense: 6,
     race: 'demon', cardClass: 'mage', element: 'lightning',
     tags: ['magic'], emoji: '👿',
     rarity: 'rare', stars: 3,
@@ -236,7 +236,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Demon Warrior',
     nameAr: 'المحارب الشيطاني',
     finalImage: require('../../assets/cards/final/demon-warrior.png'),
-    hp: 115, attack: 32, defense: 18, speed: 9,
+    attack: 32, defense: 18,
     race: 'demon', cardClass: 'warrior', element: 'earth',
     tags: ['sword', 'shield'], emoji: '🗡️',
     rarity: 'common', stars: 2,
@@ -247,7 +247,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Shadow King',
     nameAr: 'ملك الظلام',
     finalImage: require('../../assets/cards/final/demon-archer.png'),
-    hp: 95, attack: 44, defense: 10, speed: 14,
+    attack: 44, defense: 10,
     race: 'demon', cardClass: 'berserker', element: 'ice',
     tags: ['sword', 'magic', 'crown'], emoji: '👑',
     rarity: 'legendary', stars: 5,
@@ -264,7 +264,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Undead Knight',
     nameAr: 'الفارس الميت',
     finalImage: require('../../assets/cards/final/human-knight.png'),
-    hp: 150, attack: 22, defense: 30, speed: 5,
+    attack: 22, defense: 30,
     race: 'undead', cardClass: 'knight', element: 'ice',
     tags: ['sword', 'shield'], emoji: '💀',
     rarity: 'rare', stars: 3,
@@ -275,7 +275,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Undead Paladin',
     nameAr: 'البالادين الميت',
     finalImage: require('../../assets/cards/final/human-paladin.png'),
-    hp: 120, attack: 25, defense: 22, speed: 9,
+    attack: 25, defense: 22,
     race: 'undead', cardClass: 'paladin', element: 'ice',
     tags: ['sword', 'shield', 'magic'], emoji: '👻',
     rarity: 'common', stars: 2,
@@ -286,7 +286,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Undead Necromancer',
     nameAr: 'محيي الموتى',
     finalImage: require('../../assets/cards/final/elf-mage.png'),
-    hp: 72, attack: 34, defense: 8, speed: 16,
+    attack: 34, defense: 8,
     race: 'undead', cardClass: 'mage', element: 'ice',
     tags: ['magic', 'crown'], emoji: '☠️',
     rarity: 'epic', stars: 4,
@@ -299,7 +299,7 @@ export const ALL_CARDS: Card[] = [
     name: 'Storm Titan',
     nameAr: 'جبار العاصفة',
     finalImage: require('../../assets/cards/final/orc-berserker.png'),
-    hp: 150, attack: 40, defense: 5, speed: 6,
+    attack: 40, defense: 5,
     race: 'undead', cardClass: 'berserker', element: 'lightning',
     tags: ['sword', 'crown'], emoji: '🌩️',
     rarity: 'legendary', stars: 5,
@@ -334,27 +334,24 @@ export function applyActiveEffects(
   if (!abilitiesEnabled || !effects || effects.length === 0) return modifiedCard;
   const orderedEffects = [...effects].sort((a, b) => b.priority - a.priority);
   orderedEffects.forEach(effect => {
+    // statModifier → defense فقط
     if (effect.kind === 'statModifier') {
-      const data = effect.data as { stat?: 'attack' | 'defense' | 'hp' | 'all'; amount?: number };
+      const data = effect.data as { stat?: 'attack' | 'defense'; amount?: number };
       const amount = data?.amount ?? 0;
-      const stat = data?.stat ?? 'all';
-      if (stat === 'all') { modifiedCard.attack += amount; modifiedCard.defense += amount; modifiedCard.hp += amount; }
-      else if (stat === 'attack') modifiedCard.attack += amount;
-      else if (stat === 'defense') modifiedCard.defense += amount;
-      else if (stat === 'hp') modifiedCard.hp += amount;
+      const stat = data?.stat ?? 'defense';
+      if (stat === 'attack') modifiedCard.attack += amount;
+      else modifiedCard.defense += amount;
     }
+    // halvePoints → attack و defense فقط
     if (effect.kind === 'halvePoints') {
-      const data = effect.data as { multiplier?: number; stats?: Array<'attack' | 'defense' | 'hp'> };
-      const multiplier = data?.multiplier ?? 1;
-      const stats = data?.stats ?? ['attack', 'defense'];
-      if (stats.includes('attack')) modifiedCard.attack = Math.round(modifiedCard.attack * multiplier);
-      if (stats.includes('defense')) modifiedCard.defense = Math.round(modifiedCard.defense * multiplier);
-      if (stats.includes('hp')) modifiedCard.hp = Math.round(modifiedCard.hp * multiplier);
+      const data = effect.data as { multiplier?: number };
+      const multiplier = data?.multiplier ?? 0.5;
+      modifiedCard.attack = Math.round(modifiedCard.attack * multiplier);
+      modifiedCard.defense = Math.round(modifiedCard.defense * multiplier);
     }
   });
   modifiedCard.attack = Math.max(0, modifiedCard.attack);
   modifiedCard.defense = Math.max(0, modifiedCard.defense);
-  modifiedCard.hp = Math.max(0, modifiedCard.hp);
   return modifiedCard;
 }
 

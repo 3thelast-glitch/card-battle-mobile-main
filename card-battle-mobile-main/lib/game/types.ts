@@ -31,10 +31,8 @@ export interface Card {
   nameAr: string;
   nameEn?: string;
   finalImage: ImageSourcePropType;
-  hp: number;
   attack: number;
   defense: number;
-  speed: number;
   race: Race;
   cardClass: CardClass;
   element: Element;
@@ -148,7 +146,7 @@ export interface Effect {
 export interface ActiveEffect {
   type: 'buff' | 'debuff' | 'seal';
   target: 'player' | 'bot' | 'all';
-  stat: 'attack' | 'defense' | 'hp' | 'all' | 'ability';
+  stat: 'attack' | 'defense' | 'ability';
   value: number;
   roundsLeft: number;
   sourceAbility: AbilityType;
