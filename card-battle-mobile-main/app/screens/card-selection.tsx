@@ -33,21 +33,6 @@ function resolveAbilityData(type: AbilityType): AbilityData {
   return { id: type, nameEn, nameAr: type, description: '', icon: null, rarity: 'Common' };
 }
 
-/** اختيار قدرات عشوائية مع استثناء المعطّلة مباشرةً من AsyncStorage */
-async function pickRandomAbilities(count: number): Promise<AbilityType[]> {
-  try {
-    const raw = await AsyncStorage.getItem(DISABLED_ABILITIES_KEY);
-    const disabledArr: AbilityType[] = raw ? JSON.parse(raw) : [];
-    const disabledSet = new Set(disabledArr);
-    const available = ALL_ABILITIES.filter(a => !disabledSet.has(a));
-    const shuffled = [...available].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(count, shuffled.length));
-  } catch {
-    const shuffled = [...ALL_ABILITIES].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
-  }
-}
-
 interface CardRound { card: Card; round: number | null; }
 
 export default function CardSelectionScreen() {
@@ -58,6 +43,7 @@ export default function CardSelectionScreen() {
   const [focusedCardIndex, setFocusedCardIndex] = useState<number | null>(null);
   const [isAbilitiesModalOpen, setIsAbilitiesModalOpen] = useState(false);
   const [assignedAbilities, setAssignedAbilities] = useState<AbilityType[]>([]);
+  const [disabledAbilities, setDisabledAbilities] = useState<AbilityType[]>([]);
   const totalRounds = state.totalRounds || 5;
 
   const allCards = useCards();
@@ -68,13 +54,27 @@ export default function CardSelectionScreen() {
   const { cardW: modalCardW, cardH: modalCardH } = useCardSize('modal');
 
   useEffect(() => {
-    AsyncStorage.getItem('disabledAbilities').then(raw => {
-      const disabled = new Set(raw ? JSON.parse(raw) : []);
-      const available = ALL_ABILITIES.filter(a => !disabled.has(a));
-      const picked = available.sort(() => Math.random() - 0.5).slice(0, 3);
+    AsyncStorage.getItem(DISABLED_ABILITIES_KEY).then(raw => {
+      const disabledIds: number[] = raw ? JSON.parse(raw) : [];
+
+      // تحويل IDs إلى AbilityTypes عبر مطابقة الاسم
+      const disabledTypes = new Set<AbilityType>();
+      disabledIds.forEach(id => {
+        const found = allAbilitiesData.find(a => a.id === id);
+        if (found) {
+          // تحويل nameEn إلى AbilityType (حذف المسافات)
+          const asType = found.nameEn.replace(/\s+/g, '') as AbilityType;
+          if (ALL_ABILITIES.includes(asType)) disabledTypes.add(asType);
+        }
+      });
+
+      const available = ALL_ABILITIES.filter(a => !disabledTypes.has(a));
+      const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
       const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+
       setCardRounds(shuffled.slice(0, totalRounds).map(card => ({ card, round: null })));
       setAssignedAbilities(picked);
+      setDisabledAbilities(ALL_ABILITIES.filter(a => disabledTypes.has(a)));
     });
   }, [totalRounds, allCards]);
 
@@ -230,18 +230,50 @@ export default function CardSelectionScreen() {
                 <Text style={{ color: '#94a3b8', fontSize: 20 }}>✕</Text>
               </TouchableOpacity>
             </View>
+
+            {/* القدرات المفعّلة */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
-              {assignedAbilities.map((abilityType, index) => {
-                const data = resolveAbilityData(abilityType);
-                return (
-                  <AbilityCard
-                    key={index}
-                    ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: true }}
-                    showActionButtons={false}
-                  />
-                );
-              })}
+              {assignedAbilities.length > 0 ? (
+                assignedAbilities.map((abilityType, index) => {
+                  const data = resolveAbilityData(abilityType);
+                  return (
+                    <AbilityCard
+                      key={index}
+                      ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: true }}
+                      showActionButtons={false}
+                    />
+                  );
+                })
+              ) : (
+                <Text style={{ color: '#64748b', paddingHorizontal: 8, paddingVertical: 16 }}>لا توجد قدرات متاحة</Text>
+              )}
             </ScrollView>
+
+            {/* فاصل + قدرات معطّلة */}
+            {disabledAbilities.length > 0 && (
+              <View style={styles.disabledSection}>
+                <View style={styles.disabledSectionHeader}>
+                  <Text style={styles.disabledSectionTitle}>🔒 معطّلة ({disabledAbilities.length})</Text>
+                  <Text style={styles.disabledSectionHint}>يمكن تفعيلها من صفحة القدرات</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
+                  {disabledAbilities.map((abilityType, index) => {
+                    const data = resolveAbilityData(abilityType);
+                    return (
+                      <View key={index} style={styles.disabledCardWrapper}>
+                        <AbilityCard
+                          ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: false }}
+                          showActionButtons={false}
+                        />
+                        <View style={styles.disabledOverlay}>
+                          <Text style={styles.disabledLockIcon}>🔒</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -296,4 +328,41 @@ const styles = StyleSheet.create({
   abilitiesModalContent: { width: '90%', maxWidth: 700, backgroundColor: 'rgba(10,15,30,0.97)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(51,65,85,0.8)' },
   abilitiesModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   abilitiesModalTitle: { fontSize: 16, fontWeight: '800', color: '#f8fafc' },
+  // قدرات معطّلة
+  disabledSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(248,113,113,0.2)',
+    paddingTop: 12,
+  },
+  disabledSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  disabledSectionTitle: {
+    color: '#f87171',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  disabledSectionHint: {
+    color: '#475569',
+    fontSize: 11,
+  },
+  disabledCardWrapper: {
+    position: 'relative',
+  },
+  disabledOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledLockIcon: {
+    fontSize: 32,
+  },
 });
