@@ -291,13 +291,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             break;
           }
 
-          // ── Suicide: أنا خسرت → الخصم يخسر نقطة معي ──
+          // ── Suicide ──
           case 'suicidePact': {
-            // sourceSide هو من فعّل القدرة
-            // إذا فاز الخصم (= خسرت أنا) → الخصم يخسر نقطة هو الآخر
             const opponentSide = getOppositeSide(effect.sourceSide);
             if (result.winner === opponentSide) {
-              // الخصم فاز فعلاً → يخسر النقطة التي كسبها
               if (opponentSide === 'player') playerScoreDelta = Math.max(0, playerScoreDelta - 1);
               if (opponentSide === 'bot')    botScoreDelta    = Math.max(0, botScoreDelta    - 1);
             }
@@ -419,7 +416,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             break;
           }
 
-          // ── Trap: الجولة التالية → خصم يخسر ──
+          // ── Trap ──
           case 'trap': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (!d?.appliesToRound || d.appliesToRound !== roundNumber) break;
@@ -495,11 +492,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             break;
           }
 
-          // ── Deprivation: يأخذ البف الذي اختاره اللاعب ──
+          // ── Deprivation ──
           case 'deprivation': {
             const opponentSide  = getOppositeSide(effect.sourceSide);
             const d = effect.data as { chosenBuffId?: string } | undefined;
-            // إذا حدد اللاعب بفاً معيناً نأخذه، وإلا نأخذ الأقوى
             const targetBuff = d?.chosenBuffId
               ? activeEffects.find(e => e.id === d.chosenBuffId && e.targetSide === opponentSide && (e.data as any)?.amount > 0)
               : activeEffects
@@ -712,7 +708,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             kind: 'statModifier', sourceSide: side, targetSide: opponentSide,
             createdAtRound: roundNumber, expiresAtRound: roundNumber,
             charges: 1, priority: EFFECT_PRIORITY.statModifiers,
-            data: { stat: 'all', amount: -2 },
+            data: { stat: 'attack', amount: -2 },
           }];
           break;
         }
@@ -775,7 +771,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               ...pastCard,
               attack:  Math.ceil(pastCard.attack  / 2),
               defense: Math.ceil(pastCard.defense / 2),
-              hp:      Math.ceil((pastCard.hp ?? 1) / 2),
             };
             if (side === 'player') {
               const d = [...state.playerDeck]; d[state.currentRound] = revivedCard;
@@ -821,7 +816,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
 
-        // ── Suicide: أنا خسرت → الخصم يخسر نقطة معي ──
         case 'Suicide': {
           nextEffects = [...nextEffects, {
             id: makeEffectId('Suicide', side, roundNumber),
@@ -910,7 +904,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
 
-        // ── Rescue: أضف دفاع كرتك الحالي للكرت القادم مباشرة ──
         case 'Rescue': {
           const curCard = side === 'player'
             ? state.playerDeck[state.currentRound]
@@ -1003,13 +996,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               kind: 'statModifier', sourceSide: side, targetSide: side,
               createdAtRound: roundNumber, expiresAtRound: r,
               charges: 1, priority: EFFECT_PRIORITY.statModifiers,
-              data: { stat: 'all', amount: 100, multiplier: true },
+              data: { stat: 'attack', amount: 100, multiplier: true },
             }];
           });
           break;
         }
 
-        // ── Deprivation: تختار بفاً من الخصم وتسرقه ──
         case 'Deprivation': {
           const chosenBuffId = data?.chosenBuffId as string | undefined;
           nextEffects = [...nextEffects, {
@@ -1077,7 +1069,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             kind: 'statModifier', sourceSide: side, targetSide: opponentSide,
             createdAtRound: roundNumber, expiresAtRound: state.totalRounds,
             priority: EFFECT_PRIORITY.statModifiers,
-            data: { stat: 'all', amount: -2, onlyClass: targetClass },
+            data: { stat: 'attack', amount: -2, onlyClass: targetClass },
           }];
           break;
         }
@@ -1093,15 +1085,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
 
-        // ── Avatar: +2 هجوم ودفاع لـ 3 جولات ──
         case 'Avatar': {
           nextEffects = [...nextEffects, {
             id: makeEffectId('Avatar', side, roundNumber),
             kind: 'statModifier', sourceSide: side, targetSide: side,
             createdAtRound: roundNumber,
-            expiresAtRound: roundNumber + 3,   // 3 جولات
+            expiresAtRound: roundNumber + 3,
             priority: EFFECT_PRIORITY.statModifiers,
-            data: { stat: 'all', amount: 2 },
+            data: { stat: 'attack', amount: 2 },
           }];
           break;
         }
@@ -1228,7 +1219,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             kind: 'statModifier', sourceSide: side, targetSide: side,
             createdAtRound: roundNumber, expiresAtRound: roundNumber,
             charges: 1, priority: EFFECT_PRIORITY.statModifiers,
-            data: { stat: 'all', amount: 999, multiplier: true },
+            data: { stat: 'attack', amount: 999, multiplier: true },
           }];
           break;
         }
