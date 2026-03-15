@@ -8,6 +8,7 @@
  *  - Fixed all merge conflicts
  *  - Added ActiveEffectsBar (buffs/nerfs visible under HUD)
  *  - Added choice modals for: Propaganda, AddElement, SwapClass, Dilemma
+ *  - Effect chips now show descriptive Arabic labels (e.g. هجوم -2, جميع المحاربين +2)
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -63,6 +64,58 @@ const CLASS_LABELS: Record<CardClass, string> = {
   warrior: '⚔️ محارب', knight: '🛡️ فارس', mage: '🔮 ساحر',
   archer: '🏹 رامي', berserker: '🗡️ بيرسركر', paladin: '💪 بالادين',
 };
+const CLASS_LABELS_SHORT: Record<string, string> = {
+  warrior: 'المحاربين', knight: 'الفرسان', mage: 'السحرة',
+  archer: 'الرماة', berserker: 'البيرسركر', paladin: 'البالادين',
+};
+const STAT_LABELS: Record<string, string> = {
+  attack: 'هجوم', defense: 'دفاع', all: 'الكل', hp: 'صحة',
+};
+
+// ─── Effect label builder ───────────────────────────────────────────────────
+function getEffectLabel(effect: any): string {
+  const d = effect.data as any;
+
+  switch (effect.kind) {
+    case 'statModifier': {
+      const stat   = STAT_LABELS[d?.stat] ?? d?.stat ?? '؟';
+      const amount = d?.amount ?? 0;
+      const sign   = amount >= 0 ? '+' : '';
+      const onlyClass: string | undefined = d?.onlyClass;
+      const multiplier: boolean = !!d?.multiplier;
+
+      if (multiplier) return `${stat} ×${amount > 0 ? amount : '½'}`;
+      if (onlyClass)  return `جميع ${CLASS_LABELS_SHORT[onlyClass] ?? onlyClass} ${sign}${amount}`;
+      return `${stat} ${sign}${amount}`;
+    }
+    case 'protection':      return '🛡 حماية';
+    case 'fortify':         return '🔩 تحصين';
+    case 'halvePoints':     return '½ تنصيف';
+    case 'silenceAbilities':return '🔇 ختم قدرات';
+    case 'doubleOrNothing': return '🎲 مضاعفة أو صفر';
+    case 'forcedOutcome':   return '🎯 نتيجة مضمونة';
+    case 'starAdvantage':   return '⭐ أفضلية نجوم';
+    case 'sacrifice':       return '🩸 تضحية';
+    case 'greedBuff':       return '💰 جشع';
+    case 'lifesteal':       return '🩸 سرقة صحة';
+    case 'revengeBuff':     return '😤 انتقام';
+    case 'suicidePact':     return '💀 اتفاقية انتحار';
+    case 'compensationBuff':return '🎁 تعويض';
+    case 'weakeningDebuff': return '📉 إضعاف';
+    case 'explosionDebuff': return '💥 انفجار';
+    case 'consecutiveLoss': return '🔄 خسائر متتالية';
+    case 'shieldGuard':     return '🛡 درع';
+    case 'trap':            return '🪤 فخ';
+    case 'convertDebuffs':  return '🔃 تحويل نيرف→بف';
+    case 'doubleBuffs':     return '✨ مضاعفة البفات';
+    case 'conversion':      return '🔄 تحويل بفات الخصم';
+    case 'takeIt':          return '↩️ إعادة النيرف';
+    case 'deprivation':     return '🚫 سلب بف';
+    case 'pool':            return '🌊 تصفير الجولة';
+    case 'prediction':      return '🔮 توقع';
+    default:                return effect.kind ?? '؟';
+  }
+}
 
 // ─── Round progress bar ──────────────────────────────────────────────────
 function RoundBar({ current, total }: { current: number; total: number }) {
@@ -146,31 +199,45 @@ function ActiveEffectsBar({ effects, side }: { effects: any[]; side: 'player' | 
   const mine = effects.filter(e => e.targetSide === side || e.targetSide === 'all');
   if (!mine.length) return null;
 
-  const KIND_EMOJI: Record<string, string> = {
-    protection: '🛡️', fortify: '🔩', statModifier: '📊',
-    halvePoints: '½', silenceAbilities: '🔇', doubleOrNothing: '🎲',
-    forcedOutcome: '🎯', starAdvantage: '⭐', sacrifice: '🩸',
-    greedBuff: '💰', lifesteal: '🩸', revengeBuff: '😤',
-    suicidePact: '💀', compensationBuff: '🎁', weakeningDebuff: '📉',
-    explosionDebuff: '💥', consecutiveLoss: '🔄', shieldGuard: '🛡',
-    trap: '🪤', convertDebuffs: '🔃', doubleBuffs: '✨',
-    conversion: '🔄', takeIt: '↩️', deprivation: '🚫', pool: '🌊',
-    prediction: '🔮',
-  };
+  const BUFF_KINDS = new Set([
+    'greedBuff', 'lifesteal', 'revengeBuff', 'compensationBuff',
+    'consecutiveLoss', 'shieldGuard', 'doubleBuffs', 'protection',
+    'fortify', 'starAdvantage',
+  ]);
 
   return (
     <View style={eff.row}>
       {mine.map((e, i) => {
-        const isBuff = e.kind === 'greedBuff' || e.kind === 'lifesteal' || e.kind === 'revengeBuff'
-          || e.kind === 'compensationBuff' || e.kind === 'consecutiveLoss' || e.kind === 'shieldGuard'
-          || e.kind === 'doubleBuffs' || e.kind === 'protection' || e.kind === 'fortify'
-          || e.kind === 'starAdvantage';
-        const color = isBuff ? '#4ade80' : '#f87171';
+        // تحديد لون: بف = أخضر، نيرف = أحمر، محايد = ذهبي
+        let isBuff = BUFF_KINDS.has(e.kind);
+        let isDebuff = false;
+        if (e.kind === 'statModifier') {
+          const amount = (e.data as any)?.amount ?? 0;
+          if (amount > 0) isBuff = true;
+          else if (amount < 0) isDebuff = true;
+        } else if (
+          e.kind === 'weakeningDebuff' || e.kind === 'explosionDebuff' ||
+          e.kind === 'silenceAbilities' || e.kind === 'suicidePact' ||
+          e.kind === 'halvePoints'
+        ) {
+          isDebuff = true;
+        }
+        const color = isBuff ? '#4ade80' : isDebuff ? '#f87171' : '#fbbf24';
+
+        // عدد الجولات المتبقية
+        const roundsLeft = e.expiresAtRound !== undefined
+          ? Math.max(0, e.expiresAtRound - (e.createdAtRound ?? 0))
+          : null;
+
+        const label = getEffectLabel(e);
+
         return (
-          <View key={i} style={[eff.chip, { borderColor: color + '55', backgroundColor: color + '14' }]}>
-            <Text style={[eff.icon]}>{KIND_EMOJI[e.kind] ?? '⚡'}</Text>
-            {e.expiresAtRound !== undefined && (
-              <Text style={[eff.rounds, { color }]}>{e.expiresAtRound - (e.createdAtRound ?? 0)}</Text>
+          <View key={i} style={[eff.chip, { borderColor: color + '66', backgroundColor: color + '18' }]}>
+            <Text style={[eff.label, { color }]}>{label}</Text>
+            {roundsLeft !== null && roundsLeft > 0 && (
+              <View style={[eff.badge, { backgroundColor: color + '33' }]}>
+                <Text style={[eff.badgeText, { color }]}>{roundsLeft}ج</Text>
+              </View>
             )}
           </View>
         );
@@ -179,10 +246,18 @@ function ActiveEffectsBar({ effects, side }: { effects: any[]; side: 'player' | 
   );
 }
 const eff = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, marginTop: 4 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, borderWidth: 1 },
-  icon: { fontSize: 11 },
-  rounds: { fontSize: 9, fontVariant: ['tabular-nums'] } as any,
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 8, borderWidth: 1,
+  },
+  label: { fontSize: 9.5, letterSpacing: 0.2 },
+  badge: {
+    paddingHorizontal: 4, paddingVertical: 1,
+    borderRadius: 5, minWidth: 16, alignItems: 'center',
+  },
+  badgeText: { fontSize: 8, fontVariant: ['tabular-nums'] } as any,
 });
 
 // ─── Choice Modal (generic list picker) ───────────────────────────────────
@@ -539,7 +614,6 @@ export default function BattleScreen() {
         abilityType,
       });
     } else if (abilityType === 'Dilemma') {
-      // Dilemma: pick one of bot's past cards to swap with
       const botPast = state.roundResults.map((r, i) => ({
         value: String(i),
         label: `جولة ${r.round}: ${r.botCard.nameAr ?? r.botCard.name}`,
@@ -1026,12 +1100,12 @@ const S = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: SPACE.lg,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingVertical: 5,
+    backgroundColor: 'rgba(0,0,0,0.28)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
     gap: SPACE.sm,
-    minHeight: 28,
+    minHeight: 32,
   },
   effectsBarSide: { flex: 1, alignItems: 'flex-start' },
   effectsBarDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.08)' },
