@@ -22,8 +22,21 @@ import {
   LAYOUT_PADDING,
 } from '@/utils/layout';
 
+/** تحويل AbilityType إلى nameEn بإضافة مسافات */
+function abilityTypeToNameEn(type: AbilityType): string {
+  return type
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+}
+
+/** هل هذه القدرة موجودة في data/abilities? */
+function isAbilityInData(type: AbilityType): boolean {
+  const nameEn = abilityTypeToNameEn(type);
+  return allAbilitiesData.some(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
+}
+
 function resolveAbilityData(type: AbilityType): AbilityData {
-  const nameEn = type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+  const nameEn = abilityTypeToNameEn(type);
   const found = allAbilitiesData.find(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
   if (found) return {
     id: found.id, nameEn: found.nameEn, nameAr: found.nameAr,
@@ -68,7 +81,12 @@ export default function CardSelectionScreen() {
   useEffect(() => {
     getDisabledAbilityIds().then(disabledIds => {
       const disabledTypes = idsToAbilityTypes(disabledIds);
-      const available = ALL_ABILITIES.filter(a => !disabledTypes.has(a));
+
+      const available = ALL_ABILITIES.filter(a =>
+        !disabledTypes.has(a) &&  // ليست معطّلة
+        isAbilityInData(a)         // موجودة في data/abilities (= ظاهرة في screens/abilities)
+      );
+
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
       const shuffled = [...allCards].sort(() => Math.random() - 0.5);
       setCardRounds(shuffled.slice(0, totalRounds).map(card => ({ card, round: null })));
@@ -219,7 +237,7 @@ export default function CardSelectionScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Modal: القدرات المفعّلة فقط */}
+      {/* Modal: القدرات */}
       <Modal visible={isAbilitiesModalOpen} transparent animationType="fade" onRequestClose={() => setIsAbilitiesModalOpen(false)}>
         <TouchableOpacity style={styles.abilitiesModalOverlay} activeOpacity={1} onPress={() => setIsAbilitiesModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={styles.abilitiesModalContent}>
