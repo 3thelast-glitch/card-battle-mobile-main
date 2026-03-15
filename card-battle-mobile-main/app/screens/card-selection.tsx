@@ -14,7 +14,7 @@ import { getDisabledAbilityIds } from '@/lib/game/abilities-store';
 import { AbilityCard, AbilityData } from '@/components/game/ability-card';
 import { abilities as allAbilitiesData } from '@/data/abilities';
 import { ProButton } from '@/components/ui/ProButton';
-import { COLOR, SPACE, RADIUS } from '@/components/ui/design-tokens';
+import { SPACE, RADIUS } from '@/components/ui/design-tokens';
 import {
   useLandscapeLayout,
   useCardSize,
@@ -23,11 +23,8 @@ import {
 } from '@/utils/layout';
 
 function resolveAbilityData(type: AbilityType): AbilityData {
-  // نحوّل AbilityType إلى nameEn بإضافة مسافات
   const nameEn = type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
-  const found = allAbilitiesData.find(
-    a => a.nameEn.toLowerCase() === nameEn.toLowerCase()
-  );
+  const found = allAbilitiesData.find(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
   if (found) return {
     id: found.id, nameEn: found.nameEn, nameAr: found.nameAr,
     description: found.description, icon: found.icon,
@@ -36,16 +33,13 @@ function resolveAbilityData(type: AbilityType): AbilityData {
   return { id: type, nameEn, nameAr: type, description: '', icon: null, rarity: 'Common' };
 }
 
-/** تحويل Set<number> (IDs) من abilities-store إلى Set<AbilityType> */
 function idsToAbilityTypes(ids: Set<number>): Set<AbilityType> {
   const result = new Set<AbilityType>();
   ids.forEach(id => {
     const found = allAbilitiesData.find(a => a.id === id);
     if (!found) return;
-    // جرّب NAME_TO_ABILITY_TYPE أولاً
     const mapped = NAME_TO_ABILITY_TYPE[found.nameEn];
     if (mapped) { result.add(mapped); return; }
-    // fallback: حذف المسافات
     const asType = found.nameEn.replace(/\s+/g, '') as AbilityType;
     if (ALL_ABILITIES.includes(asType)) result.add(asType);
   });
@@ -62,7 +56,6 @@ export default function CardSelectionScreen() {
   const [focusedCardIndex, setFocusedCardIndex] = useState<number | null>(null);
   const [isAbilitiesModalOpen, setIsAbilitiesModalOpen] = useState(false);
   const [assignedAbilities, setAssignedAbilities] = useState<AbilityType[]>([]);
-  const [disabledAbilities, setDisabledAbilities] = useState<AbilityType[]>([]);
   const totalRounds = state.totalRounds || 5;
 
   const allCards = useCards();
@@ -73,17 +66,13 @@ export default function CardSelectionScreen() {
   const { cardW: modalCardW, cardH: modalCardH } = useCardSize('modal');
 
   useEffect(() => {
-    // نقرأ من abilities-store (مفتاح: disabled_abilities_v1 كأرقام IDs)
     getDisabledAbilityIds().then(disabledIds => {
       const disabledTypes = idsToAbilityTypes(disabledIds);
-
       const available = ALL_ABILITIES.filter(a => !disabledTypes.has(a));
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
       const shuffled = [...allCards].sort(() => Math.random() - 0.5);
-
       setCardRounds(shuffled.slice(0, totalRounds).map(card => ({ card, round: null })));
       setAssignedAbilities(picked);
-      setDisabledAbilities(ALL_ABILITIES.filter(a => disabledTypes.has(a)));
     });
   }, [totalRounds, allCards]);
 
@@ -150,7 +139,6 @@ export default function CardSelectionScreen() {
       <View style={styles.bgWrapper}><LuxuryBackground /></View>
 
       <View style={styles.container}>
-        {/* Top bar */}
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.push('/screens/leaderboard' as any)} activeOpacity={0.7}>
             <Text style={styles.backBtnText}>← رجوع</Text>
@@ -231,19 +219,16 @@ export default function CardSelectionScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Modal: القدرات */}
+      {/* Modal: القدرات المفعّلة فقط */}
       <Modal visible={isAbilitiesModalOpen} transparent animationType="fade" onRequestClose={() => setIsAbilitiesModalOpen(false)}>
         <TouchableOpacity style={styles.abilitiesModalOverlay} activeOpacity={1} onPress={() => setIsAbilitiesModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={styles.abilitiesModalContent}>
-
             <View style={styles.abilitiesModalHeader}>
               <Text style={styles.abilitiesModalTitle}>قدراتك لهذه الجلسة ⚡</Text>
               <TouchableOpacity onPress={() => setIsAbilitiesModalOpen(false)} style={{ padding: 4 }}>
                 <Text style={{ color: '#94a3b8', fontSize: 20 }}>✕</Text>
               </TouchableOpacity>
             </View>
-
-            {/* قدرات مفعّلة */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -268,41 +253,6 @@ export default function CardSelectionScreen() {
                 <Text style={{ color: '#64748b', paddingHorizontal: 8, paddingVertical: 16 }}>لا توجد قدرات متاحة</Text>
               )}
             </ScrollView>
-
-            {/* قدرات معطّلة */}
-            {disabledAbilities.length > 0 && (
-              <View style={styles.disabledSection}>
-                <View style={styles.disabledSectionHeader}>
-                  <Text style={styles.disabledSectionTitle}>🔒 معطّلة ({disabledAbilities.length})</Text>
-                  <Text style={styles.disabledSectionHint}>يمكن تفعيلها من صفحة القدرات</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}
-                >
-                  {disabledAbilities.map((abilityType, index) => {
-                    const data = resolveAbilityData(abilityType);
-                    return (
-                      <View key={index} style={styles.disabledCardWrapper}>
-                        <AbilityCard
-                          ability={{
-                            id: index, nameEn: data.nameEn, nameAr: data.nameAr,
-                            description: data.description, icon: data.icon,
-                            rarity: data.rarity ?? 'Common', isActive: false,
-                          }}
-                          showActionButtons={false}
-                        />
-                        <View style={styles.disabledOverlay}>
-                          <Text style={styles.disabledLockIcon}>🔒</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -357,11 +307,4 @@ const styles = StyleSheet.create({
   abilitiesModalContent: { width: '90%', maxWidth: 700, backgroundColor: 'rgba(10,15,30,0.97)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(51,65,85,0.8)' },
   abilitiesModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   abilitiesModalTitle: { fontSize: 16, fontWeight: '800', color: '#f8fafc' },
-  disabledSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(248,113,113,0.2)', paddingTop: 12 },
-  disabledSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, marginBottom: 4 },
-  disabledSectionTitle: { color: '#f87171', fontSize: 13, fontWeight: '700' },
-  disabledSectionHint: { color: '#475569', fontSize: 11 },
-  disabledCardWrapper: { position: 'relative' },
-  disabledOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  disabledLockIcon: { fontSize: 32 },
 });
