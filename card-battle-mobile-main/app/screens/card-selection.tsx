@@ -9,12 +9,12 @@ import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { useGame } from '@/lib/game/game-context';
 import { useCards } from '@/lib/game/useCards';
 import { Card, AbilityType } from '@/lib/game/types';
-import { ALL_ABILITIES, DISABLED_ABILITIES_KEY } from '@/lib/game/abilities';
+import { ALL_ABILITIES, NAME_TO_ABILITY_TYPE } from '@/lib/game/abilities';
+import { getDisabledAbilityIds } from '@/lib/game/abilities-store';
 import { AbilityCard, AbilityData } from '@/components/game/ability-card';
 import { abilities as allAbilitiesData } from '@/data/abilities';
 import { ProButton } from '@/components/ui/ProButton';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLOR, SPACE, RADIUS, FONT_FAMILY } from '@/components/ui/design-tokens';
+import { COLOR, SPACE, RADIUS } from '@/components/ui/design-tokens';
 import {
   useLandscapeLayout,
   useCardSize,
@@ -22,15 +22,34 @@ import {
   LAYOUT_PADDING,
 } from '@/utils/layout';
 
-function abilityTypeToNameEn(type: AbilityType): string {
-  return type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+function resolveAbilityData(type: AbilityType): AbilityData {
+  // نحوّل AbilityType إلى nameEn بإضافة مسافات
+  const nameEn = type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+  const found = allAbilitiesData.find(
+    a => a.nameEn.toLowerCase() === nameEn.toLowerCase()
+  );
+  if (found) return {
+    id: found.id, nameEn: found.nameEn, nameAr: found.nameAr,
+    description: found.description, icon: found.icon,
+    rarity: found.rarity, isActive: found.isActive,
+  };
+  return { id: type, nameEn, nameAr: type, description: '', icon: null, rarity: 'Common' };
 }
 
-function resolveAbilityData(type: AbilityType): AbilityData {
-  const nameEn = abilityTypeToNameEn(type);
-  const found = allAbilitiesData.find(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
-  if (found) return { id: found.id, nameEn: found.nameEn, nameAr: found.nameAr, description: found.description, icon: found.icon, rarity: found.rarity, isActive: found.isActive };
-  return { id: type, nameEn, nameAr: type, description: '', icon: null, rarity: 'Common' };
+/** تحويل Set<number> (IDs) من abilities-store إلى Set<AbilityType> */
+function idsToAbilityTypes(ids: Set<number>): Set<AbilityType> {
+  const result = new Set<AbilityType>();
+  ids.forEach(id => {
+    const found = allAbilitiesData.find(a => a.id === id);
+    if (!found) return;
+    // جرّب NAME_TO_ABILITY_TYPE أولاً
+    const mapped = NAME_TO_ABILITY_TYPE[found.nameEn];
+    if (mapped) { result.add(mapped); return; }
+    // fallback: حذف المسافات
+    const asType = found.nameEn.replace(/\s+/g, '') as AbilityType;
+    if (ALL_ABILITIES.includes(asType)) result.add(asType);
+  });
+  return result;
 }
 
 interface CardRound { card: Card; round: number | null; }
@@ -54,19 +73,9 @@ export default function CardSelectionScreen() {
   const { cardW: modalCardW, cardH: modalCardH } = useCardSize('modal');
 
   useEffect(() => {
-    AsyncStorage.getItem(DISABLED_ABILITIES_KEY).then(raw => {
-      const disabledIds: number[] = raw ? JSON.parse(raw) : [];
-
-      // تحويل IDs إلى AbilityTypes عبر مطابقة الاسم
-      const disabledTypes = new Set<AbilityType>();
-      disabledIds.forEach(id => {
-        const found = allAbilitiesData.find(a => a.id === id);
-        if (found) {
-          // تحويل nameEn إلى AbilityType (حذف المسافات)
-          const asType = found.nameEn.replace(/\s+/g, '') as AbilityType;
-          if (ALL_ABILITIES.includes(asType)) disabledTypes.add(asType);
-        }
-      });
+    // نقرأ من abilities-store (مفتاح: disabled_abilities_v1 كأرقام IDs)
+    getDisabledAbilityIds().then(disabledIds => {
+      const disabledTypes = idsToAbilityTypes(disabledIds);
 
       const available = ALL_ABILITIES.filter(a => !disabledTypes.has(a));
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
@@ -120,10 +129,7 @@ export default function CardSelectionScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.cardWrapper}>
-        <LuxuryCharacterCardAnimated
-          card={item.card}
-          style={{ width: gridCardW, height: gridCardH }}
-        />
+        <LuxuryCharacterCardAnimated card={item.card} style={{ width: gridCardW, height: gridCardH }} />
         {item.round !== null ? (
           <View style={styles.roundOverlay}>
             <View style={styles.roundBadge}>
@@ -144,20 +150,21 @@ export default function CardSelectionScreen() {
       <View style={styles.bgWrapper}><LuxuryBackground /></View>
 
       <View style={styles.container}>
+        {/* Top bar */}
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.push('/screens/leaderboard' as any)} activeOpacity={0.7}>
             <Text style={styles.backBtnText}>← رجوع</Text>
           </TouchableOpacity>
-
           <View style={styles.titleGroup}>
             <Text style={styles.title}>رتّب بطاقاتك</Text>
             <Text style={styles.subtitle}>{cardRounds.filter(c => c.round).length} / {totalRounds} مُعيّنة</Text>
           </View>
-
           <View style={styles.rightActionGroup}>
             <TouchableOpacity style={styles.abilitiesBtn} onPress={() => setIsAbilitiesModalOpen(true)} activeOpacity={0.7}>
               <Text style={styles.abilitiesBtnText}>⚡ القدرات</Text>
-              <View style={styles.abilitiesBadge}><Text style={styles.abilitiesBadgeText}>{assignedAbilities.length}/3</Text></View>
+              <View style={styles.abilitiesBadge}>
+                <Text style={styles.abilitiesBadgeText}>{assignedAbilities.length}/3</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffleCards} activeOpacity={0.7}>
               <Text style={styles.shuffleBtnText}>🔀</Text>
@@ -195,7 +202,12 @@ export default function CardSelectionScreen() {
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(round => {
                 const alreadyUsed = cardRounds.some((cr, idx) => cr.round === round && idx !== focusedCardIndex);
                 return (
-                  <TouchableOpacity key={round} style={[styles.focusRoundBtn, alreadyUsed && styles.focusRoundBtnUsed]} onPress={() => handleRoundSelect(round)} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    key={round}
+                    style={[styles.focusRoundBtn, alreadyUsed && styles.focusRoundBtnUsed]}
+                    onPress={() => handleRoundSelect(round)}
+                    activeOpacity={0.7}
+                  >
                     <View style={[
                       styles.focusRoundBadge,
                       alreadyUsed && styles.focusRoundBadgeUsed,
@@ -207,7 +219,6 @@ export default function CardSelectionScreen() {
                 );
               })}
             </View>
-
             {focusedCardIndex !== null && cardRounds[focusedCardIndex] && (
               <View style={styles.focusModalRightCol}>
                 <LuxuryCharacterCardAnimated
@@ -224,6 +235,7 @@ export default function CardSelectionScreen() {
       <Modal visible={isAbilitiesModalOpen} transparent animationType="fade" onRequestClose={() => setIsAbilitiesModalOpen(false)}>
         <TouchableOpacity style={styles.abilitiesModalOverlay} activeOpacity={1} onPress={() => setIsAbilitiesModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={styles.abilitiesModalContent}>
+
             <View style={styles.abilitiesModalHeader}>
               <Text style={styles.abilitiesModalTitle}>قدراتك لهذه الجلسة ⚡</Text>
               <TouchableOpacity onPress={() => setIsAbilitiesModalOpen(false)} style={{ padding: 4 }}>
@@ -231,15 +243,23 @@ export default function CardSelectionScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* القدرات المفعّلة */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
+            {/* قدرات مفعّلة */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}
+            >
               {assignedAbilities.length > 0 ? (
                 assignedAbilities.map((abilityType, index) => {
                   const data = resolveAbilityData(abilityType);
                   return (
                     <AbilityCard
                       key={index}
-                      ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: true }}
+                      ability={{
+                        id: index, nameEn: data.nameEn, nameAr: data.nameAr,
+                        description: data.description, icon: data.icon,
+                        rarity: data.rarity ?? 'Common', isActive: true,
+                      }}
                       showActionButtons={false}
                     />
                   );
@@ -249,20 +269,28 @@ export default function CardSelectionScreen() {
               )}
             </ScrollView>
 
-            {/* فاصل + قدرات معطّلة */}
+            {/* قدرات معطّلة */}
             {disabledAbilities.length > 0 && (
               <View style={styles.disabledSection}>
                 <View style={styles.disabledSectionHeader}>
                   <Text style={styles.disabledSectionTitle}>🔒 معطّلة ({disabledAbilities.length})</Text>
                   <Text style={styles.disabledSectionHint}>يمكن تفعيلها من صفحة القدرات</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}
+                >
                   {disabledAbilities.map((abilityType, index) => {
                     const data = resolveAbilityData(abilityType);
                     return (
                       <View key={index} style={styles.disabledCardWrapper}>
                         <AbilityCard
-                          ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: false }}
+                          ability={{
+                            id: index, nameEn: data.nameEn, nameAr: data.nameAr,
+                            description: data.description, icon: data.icon,
+                            rarity: data.rarity ?? 'Common', isActive: false,
+                          }}
                           showActionButtons={false}
                         />
                         <View style={styles.disabledOverlay}>
@@ -274,6 +302,7 @@ export default function CardSelectionScreen() {
                 </ScrollView>
               </View>
             )}
+
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -328,41 +357,11 @@ const styles = StyleSheet.create({
   abilitiesModalContent: { width: '90%', maxWidth: 700, backgroundColor: 'rgba(10,15,30,0.97)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(51,65,85,0.8)' },
   abilitiesModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   abilitiesModalTitle: { fontSize: 16, fontWeight: '800', color: '#f8fafc' },
-  // قدرات معطّلة
-  disabledSection: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(248,113,113,0.2)',
-    paddingTop: 12,
-  },
-  disabledSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 4,
-  },
-  disabledSectionTitle: {
-    color: '#f87171',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  disabledSectionHint: {
-    color: '#475569',
-    fontSize: 11,
-  },
-  disabledCardWrapper: {
-    position: 'relative',
-  },
-  disabledOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledLockIcon: {
-    fontSize: 32,
-  },
+  disabledSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(248,113,113,0.2)', paddingTop: 12 },
+  disabledSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, marginBottom: 4 },
+  disabledSectionTitle: { color: '#f87171', fontSize: 13, fontWeight: '700' },
+  disabledSectionHint: { color: '#475569', fontSize: 11 },
+  disabledCardWrapper: { position: 'relative' },
+  disabledOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  disabledLockIcon: { fontSize: 32 },
 });
