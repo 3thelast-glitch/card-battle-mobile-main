@@ -16,30 +16,110 @@ export interface Ability {
   nameEn: string;
   nameAr: string;
   description: string;
+  /** تفاصيل إضافية تظهر بلون مميز (مثل التحذير / الشرط) */
+  descriptionWarning?: string;
   rarity: Rarity;
   icon: any;
-  image?: any; // Replaced imageUrl: string with image: any to support local imports or uri objects
+  image?: any;
   isActive?: boolean;
 }
 
 export const abilities: Ability[] = [
   // 🟢 Common Abilities
-  { id: 1, nameEn: "Logical Encounter", nameAr: "مصادفة منطقية", description: "توقع نتيجة دورين قادمين", rarity: 'Common', icon: Brain, image: { uri: "https://images.unsplash.com/photo-1544256718-3b6102f1d931?q=80&w=400&h=300&auto=format&fit=crop" } },
-  { id: 2, nameEn: "Recall", nameAr: "استدعاء", description: "استدعاء كرت سابق لك بدون خاصية", rarity: 'Common', icon: RotateCcw, image: { uri: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&h=300&auto=format&fit=crop" } },
-  { id: 3, nameEn: "Protection", nameAr: "حماية", description: "تحمي نفسك من خسارة نقطة صحة", rarity: 'Common', icon: Shield },
-  { id: 4, nameEn: "Wipe", nameAr: "المسح", description: "امسح أي تأثيرات عليك في اللعبة", rarity: 'Common', icon: XCircle },
-  { id: 5, nameEn: "Halve Points", nameAr: "تنصيف النقاط", description: "خصم نقاط الكرت للنصف", rarity: 'Common', icon: Divide },
-  { id: 6, nameEn: "Seal", nameAr: "الختم", description: "ختم قدرة لمدة 5 جولات", rarity: 'Common', icon: Lock },
-  { id: 7, nameEn: "Reduction", nameAr: "التقليص", description: "-2 لكل عناصر الخصم", rarity: 'Common', icon: ArrowDownLeft },
-  { id: 8, nameEn: "Sacrifice", nameAr: "تضحية", description: "تشيل خاصية خصم في حال الخسارة", rarity: 'Common', icon: HeartCrack },
-  { id: 9, nameEn: "Suicide", nameAr: "الانتحار", description: "مع الخسارة ينقص الخصم نقطة", rarity: 'Common', icon: Skull },
-  { id: 10, nameEn: "Compensation", nameAr: "التعويض", description: "في حال الخسارة +1 دفاع لكل الكروت لك", rarity: 'Common', icon: TrendingUp },
+  {
+    id: 1,
+    nameEn: "Logical Encounter",
+    nameAr: "مصادفة منطقية",
+    description: "توقع نتيجة دورين قادمين",
+    descriptionWarning: "الإجابة الصحيحة يكسب الجولة (يستثني الكروت التي تمنع القديرة) ما يكسب إذا صح",
+    rarity: 'Common',
+    icon: Brain,
+    image: { uri: "https://images.unsplash.com/photo-1544256718-3b6102f1d931?q=80&w=400&h=300&auto=format&fit=crop" }
+  },
+  {
+    id: 2,
+    nameEn: "Recall",
+    nameAr: "استدعاء",
+    description: "استدعاء كرت سابق لك بدون خاصية",
+    rarity: 'Common',
+    icon: RotateCcw,
+    image: { uri: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&h=300&auto=format&fit=crop" }
+  },
+  {
+    id: 3,
+    nameEn: "Protection",
+    nameAr: "حماية",
+    description: "تحمي نفسك من خسارة نقطة",
+    rarity: 'Common',
+    icon: Shield
+  },
+  {
+    id: 4,
+    nameEn: "Arise",
+    nameAr: "أرايز",
+    description: "استدعي كرت من كروت خصمك",
+    rarity: 'Common',
+    icon: UserPlus,
+    image: { uri: "https://images.unsplash.com/photo-1620023640244-67d71b56a908?q=80&w=400&h=300&auto=format&fit=crop" }
+  },
+  {
+    id: 5,
+    nameEn: "Reinforcement",
+    nameAr: "التدعيم",
+    description: "في حال الفوز +1 دفاع لكل الكروت لك",
+    rarity: 'Common',
+    icon: ShieldPlus,
+    image: { uri: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&h=300&auto=format&fit=crop" }
+  },
+  {
+    id: 6,
+    nameEn: "Wipe",
+    nameAr: "المسح",
+    description: "امسح أي تأثيرات عليك في اللعبة",
+    rarity: 'Common',
+    icon: XCircle
+  },
+  {
+    id: 7,
+    nameEn: "Purge",
+    nameAr: "التطهير",
+    description: "نظف كل التأثيرات في اللعبة",
+    rarity: 'Common',
+    icon: Eraser
+  },
+  {
+    id: 8,
+    nameEn: "Halve Points",
+    nameAr: "تنصيف النقاط",
+    description: "خصم نقاط الكرت للنصف",
+    rarity: 'Common',
+    icon: Divide
+  },
+  {
+    id: 9,
+    nameEn: "Seal",
+    nameAr: "الختم",
+    description: "ختم قدرة لمدة 5 جولات",
+    rarity: 'Common',
+    icon: Lock
+  },
+  {
+    id: 10,
+    nameEn: "Double Or Nothing",
+    nameAr: "دبل أو نثنق",
+    description: "قبل الراوند: دبل أو نثنق",
+    descriptionWarning: "يأخذ دبل نقاط",
+    rarity: 'Rare',
+    icon: Zap
+  },
+
+  // 🟢 Common Abilities (continued)
+  { id: 11, nameEn: "Reduction", nameAr: "التقليص", description: "-2 لكل عناصر الخصم", rarity: 'Common', icon: ArrowDownLeft },
+  { id: 12, nameEn: "Sacrifice", nameAr: "تضحية", description: "تشيل خاصية خصم في حال الخسارة", rarity: 'Common', icon: HeartCrack },
+  { id: 13, nameEn: "Suicide", nameAr: "الانتحار", description: "مع الخسارة ينقص الخصم نقطة", rarity: 'Common', icon: Skull },
+  { id: 14, nameEn: "Compensation", nameAr: "التعويض", description: "في حال الخسارة +1 دفاع لكل الكروت لك", rarity: 'Common', icon: TrendingUp },
 
   // 🔵 Rare Abilities
-  { id: 11, nameEn: "Arise", nameAr: "أرايز", description: "استدعِ كرت من كروت خصمك", rarity: 'Rare', icon: UserPlus, image: { uri: "https://images.unsplash.com/photo-1620023640244-67d71b56a908?q=80&w=400&h=300&auto=format&fit=crop" } },
-  { id: 12, nameEn: "Reinforcement", nameAr: "التدعيم", description: "في حال الفوز +1 دفاع لكل الكروت لك", rarity: 'Rare', icon: ShieldPlus, image: { uri: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=400&h=300&auto=format&fit=crop" } },
-  { id: 13, nameEn: "Purge", nameAr: "التطهير", description: "نظف كل التأثيرات في اللعبة", rarity: 'Rare', icon: Eraser },
-  { id: 14, nameEn: "Double Or Nothing", nameAr: "دبل أو نثنق", description: "قبل الراوند: دبل أو نثنق", rarity: 'Rare', icon: Zap },
   { id: 15, nameEn: "Disaster", nameAr: "النكبة", description: "بدل كرت الخصم بكرت سابق له", rarity: 'Rare', icon: ArrowRightLeft },
   { id: 16, nameEn: "Rescue", nameAr: "الإنقاذ", description: "تعطي دفاع الكرت الحالي للكرت القادم", rarity: 'Rare', icon: LifeBuoy },
   { id: 17, nameEn: "Trap", nameAr: "الفخ", description: "قبل الراوند: تفعيل الفخ", rarity: 'Rare', icon: AlertTriangle },
@@ -80,5 +160,5 @@ export const abilities: Ability[] = [
   { id: 48, nameEn: "Explosion", nameAr: "الانفجار", description: "في حال الخسارة -1 دفاع لكل كروت الخصم", rarity: 'Legendary', icon: Bomb },
   { id: 49, nameEn: "Double Points", nameAr: "مضاعفة النقاط", description: "دبل النقاط قبل الراوند", rarity: 'Legendary', icon: PlusCircle },
   { id: 50, nameEn: "Elemental Mastery", nameAr: "إتقان العناصر", description: "تفوق عنصري كامل", rarity: 'Legendary', icon: Globe },
-  { id: 51, nameEn: "Deprivation (Ability)", nameAr: "سلب", description: "سلب احد قدرات الخصم", rarity: 'Legendary', icon: Ghost },
+  { id: 51, nameEn: "Deprivation (Ability)", nameAr: "سلب", description: "سلب أحد قدرات الخصم", rarity: 'Legendary', icon: Ghost },
 ];
