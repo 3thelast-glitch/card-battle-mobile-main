@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Modal, ScrollView, Alert, StatusBar } from 'react-native';
+import React, { useMemo, useCallback } from 'react';
+import {
+  View, TouchableOpacity, StyleSheet,
+  Platform, Modal, ScrollView, Alert, StatusBar,
+} from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { useEffect } from 'react';
 
 import { CardItem } from '@/components/game/card-item';
 import { ElementEffect } from '@/components/game/element-effect';
@@ -25,8 +24,13 @@ import {
   getUpcomingPredictionRounds,
   isPredictionComplete,
 } from '@/lib/game/ui-helpers';
+import {
+  useBattlePhase,
+  useBattleAnimations,
+  useBattleAbilities,
+} from '@/lib/game/hooks';
 
-type BattlePhase = 'showing' | 'fighting' | 'result' | 'waiting';
+// ─── Helper functions ────────────────────────────────────────────────────────────────
 
 const getAdvantageColor = (advantage: ElementAdvantage): string => {
   switch (advantage) {
@@ -57,9 +61,7 @@ const TopHUD = ({
     </View>
     <View style={styles.hudCenter}>
       <Text style={styles.vsText}>\u2694\ufe0f VS \u2694\ufe0f</Text>
-      {predictionSummary ? (
-        <Text style={styles.predictionSummaryHud}>{predictionSummary}</Text>
-      ) : null}
+      {predictionSummary ? <Text style={styles.predictionSummaryHud}>{predictionSummary}</Text> : null}
       <Text style={styles.roundText}>
         \u0627\u0644\u062c\u0648\u0644\u0629 {showResult ? lastRoundResult?.round : currentRound}/{totalRounds}
       </Text>
@@ -98,7 +100,7 @@ const HistoryRow = ({ results, side }: { results: any[]; side: 'player' | 'bot' 
   );
 };
 
-// ─── Ability buttons (horizontal row) ────────────────────────────────────────
+// ─── Ability buttons row ───────────────────────────────────────────────────────────
 
 const AbilityRow = ({
   abilities, roundNumber, activeEffects, upcomingRounds, remainingRounds,
@@ -149,7 +151,7 @@ const AbilityRow = ({
   );
 };
 
-// ─── Bottom professional button bar ─────────────────────────────────────────
+// ─── Bottom bar ────────────────────────────────────────────────────────────────
 
 const BottomBar = ({ onLog, onNext, onMenu, nextDisabled, isGameOver }: any) => (
   <View style={styles.bottomBar}>
@@ -191,73 +193,52 @@ export default function BattleScreen() {
     useAbility,
   } = useGame();
 
-  const [phase, setPhase] = useState<BattlePhase>('showing');
-  const [showResult, setShowResult] = useState(false);
-  const [showPlayerEffect, setShowPlayerEffect] = useState(false);
-  const [showBotEffect, setShowBotEffect] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showPredictionModal, setShowPredictionModal] = useState(false);
-  const [predictionSelections, setPredictionSelections] = useState<Record<number, 'win' | 'loss'>>({});
-  const [predictionAbilityType, setPredictionAbilityType] = useState<'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool'>('LogicalEncounter');
-  const [popularityAbilityType, setPopularityAbilityType] = useState<'Popularity' | 'Rescue' | 'Penetration'>('Popularity');
-  const [showPopularityModal, setShowPopularityModal] = useState(false);
-  const [selectedPopularityRound, setSelectedPopularityRound] = useState<number | null>(null);
+  // ─ Hooks ─
+  const animations = useBattleAnimations();
 
+  const { phase, setPhase, showResult, showPlayerEffect, showBotEffect } = useBattlePhase({
+    currentPlayerCard,
+    currentBotCard,
+    currentRound: state.currentRound,
+    lastRoundResult,
+    playRound,
+    onPhaseShowing: () => {
+      animations.resetAnimations();
+      animations.playEntranceAnimation();
+    },
+    onPhaseFighting: () => {},
+    onFightDone: () => {},
+  });
+
+  // تشغيل أنيمشن النتيجة عند showResult
+  useEffect(() => {
+    if (showResult) animations.playResultAnimation();
+  }, [showResult]);
+
+  const abilities = useBattleAbilities();
+
+  // ─ State محلي بسيط ─
+  const [showHistoryModal, setShowHistoryModal] = React.useState(false);
+
+  // ─ Lock orientation ─
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
     return () => { ScreenOrientation.unlockAsync(); };
   }, []);
 
-  const playerCardScale = useSharedValue(0);
-  const botCardScale = useSharedValue(0);
-  const vsOpacity = useSharedValue(0);
-  const resultOpacity = useSharedValue(0);
+  // ─ Derived values ─
+  const roundNumber = state.currentRound + 1;
+  const upcomingRounds = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const remainingRounds = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const predictionComplete = useMemo(
+    () => isPredictionComplete(upcomingRounds, abilities.predictionSelections),
+    [upcomingRounds, abilities.predictionSelections]
+  );
+  const isPopularityReady = abilities.selectedPopularityRound !== null;
+  const predictionSummary = useMemo(() => buildPredictionSummary(state.activeEffects, 'player'), [state.activeEffects]);
 
-  useEffect(() => {
-    if (currentPlayerCard && currentBotCard && phase === 'showing') {
-      playerCardScale.value = 0;
-      botCardScale.value = 0;
-      vsOpacity.value = 0;
-      resultOpacity.value = 0;
-      setShowResult(false);
-      setShowPlayerEffect(false);
-      setShowBotEffect(false);
-      playerCardScale.value = withDelay(100, withTiming(1, { duration: 300 }));
-      botCardScale.value = withDelay(300, withTiming(1, { duration: 300 }));
-      vsOpacity.value = withDelay(500, withTiming(1, { duration: 200 }));
-      setTimeout(() => setPhase('fighting'), 800);
-    }
-  }, [currentPlayerCard, currentBotCard, phase, state.currentRound]);
-
-  useEffect(() => {
-    if (phase === 'fighting') {
-      setShowPlayerEffect(true);
-      setShowBotEffect(true);
-      setTimeout(() => {
-        playRound();
-        setPhase('result');
-        setShowPlayerEffect(false);
-        setShowBotEffect(false);
-      }, 700);
-    }
-  }, [phase, playRound]);
-
-  useEffect(() => {
-    if (phase === 'result' && lastRoundResult) {
-      setShowResult(true);
-      resultOpacity.value = withTiming(1, { duration: 300 });
-      if (Platform.OS !== 'web') {
-        if (lastRoundResult.winner === 'player') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else if (lastRoundResult.winner === 'bot') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-      }
-      setPhase('waiting');
-    }
-  }, [phase, lastRoundResult, resultOpacity]);
+  const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
+  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
 
   const handleNextRound = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -266,39 +247,7 @@ export default function BattleScreen() {
     } else {
       setPhase('showing');
     }
-  }, [isGameOver, router]);
-
-  const handleConfirmPrediction = useCallback(() => {
-    useAbility(predictionAbilityType, { predictions: predictionSelections });
-    setShowPredictionModal(false);
-    setPredictionSelections({});
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [predictionAbilityType, predictionSelections, useAbility]);
-
-  const handleConfirmPopularity = useCallback(() => {
-    if (selectedPopularityRound === null) return;
-    useAbility(popularityAbilityType, { round: selectedPopularityRound });
-    setShowPopularityModal(false);
-    setSelectedPopularityRound(null);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [popularityAbilityType, selectedPopularityRound, useAbility]);
-
-  const handleSelectPrediction = useCallback((round: number, outcome: 'win' | 'loss') => {
-    setPredictionSelections(prev => ({ ...prev, [round]: outcome }));
-  }, []);
-
-  const roundNumber = state.currentRound + 1;
-  const upcomingRounds = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
-  const remainingRounds = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
-  const predictionComplete = useMemo(() => isPredictionComplete(upcomingRounds, predictionSelections), [upcomingRounds, predictionSelections]);
-  const isPopularityReady = selectedPopularityRound !== null;
-  const predictionSummary = useMemo(() => buildPredictionSummary(state.activeEffects, 'player'), [state.activeEffects]);
-
-  const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
-  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
-
-  const playerCardAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: playerCardScale.value }] }));
-  const botCardAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: botCardScale.value }] }));
+  }, [isGameOver, router, setPhase]);
 
   const getResultMessage = () => {
     if (!lastRoundResult) return '';
@@ -332,6 +281,7 @@ export default function BattleScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar hidden />
+
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LuxuryBackground />
         <View style={styles.frameBorderTop} />
@@ -343,7 +293,7 @@ export default function BattleScreen() {
       <TopHUD
         playerScore={state.playerScore}
         botScore={state.botScore}
-        currentRound={state.currentRound + 1}
+        currentRound={roundNumber}
         totalRounds={state.totalRounds}
         showResult={showResult}
         lastRoundResult={lastRoundResult}
@@ -351,14 +301,14 @@ export default function BattleScreen() {
       />
 
       <View style={styles.arenaSplit}>
+
+        {/* Player side */}
         <View style={styles.playerArena}>
           <HistoryRow results={state.roundResults} side="player" />
           <View style={styles.cardWrapper}>
-            <Animated.View style={playerCardAnimatedStyle}>
+            <Animated.View style={animations.playerCardAnimatedStyle}>
               <CardItem card={displayPlayerCard} size="large" />
-              {showPlayerEffect && displayPlayerCard && (
-                <ElementEffect element={displayPlayerCard.element} isActive={true} />
-              )}
+              {showPlayerEffect && <ElementEffect element={displayPlayerCard.element} isActive={true} />}
             </Animated.View>
             {showResult && lastRoundResult && (
               <View style={styles.damageInfo}>
@@ -378,16 +328,8 @@ export default function BattleScreen() {
               activeEffects={state.activeEffects}
               upcomingRounds={upcomingRounds}
               remainingRounds={remainingRounds}
-              onTriggerPrediction={(type: 'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool') => {
-                setPredictionSelections({});
-                setPredictionAbilityType(type);
-                setShowPredictionModal(true);
-              }}
-              onTriggerPopularity={(type: 'Popularity' | 'Rescue' | 'Penetration') => {
-                setSelectedPopularityRound(null);
-                setPopularityAbilityType(type);
-                setShowPopularityModal(true);
-              }}
+              onTriggerPrediction={abilities.openPredictionModal}
+              onTriggerPopularity={abilities.openPopularityModal}
               onUseAbility={(type: string) => useAbility(type as any)}
             />
           )}
@@ -395,14 +337,13 @@ export default function BattleScreen() {
 
         <View style={styles.arenaDivider} />
 
+        {/* Bot side */}
         <View style={styles.botArena}>
           <HistoryRow results={state.roundResults} side="bot" />
           <View style={styles.cardWrapper}>
-            <Animated.View style={botCardAnimatedStyle}>
+            <Animated.View style={animations.botCardAnimatedStyle}>
               <CardItem card={displayBotCard} size="large" />
-              {showBotEffect && displayBotCard && (
-                <ElementEffect element={displayBotCard.element} isActive={true} />
-              )}
+              {showBotEffect && <ElementEffect element={displayBotCard.element} isActive={true} />}
             </Animated.View>
             {showResult && lastRoundResult && (
               <View style={styles.damageInfo}>
@@ -423,6 +364,7 @@ export default function BattleScreen() {
             </Animated.View>
           )}
         </View>
+
       </View>
 
       <BottomBar
@@ -433,25 +375,26 @@ export default function BattleScreen() {
         isGameOver={isGameOver}
       />
 
+      {/* ─ Modals ─ */}
       <PredictionModal
-        visible={showPredictionModal}
+        visible={abilities.showPredictionModal}
         upcomingRounds={upcomingRounds}
-        selections={predictionSelections}
-        onSelect={handleSelectPrediction}
-        onCancel={() => { setShowPredictionModal(false); setPredictionSelections({}); }}
-        onRequestClose={() => setShowPredictionModal(false)}
-        onConfirm={handleConfirmPrediction}
+        selections={abilities.predictionSelections}
+        onSelect={abilities.handleSelectPrediction}
+        onCancel={abilities.closePredictionModal}
+        onRequestClose={abilities.closePredictionModal}
+        onConfirm={() => abilities.handleConfirmPrediction(useAbility)}
         isConfirmDisabled={!predictionComplete}
       />
 
       <PopularityModal
-        visible={showPopularityModal}
+        visible={abilities.showPopularityModal}
         remainingRounds={remainingRounds}
-        selectedRound={selectedPopularityRound}
-        onSelect={(round: number) => setSelectedPopularityRound(round)}
-        onCancel={() => { setShowPopularityModal(false); setSelectedPopularityRound(null); }}
-        onRequestClose={() => setShowPopularityModal(false)}
-        onConfirm={handleConfirmPopularity}
+        selectedRound={abilities.selectedPopularityRound}
+        onSelect={abilities.handleSelectPopularityRound}
+        onCancel={abilities.closePopularityModal}
+        onRequestClose={abilities.closePopularityModal}
+        onConfirm={() => abilities.handleConfirmPopularity(useAbility)}
         isConfirmDisabled={!isPopularityReady}
       />
 
@@ -526,7 +469,7 @@ const styles = StyleSheet.create({
   vsText: { fontSize: 18, fontWeight: '800', color: '#e94560', letterSpacing: 1 },
   roundText: { fontSize: 11, color: GOLD, fontWeight: '700', marginTop: 1 },
   predictionSummaryHud: { fontSize: 10, color: '#fbbf24' },
-  arenaSplit: { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6, gap: 0 },
+  arenaSplit: { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6 },
   playerArena: { flex: 1, paddingRight: 6, alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   botArena: { flex: 1, paddingLeft: 6, alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   arenaDivider: { width: 1, alignSelf: 'stretch', backgroundColor: GOLD_DIM, marginVertical: 4 },
