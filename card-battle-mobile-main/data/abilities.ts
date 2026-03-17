@@ -465,4 +465,8 @@ export const abilities: Ability[] = [
     rarity: 'Legendary',
     icon: Globe,
   },
+<<<<<<< HEAD
 ];
+=======
+];
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74

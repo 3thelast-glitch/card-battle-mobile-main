@@ -3058,4 +3058,8 @@ export const CARDS_BATCH_1: Card[] = [
     rarity: 'common', stars: 2,
     animationPreset: 'lightning',
   },
+<<<<<<< HEAD
 ];
+=======
+];
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74

@@ -109,16 +109,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.currentRound >= state.totalRounds) return state;
 
       const playerCard = state.playerDeck[state.currentRound];
+<<<<<<< HEAD
       const botCard = state.botDeck[state.currentRound];
       if (!playerCard || !botCard) return state;
 
       const roundNumber = getRoundNumber(state);
+=======
+      const botCard   = state.botDeck[state.currentRound];
+      if (!playerCard || !botCard) return state;
+
+      const roundNumber  = getRoundNumber(state);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
       const activeEffects = state.abilitiesEnabled
         ? state.activeEffects.filter(e => isEffectActive(e, roundNumber))
         : [];
 
       const playerEffects = activeEffects.filter(e => e.targetSide === 'player' || e.targetSide === 'all');
+<<<<<<< HEAD
       const botEffects = activeEffects.filter(e => e.targetSide === 'bot' || e.targetSide === 'all');
+=======
+      const botEffects    = activeEffects.filter(e => e.targetSide === 'bot'    || e.targetSide === 'all');
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
       const forcedOutcomeEffect = activeEffects
         .filter(e => e.kind === 'forcedOutcome')
@@ -129,12 +140,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         .sort((a, b) => b.priority - a.priority || b.createdAtRound - a.createdAtRound)[0];
 
       const result = forcedOutcomeEffect
+<<<<<<< HEAD
         ? {
           winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0,
           playerBaseDamage: 0, botBaseDamage: 0,
           playerElementAdvantage: 'neutral' as ElementAdvantage,
           botElementAdvantage: 'neutral' as ElementAdvantage
         }
+=======
+        ? { winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0,
+            playerBaseDamage: 0, botBaseDamage: 0,
+            playerElementAdvantage: 'neutral' as ElementAdvantage,
+            botElementAdvantage:    'neutral' as ElementAdvantage }
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
         : determineRoundWinner(playerCard, botCard, playerEffects, botEffects, state.abilitiesEnabled);
 
       const roundResult: RoundResult = {
@@ -143,17 +161,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         playerDamage: result.playerDamage, botDamage: result.botDamage,
         playerBaseDamage: result.playerBaseDamage, botBaseDamage: result.botBaseDamage,
         playerElementAdvantage: result.playerElementAdvantage,
-        botElementAdvantage: result.botElementAdvantage,
+        botElementAdvantage:    result.botElementAdvantage,
         winner: result.winner,
       };
 
       let playerScoreDelta = 0;
-      let botScoreDelta = 0;
+      let botScoreDelta    = 0;
 
       if (result.winner === 'player') playerScoreDelta += 1;
+<<<<<<< HEAD
       else if (result.winner === 'bot') botScoreDelta += 1;
 
       const effectsToRemove = new Set<string>();
+=======
+      else if (result.winner === 'bot') botScoreDelta   += 1;
+
+      const effectsToRemove  = new Set<string>();
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
       const effectsToReplace = new Map<string, Effect>();
       const effectsToAdd: Effect[] = [];
 
@@ -183,10 +207,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (!d?.appliesToRound || d.appliesToRound === roundNumber) {
               if (result.winner === effect.sourceSide) {
                 if (effect.sourceSide === 'player') playerScoreDelta += 1;
-                if (effect.sourceSide === 'bot') botScoreDelta += 1;
+                if (effect.sourceSide === 'bot')    botScoreDelta    += 1;
               } else if (result.winner === getOppositeSide(effect.sourceSide)) {
                 if (effect.sourceSide === 'player') playerScoreDelta = 0;
+<<<<<<< HEAD
                 if (effect.sourceSide === 'bot') botScoreDelta = 0;
+=======
+                if (effect.sourceSide === 'bot')    botScoreDelta    = 0;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
               }
               effectsToRemove.add(effect.id);
             }
@@ -210,11 +238,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (result.winner === expectedWinner) {
               const reward = d?.rewardHp ?? 1;
               if (effect.sourceSide === 'player') playerScoreDelta += reward;
+<<<<<<< HEAD
               if (effect.sourceSide === 'bot') botScoreDelta += reward;
             } else if (result.winner && result.winner !== 'draw') {
               const penalty = d?.penaltyHp ?? 1;
               if (effect.sourceSide === 'player') playerScoreDelta -= penalty;
               if (effect.sourceSide === 'bot') botScoreDelta -= penalty;
+=======
+              if (effect.sourceSide === 'bot')    botScoreDelta    += reward;
+            } else if (result.winner && result.winner !== 'draw') {
+              const penalty = d?.penaltyHp ?? 1;
+              if (effect.sourceSide === 'player') playerScoreDelta -= penalty;
+              if (effect.sourceSide === 'bot')    botScoreDelta    -= penalty;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             }
 
             const nextPredictions = { ...(d?.predictions ?? {}) };
@@ -268,7 +304,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 'lifesteal': {
             if (result.winner === effect.sourceSide) {
               if (effect.sourceSide === 'player') playerScoreDelta += 1;
+<<<<<<< HEAD
               if (effect.sourceSide === 'bot') botScoreDelta += 1;
+=======
+              if (effect.sourceSide === 'bot')    botScoreDelta    += 1;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             }
             effectsToRemove.add(effect.id);
             break;
@@ -298,7 +338,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             const opponentSide = getOppositeSide(effect.sourceSide);
             if (result.winner === opponentSide) {
               if (opponentSide === 'player') playerScoreDelta = Math.max(0, playerScoreDelta - 1);
+<<<<<<< HEAD
               if (opponentSide === 'bot') botScoreDelta = Math.max(0, botScoreDelta - 1);
+=======
+              if (opponentSide === 'bot')    botScoreDelta    = Math.max(0, botScoreDelta    - 1);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             }
             effectsToRemove.add(effect.id);
             break;
@@ -424,7 +468,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (!d?.appliesToRound || d.appliesToRound !== roundNumber) break;
             const opponentSide = getOppositeSide(effect.sourceSide);
             if (opponentSide === 'player') { playerScoreDelta = 0; botScoreDelta = Math.max(botScoreDelta, 1); }
+<<<<<<< HEAD
             if (opponentSide === 'bot') { botScoreDelta = 0; playerScoreDelta = Math.max(playerScoreDelta, 1); }
+=======
+            if (opponentSide === 'bot')    { botScoreDelta = 0;    playerScoreDelta = Math.max(playerScoreDelta, 1); }
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             effectsToRemove.add(effect.id);
             break;
           }
@@ -453,7 +501,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             const sideName = effect.sourceSide;
             const positiveEffects = activeEffects.filter(
               e => e.kind === 'statModifier' && e.targetSide === sideName &&
+<<<<<<< HEAD
                 (e.data as any)?.amount > 0 && e.id !== effect.id
+=======
+              (e.data as any)?.amount > 0 && e.id !== effect.id
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             );
             positiveEffects.forEach(pe => {
               effectsToReplace.set(pe.id, {
@@ -481,7 +533,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
           // ── TakeIt ──
           case 'takeIt': {
+<<<<<<< HEAD
             const sideName = effect.sourceSide;
+=======
+            const sideName     = effect.sourceSide;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             const opponentSide = getOppositeSide(sideName);
             const myDebuffs = activeEffects.filter(
               e => e.kind === 'statModifier' && e.targetSide === sideName && (e.data as any)?.amount < 0
@@ -496,13 +552,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
           // ── Deprivation ──
           case 'deprivation': {
+<<<<<<< HEAD
             const opponentSide = getOppositeSide(effect.sourceSide);
+=======
+            const opponentSide  = getOppositeSide(effect.sourceSide);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             const d = effect.data as { chosenBuffId?: string } | undefined;
             const targetBuff = d?.chosenBuffId
               ? activeEffects.find(e => e.id === d.chosenBuffId && e.targetSide === opponentSide && (e.data as any)?.amount > 0)
               : activeEffects
+<<<<<<< HEAD
                 .filter(e => e.kind === 'statModifier' && e.targetSide === opponentSide && (e.data as any)?.amount > 0)
                 .sort((a, b) => (b.data as any).amount - (a.data as any).amount)[0];
+=======
+                  .filter(e => e.kind === 'statModifier' && e.targetSide === opponentSide && (e.data as any)?.amount > 0)
+                  .sort((a, b) => (b.data as any).amount - (a.data as any).amount)[0];
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             if (targetBuff) {
               effectsToRemove.add(targetBuff.id);
               effectsToAdd.push({
@@ -522,7 +587,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (!d?.appliesToRound || d.appliesToRound !== roundNumber) break;
             const opponentSide = getOppositeSide(effect.sourceSide);
             if (opponentSide === 'player') playerScoreDelta = 0;
+<<<<<<< HEAD
             if (opponentSide === 'bot') botScoreDelta = 0;
+=======
+            if (opponentSide === 'bot')    botScoreDelta    = 0;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
             effectsToRemove.add(effect.id);
             break;
           }
@@ -542,7 +611,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         currentRound: state.currentRound + 1,
         playerScore: Math.max(0, state.playerScore + playerScoreDelta),
-        botScore: Math.max(0, state.botScore + botScoreDelta),
+        botScore:    Math.max(0, state.botScore    + botScoreDelta),
         roundResults: [...state.roundResults, roundResult],
         activeEffects: nextEffects,
         usedAbilities: [],
@@ -554,9 +623,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const { abilityType, isPlayer, data } = action.payload;
       if (!state.abilitiesEnabled) return state;
 
+<<<<<<< HEAD
       const side: Side = isPlayer ? 'player' : 'bot';
       const opponentSide: Side = getOppositeSide(side);
       const roundNumber = getRoundNumber(state);
+=======
+      const side: Side         = isPlayer ? 'player' : 'bot';
+      const opponentSide: Side = getOppositeSide(side);
+      const roundNumber        = getRoundNumber(state);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
       const isSealed = state.activeEffects.some(
         e => e.kind === 'silenceAbilities' && isEffectActive(e, roundNumber) &&
@@ -771,7 +846,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             const pastCard = side === 'player' ? pastRound.playerCard : pastRound.botCard;
             const revivedCard: Card = {
               ...pastCard,
+<<<<<<< HEAD
               attack: Math.ceil(pastCard.attack / 2),
+=======
+              attack:  Math.ceil(pastCard.attack  / 2),
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
               defense: Math.ceil(pastCard.defense / 2),
             };
             if (side === 'player') {
@@ -889,7 +968,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           const unusedOppAbility = botAbilityList.find(a => !a.used);
           if (unusedOppAbility) {
             const newAbilityForMe = { type: unusedOppAbility.type, used: false };
+<<<<<<< HEAD
             const updatedOppList = botAbilityList.map(a =>
+=======
+            const updatedOppList  = botAbilityList.map(a =>
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
               a.type === unusedOppAbility.type && !a.used ? { ...a, used: true } : a
             );
             return {
@@ -964,16 +1047,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Merge': {
+<<<<<<< HEAD
           const lastR = state.roundResults[state.roundResults.length - 1];
           if (lastR) {
             const pastCard = side === 'player' ? lastR.playerCard : lastR.botCard;
             const curCard = side === 'player'
+=======
+          const lastR   = state.roundResults[state.roundResults.length - 1];
+          if (lastR) {
+            const pastCard = side === 'player' ? lastR.playerCard : lastR.botCard;
+            const curCard  = side === 'player'
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
               ? state.playerDeck[state.currentRound]
               : state.botDeck[state.currentRound];
             if (curCard) {
               const merged: Card = {
                 ...curCard,
+<<<<<<< HEAD
                 attack: curCard.attack + pastCard.attack,
+=======
+                attack:  curCard.attack  + pastCard.attack,
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
                 defense: curCard.defense + pastCard.defense,
                 ability: undefined,
               };
@@ -1144,6 +1238,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'SwapClass': {
+<<<<<<< HEAD
           const myCard = side === 'player' ? state.playerDeck[state.currentRound] : state.botDeck[state.currentRound];
           const oppCard = side === 'player' ? state.botDeck[state.currentRound] : state.playerDeck[state.currentRound];
           const chosenMyClass = data?.myClass as string | undefined;
@@ -1158,6 +1253,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             } else {
               const pd = [...state.playerDeck]; pd[state.currentRound] = newOppCard;
               const bd = [...state.botDeck]; bd[state.currentRound] = newMyCard;
+=======
+          const myCard  = side === 'player' ? state.playerDeck[state.currentRound] : state.botDeck[state.currentRound];
+          const oppCard = side === 'player' ? state.botDeck[state.currentRound]    : state.playerDeck[state.currentRound];
+          const chosenMyClass  = data?.myClass  as string | undefined;
+          const chosenOppClass = data?.oppClass as string | undefined;
+          if (myCard && oppCard && chosenMyClass && chosenOppClass) {
+            const newMyCard  = { ...myCard,  class: chosenOppClass };
+            const newOppCard = { ...oppCard, class: chosenMyClass };
+            if (side === 'player') {
+              const pd = [...state.playerDeck]; pd[state.currentRound] = newMyCard;
+              const bd = [...state.botDeck];    bd[state.currentRound] = newOppCard;
+              nextState = { ...nextState, playerDeck: pd, botDeck: bd };
+            } else {
+              const pd = [...state.playerDeck]; pd[state.currentRound] = newOppCard;
+              const bd = [...state.botDeck];    bd[state.currentRound] = newMyCard;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
               nextState = { ...nextState, playerDeck: pd, botDeck: bd };
             }
           }
@@ -1247,7 +1358,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         activeEffects: nextEffects,
         usedAbilities: [...state.usedAbilities, abilityType],
         playerAbilities: isPlayer ? newAbilityStateList : state.playerAbilities,
-        botAbilities: isPlayer ? state.botAbilities : newAbilityStateList,
+        botAbilities:    isPlayer ? state.botAbilities  : newAbilityStateList,
       };
     }
 
@@ -1273,9 +1384,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         abilitiesEnabled: action.payload,
-        activeEffects: action.payload ? state.activeEffects : [],
-        playerAbilities: action.payload ? state.playerAbilities : [],
-        botAbilities: action.payload ? state.botAbilities : [],
+        activeEffects:    action.payload ? state.activeEffects : [],
+        playerAbilities:  action.payload ? state.playerAbilities : [],
+        botAbilities:     action.payload ? state.botAbilities    : [],
       };
 
     case 'RESET_GAME':
@@ -1290,21 +1401,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 interface GameContextType {
   state: GameState;
   difficulty: DifficultyLevel;
-  setPlayerDeck: (cards: Card[]) => void;
-  setTotalRounds: (rounds: number) => void;
-  startBattle: (playerDeck?: Card[], playerAbilities?: AbilityType[]) => void;
-  playRound: () => void;
-  nextRound: () => void;
-  addEffect: (effect: Effect) => void;
-  removeEffects: (targetSide?: Side | 'all', sourceSide?: Side | 'all') => void;
-  useAbility: (abilityType: AbilityType, data?: Record<string, unknown>) => void;
-  resetGame: () => void;
-  setDifficulty: (level: DifficultyLevel) => void;
+  setPlayerDeck:       (cards: Card[]) => void;
+  setTotalRounds:      (rounds: number) => void;
+  startBattle:         (playerDeck?: Card[], playerAbilities?: AbilityType[]) => void;
+  playRound:           () => void;
+  nextRound:           () => void;
+  addEffect:           (effect: Effect) => void;
+  removeEffects:       (targetSide?: Side | 'all', sourceSide?: Side | 'all') => void;
+  useAbility:          (abilityType: AbilityType, data?: Record<string, unknown>) => void;
+  resetGame:           () => void;
+  setDifficulty:       (level: DifficultyLevel) => void;
   setAbilitiesEnabled: (enabled: boolean) => void;
-  isGameOver: boolean;
-  currentPlayerCard: Card | null;
-  currentBotCard: Card | null;
-  lastRoundResult: RoundResult | null;
+  isGameOver:          boolean;
+  currentPlayerCard:   Card | null;
+  currentBotCard:      Card | null;
+  lastRoundResult:     RoundResult | null;
   expectedRoundResult: Omit<RoundResult, 'round' | 'playerCard' | 'botCard'> | null;
 }
 
@@ -1314,12 +1425,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [difficulty, setDifficultyState] = useState<DifficultyLevel>(initialDifficulty);
 
+<<<<<<< HEAD
   const setPlayerDeck = (cards: Card[]) => dispatch({ type: 'SET_PLAYER_DECK', payload: cards });
   const setTotalRounds = (rounds: number) => dispatch({ type: 'SET_TOTAL_ROUNDS', payload: rounds });
   const playRound = () => dispatch({ type: 'PLAY_ROUND' });
   const nextRound = () => dispatch({ type: 'NEXT_ROUND' });
   const addEffect = (effect: Effect) => dispatch({ type: 'ADD_EFFECT', payload: effect });
   const resetGame = () => dispatch({ type: 'RESET_GAME' });
+=======
+  const setPlayerDeck       = (cards: Card[]) => dispatch({ type: 'SET_PLAYER_DECK', payload: cards });
+  const setTotalRounds      = (rounds: number) => dispatch({ type: 'SET_TOTAL_ROUNDS', payload: rounds });
+  const playRound           = () => dispatch({ type: 'PLAY_ROUND' });
+  const nextRound           = () => dispatch({ type: 'NEXT_ROUND' });
+  const addEffect           = (effect: Effect) => dispatch({ type: 'ADD_EFFECT', payload: effect });
+  const resetGame           = () => dispatch({ type: 'RESET_GAME' });
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   const setAbilitiesEnabled = (enabled: boolean) => dispatch({ type: 'SET_ABILITIES_ENABLED', payload: enabled });
 
   const removeEffects = (targetSide?: Side | 'all', sourceSide?: Side | 'all') =>
@@ -1343,31 +1463,53 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const isGameOver = state.roundResults.length >= state.totalRounds && state.totalRounds > 0;
   const currentPlayerCard = state.currentRound < state.totalRounds ? state.playerDeck[state.currentRound] : null;
+<<<<<<< HEAD
   const currentBotCard = state.currentRound < state.totalRounds ? state.botDeck[state.currentRound] : null;
   const lastRoundResult = state.roundResults.length > 0 ? state.roundResults[state.roundResults.length - 1] : null;
+=======
+  const currentBotCard    = state.currentRound < state.totalRounds ? state.botDeck[state.currentRound]    : null;
+  const lastRoundResult   = state.roundResults.length > 0 ? state.roundResults[state.roundResults.length - 1] : null;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
   const expectedRoundResult = React.useMemo(() => {
     if (state.currentRound >= state.totalRounds) return null;
     const playerCard = state.playerDeck[state.currentRound];
+<<<<<<< HEAD
     const botCard = state.botDeck[state.currentRound];
     if (!playerCard || !botCard) return null;
     const roundNumber = getRoundNumber(state);
+=======
+    const botCard    = state.botDeck[state.currentRound];
+    if (!playerCard || !botCard) return null;
+    const roundNumber   = getRoundNumber(state);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
     const activeEffects = state.abilitiesEnabled
       ? state.activeEffects.filter(e => isEffectActive(e, roundNumber))
       : [];
     const playerEffects = activeEffects.filter(e => e.targetSide === 'player' || e.targetSide === 'all');
+<<<<<<< HEAD
     const botEffects = activeEffects.filter(e => e.targetSide === 'bot' || e.targetSide === 'all');
+=======
+    const botEffects    = activeEffects.filter(e => e.targetSide === 'bot'    || e.targetSide === 'all');
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
     const forcedOutcomeEffect = activeEffects
       .filter(e => e.kind === 'forcedOutcome')
       .filter(e => { const d = e.data as { appliesToRound?: number } | undefined; return !d?.appliesToRound || d.appliesToRound === roundNumber; })
       .sort((a, b) => b.priority - a.priority || b.createdAtRound - a.createdAtRound)[0];
     return forcedOutcomeEffect
+<<<<<<< HEAD
       ? {
         winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0,
         playerBaseDamage: 0, botBaseDamage: 0,
         playerElementAdvantage: 'neutral' as ElementAdvantage,
         botElementAdvantage: 'neutral' as ElementAdvantage
       }
+=======
+      ? { winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0,
+          playerBaseDamage: 0, botBaseDamage: 0,
+          playerElementAdvantage: 'neutral' as ElementAdvantage,
+          botElementAdvantage:    'neutral' as ElementAdvantage }
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
       : determineRoundWinner(playerCard, botCard, playerEffects, botEffects, state.abilitiesEnabled);
   }, [state.currentRound, state.totalRounds, state.playerDeck, state.botDeck, state.activeEffects, state.abilitiesEnabled]);
 
@@ -1387,4 +1529,8 @@ export function useGame() {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used within a GameProvider');
   return ctx;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74

@@ -78,13 +78,20 @@ function getEffectLabel(effect: any): string {
 
   switch (effect.kind) {
     case 'statModifier': {
+<<<<<<< HEAD
       const stat = STAT_LABELS[d?.stat] ?? d?.stat ?? '؟';
       const amount = d?.amount ?? 0;
       const sign = amount >= 0 ? '+' : '';
+=======
+      const stat   = STAT_LABELS[d?.stat] ?? d?.stat ?? '؟';
+      const amount = d?.amount ?? 0;
+      const sign   = amount >= 0 ? '+' : '';
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
       const onlyClass: string | undefined = d?.onlyClass;
       const multiplier: boolean = !!d?.multiplier;
 
       if (multiplier) return `${stat} ×${amount > 0 ? amount : '½'}`;
+<<<<<<< HEAD
       if (onlyClass) return `جميع ${CLASS_LABELS_SHORT[onlyClass] ?? onlyClass} ${sign}${amount}`;
       return `${stat} ${sign}${amount}`;
     }
@@ -114,6 +121,37 @@ function getEffectLabel(effect: any): string {
     case 'pool': return '🌊 تصفير الجولة';
     case 'prediction': return '🔮 توقع';
     default: return effect.kind ?? '؟';
+=======
+      if (onlyClass)  return `جميع ${CLASS_LABELS_SHORT[onlyClass] ?? onlyClass} ${sign}${amount}`;
+      return `${stat} ${sign}${amount}`;
+    }
+    case 'protection':      return '🛡 حماية';
+    case 'fortify':         return '🔩 تحصين';
+    case 'halvePoints':     return '½ تنصيف';
+    case 'silenceAbilities':return '🔇 ختم قدرات';
+    case 'doubleOrNothing': return '🎲 مضاعفة أو صفر';
+    case 'forcedOutcome':   return '🎯 نتيجة مضمونة';
+    case 'starAdvantage':   return '⭐ أفضلية نجوم';
+    case 'sacrifice':       return '🩸 تضحية';
+    case 'greedBuff':       return '💰 جشع';
+    case 'lifesteal':       return '🩸 سرقة صحة';
+    case 'revengeBuff':     return '😤 انتقام';
+    case 'suicidePact':     return '💀 اتفاقية انتحار';
+    case 'compensationBuff':return '🎁 تعويض';
+    case 'weakeningDebuff': return '📉 إضعاف';
+    case 'explosionDebuff': return '💥 انفجار';
+    case 'consecutiveLoss': return '🔄 خسائر متتالية';
+    case 'shieldGuard':     return '🛡 درع';
+    case 'trap':            return '🪤 فخ';
+    case 'convertDebuffs':  return '🔃 تحويل نيرف→بف';
+    case 'doubleBuffs':     return '✨ مضاعفة البفات';
+    case 'conversion':      return '🔄 تحويل بفات الخصم';
+    case 'takeIt':          return '↩️ إعادة النيرف';
+    case 'deprivation':     return '🚫 سلب بف';
+    case 'pool':            return '🌊 تصفير الجولة';
+    case 'prediction':      return '🔮 توقع';
+    default:                return effect.kind ?? '؟';
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   }
 }
 
@@ -458,8 +496,13 @@ export default function BattleScreen() {
   const insets = useSafeAreaInsets();
   const { width, height, isLandscape, size } = useLandscapeLayout();
 
+<<<<<<< HEAD
   const maxH = height * 0.54;
   const cardWidth = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
+=======
+  const maxH       = height * 0.54;
+  const cardWidth  = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   const cardHeight = cardWidth * 1.5;
 
   const {
@@ -468,6 +511,7 @@ export default function BattleScreen() {
     resetGame, nextRound, startBattle,
   } = useGame();
 
+<<<<<<< HEAD
   const [phase, setPhase] = useState<BattlePhase>('selection');
   const [showResult, setShowResult] = useState(false);
   const [showPlayerEffect, setShowPlayerEffect] = useState(false);
@@ -482,6 +526,22 @@ export default function BattleScreen() {
   const [showPopularityModal, setShowPopularityModal] = useState(false);
   const [selectedPopularityRound, setSelectedPopularityRound] = useState<number | null>(null);
   const [activeDamageNumbers, setActiveDamageNumbers] = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant }[]>([]);
+=======
+  const [phase,                    setPhase]                   = useState<BattlePhase>('selection');
+  const [showResult,               setShowResult]              = useState(false);
+  const [showPlayerEffect,         setShowPlayerEffect]        = useState(false);
+  const [showBotEffect,            setShowBotEffect]           = useState(false);
+  const [roundHistory,             setRoundHistory]            = useState<any[]>([]);
+  const [isHistoryModalOpen,       setIsHistoryModalOpen]      = useState(false);
+  const [isAbilitiesModalOpen,     setIsAbilitiesModalOpen]    = useState(false);
+  const [showPredictionModal,      setShowPredictionModal]     = useState(false);
+  const [predictionSelections,     setPredictionSelections]    = useState<Record<number, 'win' | 'loss'>>({});
+  const [predictionAbilityType,    setPredictionAbilityType]   = useState<'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool'>('LogicalEncounter');
+  const [popularityAbilityType,    setPopularityAbilityType]   = useState<'Popularity' | 'Rescue' | 'Penetration'>('Popularity');
+  const [showPopularityModal,      setShowPopularityModal]     = useState(false);
+  const [selectedPopularityRound,  setSelectedPopularityRound] = useState<number | null>(null);
+  const [activeDamageNumbers,      setActiveDamageNumbers]     = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant }[]>([]);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
   // ── Choice modal state (Propaganda / AddElement / SwapClass / Dilemma) ──
   const [choiceModal, setChoiceModal] = useState<{
@@ -493,9 +553,15 @@ export default function BattleScreen() {
   }>({ visible: false, title: '', options: [], abilityType: '' });
 
   // edit mode
+<<<<<<< HEAD
   const [editMode, setEditMode] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(false);
+=======
+  const [editMode,    setEditMode]    = useState(false);
+  const [showGrid,    setShowGrid]    = useState(true);
+  const [snapToGrid,  setSnapToGrid]  = useState(false);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   const [showSidebar, setShowSidebar] = useState(false);
 
   const { width: SW, height: SH } = useWindowDimensions();
@@ -504,41 +570,72 @@ export default function BattleScreen() {
 
   const DEFAULT_LAYOUT = {
     playerCard: { x: -SW * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
+<<<<<<< HEAD
     botCard: { x: SW * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
     vs: { x: 0, y: 0, scale: uiScale, minScale: 0.3, maxScale: 2.0 },
     score: { x: 0, y: -SH * 0.35, scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
     round: { x: 0, y: -SH * 0.42, scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
     result: { x: 0, y: SH * 0.35, scale: uiScale, minScale: 0.5, maxScale: 2.0 },
     abilities: { x: 0, y: SH * 0.25, scale: uiScale * 0.8, minScale: 0.4, maxScale: 1.5 },
+=======
+    botCard:    { x:  SW * 0.25, y: 0, scale: baseCardScale, minScale: 0.3, maxScale: 1.5 },
+    vs:         { x: 0, y: 0,           scale: uiScale,       minScale: 0.3, maxScale: 2.0 },
+    score:      { x: 0, y: -SH * 0.35,  scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
+    round:      { x: 0, y: -SH * 0.42,  scale: uiScale * 0.9, minScale: 0.4, maxScale: 1.5 },
+    result:     { x: 0, y:  SH * 0.35,  scale: uiScale,       minScale: 0.5, maxScale: 2.0 },
+    abilities:  { x: 0, y:  SH * 0.25,  scale: uiScale * 0.8, minScale: 0.4, maxScale: 1.5 },
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   };
   const [elements, setElements] = useState(DEFAULT_LAYOUT);
 
   // animations
   const playerAnim = useSharedValue(0);
+<<<<<<< HEAD
   const botAnim = useSharedValue(0);
   const vsOpacity = useSharedValue(0);
   const resultOp = useSharedValue(0);
   const flashAnim = useSharedValue(0);
+=======
+  const botAnim    = useSharedValue(0);
+  const vsOpacity  = useSharedValue(0);
+  const resultOp   = useSharedValue(0);
+  const flashAnim  = useSharedValue(0);
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
   const playerStyle = useAnimatedStyle(() => ({ transform: [{ scale: playerAnim.value }] }));
-  const botStyle = useAnimatedStyle(() => ({ transform: [{ scale: botAnim.value }] }));
-  const vsStyle = useAnimatedStyle(() => ({ opacity: vsOpacity.value }));
+  const botStyle    = useAnimatedStyle(() => ({ transform: [{ scale: botAnim.value }] }));
+  const vsStyle     = useAnimatedStyle(() => ({ opacity: vsOpacity.value }));
   const resultStyle = useAnimatedStyle(() => ({ opacity: resultOp.value }));
+<<<<<<< HEAD
   const flashStyle = useAnimatedStyle(() => ({ opacity: flashAnim.value }));
+=======
+  const flashStyle  = useAnimatedStyle(() => ({ opacity: flashAnim.value }));
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
   // layout persistence
   useEffect(() => { loadLayout(); }, []);
   useEffect(() => { if (editMode) saveLayout(); }, [elements, editMode]);
   const loadLayout = async () => {
+<<<<<<< HEAD
     try { const s = await AsyncStorage.getItem('battleLayout'); if (s) setElements(JSON.parse(s)); } catch { }
   };
   const saveLayout = async () => {
     try { await AsyncStorage.setItem('battleLayout', JSON.stringify(elements)); } catch { }
+=======
+    try { const s = await AsyncStorage.getItem('battleLayout'); if (s) setElements(JSON.parse(s)); } catch {}
+  };
+  const saveLayout = async () => {
+    try { await AsyncStorage.setItem('battleLayout', JSON.stringify(elements)); } catch {}
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   };
   const updateElement = (id: string, d: any) => setElements(p => ({ ...p, [id]: { ...p[id as keyof typeof p], ...d } }));
   const resetLayout = async () => {
     setElements(DEFAULT_LAYOUT);
+<<<<<<< HEAD
     try { await AsyncStorage.removeItem('battleLayout'); } catch { }
+=======
+    try { await AsyncStorage.removeItem('battleLayout'); } catch {}
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   };
 
   useEffect(() => {
@@ -550,9 +647,15 @@ export default function BattleScreen() {
     if (currentPlayerCard && currentBotCard && phase === 'selection' && !editMode) {
       playerAnim.value = 0; botAnim.value = 0; vsOpacity.value = 0; resultOp.value = 0;
       setShowResult(false); setShowPlayerEffect(false); setShowBotEffect(false);
+<<<<<<< HEAD
       playerAnim.value = withDelay(80, withTiming(1, { duration: 280 }));
       botAnim.value = withDelay(240, withTiming(1, { duration: 280 }));
       vsOpacity.value = withDelay(440, withTiming(1, { duration: 200 }));
+=======
+      playerAnim.value = withDelay(80,  withTiming(1, { duration: 280 }));
+      botAnim.value    = withDelay(240, withTiming(1, { duration: 280 }));
+      vsOpacity.value  = withDelay(440, withTiming(1, { duration: 200 }));
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
       setTimeout(() => setPhase('action'), 720);
     }
   }, [currentPlayerCard, currentBotCard, phase, state.currentRound, editMode]);
@@ -648,8 +751,13 @@ export default function BattleScreen() {
         winner: lastRoundResult.winner,
       }];
     });
+<<<<<<< HEAD
     if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
     if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
+=======
+    if (lastRoundResult.botDamage    > 0) spawnDmg('bot',    lastRoundResult.botDamage,    lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
+    if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage    === 'strong' ? 'critical' : 'damage');
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
     if (isGameOver) {
       setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
       if (Platform.OS !== 'web') {
@@ -670,6 +778,7 @@ export default function BattleScreen() {
   }, []);
   const removeDmg = useCallback((id: string) => setActiveDamageNumbers(p => p.filter(n => n.id !== id)), []);
 
+<<<<<<< HEAD
   const roundNumber = state.currentRound + 1;
   const upcomingRounds = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
   const remainingRounds = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
@@ -677,6 +786,15 @@ export default function BattleScreen() {
 
   const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+=======
+  const roundNumber        = state.currentRound + 1;
+  const upcomingRounds     = useMemo(() => getUpcomingPredictionRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const remainingRounds    = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
+  const predictionComplete = useMemo(() => isPredictionComplete(upcomingRounds, predictionSelections), [upcomingRounds, predictionSelections]);
+
+  const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
+  const displayBotCard    = showResult && lastRoundResult ? lastRoundResult.botCard    : currentBotCard;
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
 
   const maxScore = state.totalRounds;
 
@@ -1062,8 +1180,13 @@ export default function BattleScreen() {
 
 // ──────────────────────────── STYLES ───────────────────────────
 const S = StyleSheet.create({
+<<<<<<< HEAD
   root: { flex: 1, backgroundColor: '#080612' },
   bgWrap: { position: 'absolute', inset: 0, zIndex: 0 },
+=======
+  root:       { flex: 1, backgroundColor: '#080612' },
+  bgWrap:     { position: 'absolute', inset: 0, zIndex: 0 },
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   battleWrap: { flex: 1, zIndex: 1 },
   flashOverlay: {
     position: 'absolute', inset: 0, zIndex: 5,
@@ -1146,8 +1269,13 @@ const S = StyleSheet.create({
 
   // ── GRID
   gridContainer: { position: 'absolute', inset: 0, zIndex: 2 },
+<<<<<<< HEAD
   vLine: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
   hLine: { position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
+=======
+  vLine:     { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
+  hLine:     { position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   vLineThin: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(228,165,42,0.15)' },
   hLineThin: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(228,165,42,0.15)' },
   gridCenter: { position: 'absolute', left: '50%', top: '50%', width: 12, height: 12, borderRadius: 6, backgroundColor: COLOR.gold, marginLeft: -6, marginTop: -6 },
@@ -1168,6 +1296,7 @@ const S = StyleSheet.create({
   // ── DraggableResizable
   resizeHandle: { position: 'absolute', width: 12, height: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2196F3', borderRadius: 2, zIndex: 10 },
   resizeHandleInner: { width: '100%', height: '100%', backgroundColor: '#2196F3' },
+<<<<<<< HEAD
   rh_topleft: { top: 0, left: 0 },
   rh_topright: { top: 0, right: 0 },
   rh_bottomleft: { bottom: 50, left: 0 },
@@ -1176,6 +1305,16 @@ const S = StyleSheet.create({
   rh_bottom: { bottom: 50, left: '50%', marginLeft: -6 },
   rh_left: { top: '50%', left: 0, marginTop: -6 },
   rh_right: { top: '50%', right: 0, marginTop: -6 },
+=======
+  rh_topleft:     { top: 0, left: 0 },
+  rh_topright:    { top: 0, right: 0 },
+  rh_bottomleft:  { bottom: 50, left: 0 },
+  rh_bottomright: { bottom: 50, right: 0 },
+  rh_top:    { top: 0, left: '50%', marginLeft: -6 },
+  rh_bottom: { bottom: 50, left: '50%', marginLeft: -6 },
+  rh_left:   { top: '50%', left: 0, marginTop: -6 },
+  rh_right:  { top: '50%', right: 0, marginTop: -6 },
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
   transformHandles: { position: 'absolute', top: -30, left: -30, right: -30, bottom: -30 },
   scaleControls: { position: 'absolute', bottom: -60, left: '50%', transform: [{ translateX: -85 }], flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(28,28,40,0.95)', paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.md, gap: SPACE.sm, borderWidth: 1.5, borderColor: '#2196F3' },
   scaleBtn: { backgroundColor: '#2196F3', width: 34, height: 34, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
@@ -1202,4 +1341,8 @@ const S = StyleSheet.create({
   historyCenter: { flex: 1, alignItems: 'center', gap: SPACE.xs },
   historyRound: { color: COLOR.gold, fontSize: FONT.sm },
   historyResult: { fontSize: FONT.base },
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74

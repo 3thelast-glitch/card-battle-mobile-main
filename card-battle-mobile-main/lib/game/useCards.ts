@@ -50,4 +50,8 @@ export function useCards(ids?: string[]): Card[] {
   }, [ids?.join(',')]);
 
   return cards;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
