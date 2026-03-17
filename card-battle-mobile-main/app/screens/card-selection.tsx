@@ -88,7 +88,8 @@ export default function CardSelectionScreen() {
       );
 
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
-      const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+      const safeAllCards = Array.isArray(allCards) ? allCards : [];
+      const shuffled = [...safeAllCards].sort(() => Math.random() - 0.5);
       setCardRounds(shuffled.slice(0, totalRounds).map(card => ({ card, round: null })));
       setAssignedAbilities(picked);
     });

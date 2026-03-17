@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ALL_CARDS } from './cards-data';
+import { ALL_CARDS } from './cards-data-exports';
 import { Card } from './types';
 
 /** Must match CARD_EDITS_KEY in cards-gallery.tsx */
