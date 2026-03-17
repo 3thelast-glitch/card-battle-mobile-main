@@ -5,31 +5,52 @@
  * كل أيقونة تظهر عند الضغط تفاصيل التأثير (Tooltip خفيف).
  *
  * Props:
- *   effects     — Effect[] (activeEffects from GameState)
- *   side        — 'player' | 'bot'
+ *   effects      — Effect[] (activeEffects from GameState)
+ *   side         — 'player' | 'bot'
  *   currentRound
  */
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withSpring, withTiming,
+  useSharedValue, useAnimatedStyle, withSpring,
 } from 'react-native-reanimated';
 import type { Effect, EffectKind } from '@/lib/game/types';
 
-// ─ Map effect kinds to human-readable Arabic labels & icons
+// ─── KIND_INFO — جميع EffectKind موجودة ─────────────────────────────────────
 const KIND_INFO: Record<EffectKind, { label: string; emoji: string; color: string }> = {
-  prediction:       { label: 'توقع',           emoji: '🔮', color: '#a78bfa' },
-  protection:       { label: 'حماية',          emoji: '🛡️', color: '#60a5fa' },
-  fortify:          { label: 'تحصين دفاع',    emoji: '⛣️',  color: '#4ade80' },
-  statModifier:     { label: 'تعديل إحصاء',   emoji: '⚖️',  color: '#fbbf24' },
-  halvePoints:      { label: 'تنصيف الإحصاء',  emoji: '✂️',  color: '#f87171' },
-  silenceAbilities: { label: 'ختم القدرات',    emoji: '🔒', color: '#ef4444' },
-  doubleOrNothing:  { label: 'ضاعف أو لا شيء', emoji: '⚙️', color: '#f59e0b' },
-  forcedOutcome:    { label: 'نتيجة مضمونة',   emoji: '🎯', color: '#34d399' },
-  starAdvantage:    { label: 'أفضلية النجوم',   emoji: '⭐', color: '#fbbf24' },
-  sacrifice:        { label: 'تضحية',          emoji: '🔥', color: '#f87171' },
+  // ─ موجودة مسبقاً ─
+  prediction:        { label: 'توقع',              emoji: '\u{1F52E}', color: '#a78bfa' },
+  protection:        { label: 'حماية',             emoji: '\u{1F6E1}\ufe0f', color: '#60a5fa' },
+  fortify:           { label: 'تحصين دفاع',      emoji: '\u26e3\ufe0f',  color: '#4ade80' },
+  statModifier:      { label: 'تعديل إحصاء',    emoji: '\u2696\ufe0f',  color: '#fbbf24' },
+  halvePoints:       { label: 'تنصيف الإحصاء',   emoji: '\u2702\ufe0f',  color: '#f87171' },
+  silenceAbilities:  { label: 'ختم القدرات',     emoji: '\u{1F512}', color: '#ef4444' },
+  doubleOrNothing:   { label: 'ضاعف أو لا شيء',  emoji: '\u2699\ufe0f',  color: '#f59e0b' },
+  forcedOutcome:     { label: 'نتيجة مضمونة',    emoji: '\u{1F3AF}', color: '#34d399' },
+  starAdvantage:     { label: 'أفضلية النجوم',    emoji: '\u2b50',     color: '#fbbf24' },
+  sacrifice:         { label: 'تضحية',             emoji: '\u{1F525}', color: '#f87171' },
+
+  // ─ مضافة — كانت ناقصة ─
+  greedBuff:         { label: 'دفعة الجشع',        emoji: '\u{1FA99}', color: '#f59e0b' },
+  lifesteal:         { label: 'سرقة الحياة',       emoji: '\u{1F9DB}', color: '#a855f7' },
+  revengeBuff:       { label: 'دفعة الانتقام',      emoji: '\u{1F5E1}\ufe0f', color: '#ef4444' },
+  suicidePact:       { label: 'عهد الانتحار',      emoji: '\u{1F4A3}', color: '#dc2626' },
+  compensationBuff:  { label: 'دفعة التعويض',      emoji: '\u{1F4B0}', color: '#4ade80' },
+  weakeningDebuff:   { label: 'إضعاف الخصم',      emoji: '\u{1F4C9}', color: '#94a3b8' },
+  explosionDebuff:   { label: 'دبف الانفجار',      emoji: '\u{1F4A5}', color: '#fb923c' },
+  consecutiveLoss:   { label: 'خسائر متتالية',    emoji: '\u{1F4AB}', color: '#6366f1' },
+  shieldGuard:       { label: 'درع وقاية',         emoji: '\u{1F6E1}',  color: '#38bdf8' },
+  trap:              { label: 'فخ',                emoji: '\u26a0\ufe0f',  color: '#dc2626' },
+  convertDebuffs:    { label: 'تحويل الدبفات',    emoji: '\u{1F504}', color: '#a3e635' },
+  doubleBuffs:       { label: 'مضاعفة البافات',    emoji: '\u{1F4AA}', color: '#fbbf24' },
+  conversion:        { label: 'تحويل نقاط',       emoji: '\u{1F501}', color: '#818cf8' },
+  takeIt:            { label: 'خذ البطاقة',        emoji: '\u{1F9F2}', color: '#f472b6' },
+  deprivation:       { label: 'حرمان',              emoji: '\u274c',     color: '#f87171' },
+  pool:              { label: 'تجميع النقاط',      emoji: '\u{1F3B1}', color: '#06b6d4' },
 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────────
 
 function effectAppliesToSide(effect: Effect, side: 'player' | 'bot'): boolean {
   return effect.targetSide === side || effect.targetSide === 'all';
@@ -57,7 +78,7 @@ function statModifierSummary(effect: Effect): string {
   }
   if (d.multiplier !== undefined && d.stats) {
     const statAr: Record<string, string> = { attack: 'هجوم', defense: 'دفاع' };
-    return `${d.stats.map(s => statAr[s] ?? s).join(' + ')} ×${d.multiplier}`;
+    return `${d.stats.map((s: string) => statAr[s] ?? s).join(' + ')} ×${d.multiplier}`;
   }
   return '';
 }
@@ -80,15 +101,19 @@ function effectDetail(effect: Effect): string {
   return base;
 }
 
-// ─── Pill component ─────────────────────────────────────────────────────────────
+// ─── EffectPill ──────────────────────────────────────────────────────────────────
+
 function EffectPill({ effect, currentRound }: { effect: Effect; currentRound: number }) {
   const [showTip, setShowTip] = useState(false);
-  const info  = KIND_INFO[effect.kind] ?? { label: effect.kind, emoji: '❓', color: '#94a3b8' };
-  const left  = roundsLeft(effect, currentRound);
-  const tip   = effectDetail(effect);
+  const info = KIND_INFO[effect.kind] ?? { label: effect.kind, emoji: '\u2753', color: '#94a3b8' };
+  const left = roundsLeft(effect, currentRound);
+  const tip  = effectDetail(effect);
 
-  const tipOp = useSharedValue(0);
-  const tipStyle = useAnimatedStyle(() => ({ opacity: tipOp.value, transform: [{ scale: tipOp.value * 0.15 + 0.85 }] }));
+  const tipOp    = useSharedValue(0);
+  const tipStyle = useAnimatedStyle(() => ({
+    opacity:   tipOp.value,
+    transform: [{ scale: tipOp.value * 0.15 + 0.85 }],
+  }));
 
   const toggle = () => {
     const next = !showTip;
@@ -119,7 +144,7 @@ function EffectPill({ effect, currentRound }: { effect: Effect; currentRound: nu
             <Text style={A.tooltipSub}>ينتهي بعد {left} جولة</Text>
           )}
           {effect.sourceSide && (
-            <Text style={A.tooltipSub}>مصدر: {effect.sourceSide === 'player' ? '👤 لاعب' : '🤖 بوت'}</Text>
+            <Text style={A.tooltipSub}>مصدر: {effect.sourceSide === 'player' ? '\u{1F464} لاعب' : '\u{1F916} بوت'}</Text>
           )}
         </Animated.View>
       )}
@@ -127,7 +152,8 @@ function EffectPill({ effect, currentRound }: { effect: Effect; currentRound: nu
   );
 }
 
-// ─── Main export ─────────────────────────────────────────────────────────────
+// ─── Main export ────────────────────────────────────────────────────────────────
+
 export function ActiveEffectsBar({
   effects,
   side,
@@ -152,6 +178,8 @@ export function ActiveEffectsBar({
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────────
+
 const A = StyleSheet.create({
   bar: {
     flexDirection: 'row',
@@ -169,13 +197,13 @@ const A = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  pillEmoji: { fontSize: 14, lineHeight: 16 },
+  pillEmoji:  { fontSize: 14, lineHeight: 16 },
   badge: {
     position: 'absolute', top: -4, right: -4,
     width: 14, height: 14, borderRadius: 7,
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeText: { color: '#fff', fontSize: 8, fontWeight: '700' },
+  badgeText:    { color: '#fff', fontSize: 8, fontWeight: '700' },
   tooltip: {
     position: 'absolute',
     bottom: 36,
@@ -189,5 +217,5 @@ const A = StyleSheet.create({
     zIndex: 200,
   },
   tooltipTitle: { fontSize: 11, letterSpacing: 0.3 },
-  tooltipSub: { color: '#94a3b8', fontSize: 9 },
+  tooltipSub:   { color: '#94a3b8', fontSize: 9 },
 });
