@@ -60,3 +60,7 @@ Thumbs.db
 *.tgz
 *.tar.gz
 .cache/
+
+# Lock files — use pnpm only
+package-lock.json
+yarn.lock
