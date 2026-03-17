@@ -11,7 +11,7 @@
  */
 
 import { Card, GameState, AbilityType, AbilityState, RoundResult } from './types';
-import { ALL_CARDS, getElementAdvantage } from './cards-data';
+import { ALL_CARDS, getElementAdvantage } from './cards-data-exports';
 import type { DifficultyLevel } from '@/app/screens/difficulty';
 
 // ──────────────────────────────── Types ────────────────────────────────
