@@ -30,7 +30,7 @@ export const BattleHistoryModal = memo(function BattleHistoryModal({
         <View style={styles.sheet}>
 
           <View style={styles.header}>
-            <Text style={styles.title}>\u{1F4CB} \u0633\u062c\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0627\u062a</Text>
+            <Text style={styles.title}>{'\uD83D\uDCCB'} \u0633\u062c\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0627\u062a</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Text style={styles.closeBtn}>\u00d7</Text>
             </TouchableOpacity>
@@ -54,7 +54,7 @@ export const BattleHistoryModal = memo(function BattleHistoryModal({
 
                     <View style={styles.cardsRow}>
                       <View style={styles.cardSection}>
-                        <Text style={styles.cardSideLabel}>\u{1F464} \u0623\u0646\u062a</Text>
+                        <Text style={styles.cardSideLabel}>{'\uD83D\uDC64'} \u0623\u0646\u062a</Text>
                         <Text style={styles.cardName}>{result.playerCard.nameAr}</Text>
                         <Text style={styles.cardDamage}>\u0627\u0644\u0636\u0631\u0631: {result.playerDamage}</Text>
                       </View>
@@ -64,7 +64,7 @@ export const BattleHistoryModal = memo(function BattleHistoryModal({
                       </View>
 
                       <View style={styles.cardSection}>
-                        <Text style={styles.cardSideLabel}>\u{1F916} \u0627\u0644\u0628\u0648\u062a</Text>
+                        <Text style={styles.cardSideLabel}>{'\uD83E\uDD16'} \u0627\u0644\u0628\u0648\u062a</Text>
                         <Text style={styles.cardName}>{result.botCard.nameAr}</Text>
                         <Text style={styles.cardDamage}>\u0627\u0644\u0636\u0631\u0631: {result.botDamage}</Text>
                       </View>
@@ -83,7 +83,7 @@ export const BattleHistoryModal = memo(function BattleHistoryModal({
   );
 });
 
-// ─── STYLES ───────────────────────────────────────────────────────────
+// ─── STYLES ─────────────────────────────────────────────────────────────────────
 
 const GOLD = '#e4a52a';
 

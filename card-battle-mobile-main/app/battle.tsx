@@ -33,7 +33,7 @@ import {
   useHistoryModal,
 } from '@/lib/game/hooks';
 
-// ─── Helper functions ────────────────────────────────────────────────────────────────
+// ─── Helper functions ────────────────────────────────────────────────────
 
 const getAdvantageColor = (advantage: ElementAdvantage): string => {
   switch (advantage) {
@@ -51,7 +51,7 @@ const getAdvantageText = (advantage: ElementAdvantage): string => {
   }
 };
 
-// ─── HistoryRow (chips أ\u0641قية د\u0627\u062e\u0644 ا\u0644\u0633\u0627\u062d\u0629) ──────────────────────────────────
+// ─── HistoryRow (شريط أفقي) ──────────────────────────────────────────────
 
 import { ScrollView } from 'react-native';
 
@@ -80,7 +80,7 @@ const HistoryRow = ({ results, side }: { results: any[]; side: 'player' | 'bot' 
   );
 };
 
-// ─── AbilityRow ─────────────────────────────────────────────────────────────────────
+// ─── AbilityRow ───────────────────────────────────────────────────────────────────────
 
 const AbilityRow = ({
   abilities, roundNumber, activeEffects, upcomingRounds, remainingRounds,
@@ -136,7 +136,7 @@ const AbilityRow = ({
 const BottomBar = ({ onLog, onNext, onMenu, nextDisabled, isGameOver }: any) => (
   <View style={styles.bottomBar}>
     <TouchableOpacity style={styles.bottomBtn} onPress={onLog} activeOpacity={0.8}>
-      <Text style={styles.bottomBtnIcon}>\u{1F4CB}</Text>
+      <Text style={styles.bottomBtnIcon}>{'\uD83D\uDCCB'}</Text>
       <Text style={styles.bottomBtnLabel}>\u0627\u0644\u0633\u062c\u0644</Text>
     </TouchableOpacity>
     <TouchableOpacity
@@ -146,7 +146,7 @@ const BottomBar = ({ onLog, onNext, onMenu, nextDisabled, isGameOver }: any) => 
       activeOpacity={0.8}
     >
       <Text style={[styles.bottomBtnIcon, !nextDisabled && { color: '#1a0d1a' }]}>
-        {isGameOver ? '\u{1F3C6}' : '\u23ed\ufe0f'}
+        {isGameOver ? '\uD83C\uDFC6' : '\u23ed\ufe0f'}
       </Text>
       <Text style={[styles.bottomBtnLabel, !nextDisabled && { color: '#1a0d1a', fontWeight: '800' }]}>
         {isGameOver ? '\u0627\u0644\u0646\u062a\u0627\u0626\u062c' : '\u0627\u0644\u062a\u0627\u0644\u064a'}
@@ -373,7 +373,7 @@ export default function BattleScreen() {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── STYLES ──────────────────────────────────────────────────────────────────────────────
 
 const GOLD     = '#e4a52a';
 const GOLD_DIM = 'rgba(228,165,42,0.3)';
