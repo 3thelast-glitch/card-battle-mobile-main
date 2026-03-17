@@ -1,8 +1,15 @@
-import { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
+import {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
+import type { AnimatedStyleProp } from 'react-native-reanimated';
+import type { ViewStyle } from 'react-native';
 
 export interface UseBattleAnimationsReturn {
-  playerCardAnimatedStyle: ReturnType<typeof useAnimatedStyle>;
-  botCardAnimatedStyle: ReturnType<typeof useAnimatedStyle>;
+  playerCardAnimatedStyle: AnimatedStyleProp<ViewStyle>;
+  botCardAnimatedStyle: AnimatedStyleProp<ViewStyle>;
   resultOpacity: ReturnType<typeof useSharedValue<number>>;
   resetAnimations: () => void;
   playEntranceAnimation: () => void;
@@ -15,15 +22,14 @@ export function useBattleAnimations(): UseBattleAnimationsReturn {
   const vsOpacity = useSharedValue(0);
   const resultOpacity = useSharedValue(0);
 
-  const playerCardAnimatedStyle = useAnimatedStyle(() => ({
+  const playerCardAnimatedStyle = useAnimatedStyle<ViewStyle>(() => ({
     transform: [{ scale: playerCardScale.value }],
   }));
 
-  const botCardAnimatedStyle = useAnimatedStyle(() => ({
+  const botCardAnimatedStyle = useAnimatedStyle<ViewStyle>(() => ({
     transform: [{ scale: botCardScale.value }],
   }));
 
-  // إعادة تعيين جميع القيم
   const resetAnimations = () => {
     playerCardScale.value = 0;
     botCardScale.value = 0;
@@ -31,14 +37,12 @@ export function useBattleAnimations(): UseBattleAnimationsReturn {
     resultOpacity.value = 0;
   };
 
-  // أنيمشن ظهور البطاقات
   const playEntranceAnimation = () => {
     playerCardScale.value = withDelay(100, withTiming(1, { duration: 300 }));
     botCardScale.value = withDelay(300, withTiming(1, { duration: 300 }));
     vsOpacity.value = withDelay(500, withTiming(1, { duration: 200 }));
   };
 
-  // أنيمشن ظهور النتيجة
   const playResultAnimation = () => {
     resultOpacity.value = withTiming(1, { duration: 300 });
   };

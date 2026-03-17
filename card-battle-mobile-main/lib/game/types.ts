@@ -199,65 +199,65 @@ export interface RoundResult {
 }
 
 export const RACE_EMOJI: Record<Race, string> = {
-  human:   '\u{1F464}',
-  elf:     '\u{1F9DD}',
-  orc:     '\u{1F479}',
-  dragon:  '\u{1F409}',
-  demon:   '\u{1F608}',
-  undead:  '\u{1F480}',
+  human: '\u{1F464}',
+  elf: '\u{1F9DD}',
+  orc: '\u{1F479}',
+  dragon: '\u{1F409}',
+  demon: '\u{1F608}',
+  undead: '\u{1F480}',
   monster: '\u{1F47E}',
-  robot:   '\u{1F916}',
+  robot: '\u{1F916}',
 };
 
 export const CLASS_EMOJI: Record<CardClass, string> = {
-  warrior:   '\u2694\ufe0f',
-  knight:    '\u{1F6E1}\ufe0f',
-  mage:      '\u{1F52E}',
-  archer:    '\u{1F3F9}',
+  warrior: '\u2694\ufe0f',
+  knight: '\u{1F6E1}\ufe0f',
+  mage: '\u{1F52E}',
+  archer: '\u{1F3F9}',
   berserker: '\u{1F5E1}\ufe0f',
-  paladin:   '\u{1F4AA}',
+  paladin: '\u{1F4AA}',
 };
 
 export const ELEMENT_EMOJI: Record<Element, string> = {
-  fire:      '\u{1F525}',
-  ice:       '\u2744\ufe0f',
-  water:     '\u{1F4A7}',
-  earth:     '\u{1F30D}',
+  fire: '\u{1F525}',
+  ice: '\u2744\ufe0f',
+  water: '\u{1F4A7}',
+  earth: '\u{1F30D}',
   lightning: '\u26a1',
-  wind:      '\u{1F4A8}',
+  wind: '\u{1F4A8}',
 };
 
 export const ELEMENT_COLORS: Record<Element, string> = {
-  fire:      '#ef4444',
-  ice:       '#38bdf8',
-  water:     '#3b82f6',
-  earth:     '#a3e635',
+  fire: '#ef4444',
+  ice: '#38bdf8',
+  water: '#3b82f6',
+  earth: '#a3e635',
   lightning: '#facc15',
-  wind:      '#a78bfa',
+  wind: '#a78bfa',
 };
 
 export type ElementAdvantage = 'strong' | 'weak' | 'neutral';
 
 export const ELEMENT_MULTIPLIER = {
-  strong:  1.25,
-  weak:    0.75,
+  strong: 1.25,
+  weak: 0.75,
   neutral: 1.0,
 };
 
 export const ELEMENT_ADVANTAGES: Record<Element, Element[]> = {
-  fire:      ['ice'],
-  ice:       ['earth'],
-  earth:     ['fire'],
-  water:     [],
+  fire: ['ice'],
+  ice: ['earth'],
+  earth: ['fire'],
+  water: [],
   lightning: [],
-  wind:      [],
+  wind: [],
 };
 
 export const ELEMENT_WEAKNESSES: Record<Element, Element[]> = {
-  fire:      ['earth'],
-  ice:       ['fire'],
-  earth:     ['ice'],
-  water:     [],
+  fire: ['earth'],
+  ice: ['fire'],
+  earth: ['ice'],
+  water: [],
   lightning: [],
-  wind:      [],
+  wind: [],
 };
