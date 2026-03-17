@@ -510,7 +510,7 @@ export const CARDS_BATCH_1: Card[] = [
     rarity: 'rare', stars: 3,
     animationPreset: 'fire',
   },
-{
+  {
     id: 'yamcha',
     name: 'Yamcha',
     nameAr: 'يامتشا',
@@ -1020,7 +1020,7 @@ export const CARDS_BATCH_1: Card[] = [
     animationPreset: 'fire',
     cardEffects: ['poison'],
   },
-{
+  {
     id: 'yamcha',
     name: 'Yamcha',
     nameAr: 'يامتشا',
@@ -2557,7 +2557,7 @@ export const CARDS_BATCH_1: Card[] = [
     animationPreset: 'ice',
     cardEffects: ['taunt'],
   },
-    {
+  {
     id: 'sif_the_wolf',
     name: 'Sif the Wolf',
     nameAr: 'سيف الذئب',
@@ -2626,7 +2626,7 @@ export const CARDS_BATCH_1: Card[] = [
     animationPreset: 'ice',
   },
   {
-    id: 'pandora's_actor',
+    id: 'pandoras_actor',
     name: 'Pandora\'s Actor',
     nameAr: 'ممثل باندورا',
     finalImage: require('../../assets/cards/final/human-mage.png'),
@@ -3058,8 +3058,4 @@ export const CARDS_BATCH_1: Card[] = [
     rarity: 'common', stars: 2,
     animationPreset: 'lightning',
   },
-<<<<<<< HEAD
 ];
-=======
-];
->>>>>>> ec4c4ce5f016f00b2af1ccf6b809125f36a53b74
