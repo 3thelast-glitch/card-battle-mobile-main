@@ -2,7 +2,15 @@
 
 import type { ImageSourcePropType } from 'react-native';
 
-export type Race = 'human' | 'elf' | 'orc' | 'dragon' | 'demon' | 'undead';
+export type Race =
+  | 'human'
+  | 'elf'
+  | 'orc'
+  | 'dragon'
+  | 'demon'
+  | 'undead'
+  | 'monster'   // anime-cards-data
+  | 'robot';    // anime-cards-data
 
 export type CardClass = 'warrior' | 'knight' | 'mage' | 'archer' | 'berserker' | 'paladin';
 
@@ -31,8 +39,12 @@ export interface Card {
   nameAr: string;
   nameEn?: string;
   finalImage: ImageSourcePropType;
+  /** URL string fallback used by anime-cards-data (remote images) */
+  imageUrl?: string;
   attack: number;
   defense: number;
+  /** Legacy hp field used by older screens/tests */
+  hp?: number;
   race: Race;
   cardClass: CardClass;
   element: Element;
@@ -187,63 +199,65 @@ export interface RoundResult {
 }
 
 export const RACE_EMOJI: Record<Race, string> = {
-  human: '👤',
-  elf: '🧝',
-  orc: '👹',
-  dragon: '🐉',
-  demon: '😈',
-  undead: '💀',
+  human:   '\u{1F464}',
+  elf:     '\u{1F9DD}',
+  orc:     '\u{1F479}',
+  dragon:  '\u{1F409}',
+  demon:   '\u{1F608}',
+  undead:  '\u{1F480}',
+  monster: '\u{1F47E}',
+  robot:   '\u{1F916}',
 };
 
 export const CLASS_EMOJI: Record<CardClass, string> = {
-  warrior: '⚔️',
-  knight: '🛡️',
-  mage: '🔮',
-  archer: '🏹',
-  berserker: '🗡️',
-  paladin: '💪',
+  warrior:   '\u2694\ufe0f',
+  knight:    '\u{1F6E1}\ufe0f',
+  mage:      '\u{1F52E}',
+  archer:    '\u{1F3F9}',
+  berserker: '\u{1F5E1}\ufe0f',
+  paladin:   '\u{1F4AA}',
 };
 
 export const ELEMENT_EMOJI: Record<Element, string> = {
-  fire: '🔥',
-  ice: '❄️',
-  water: '💧',
-  earth: '🌍',
-  lightning: '⚡',
-  wind: '💨',
+  fire:      '\u{1F525}',
+  ice:       '\u2744\ufe0f',
+  water:     '\u{1F4A7}',
+  earth:     '\u{1F30D}',
+  lightning: '\u26a1',
+  wind:      '\u{1F4A8}',
 };
 
 export const ELEMENT_COLORS: Record<Element, string> = {
-  fire: '#ef4444',
-  ice: '#38bdf8',
-  water: '#3b82f6',
-  earth: '#a3e635',
+  fire:      '#ef4444',
+  ice:       '#38bdf8',
+  water:     '#3b82f6',
+  earth:     '#a3e635',
   lightning: '#facc15',
-  wind: '#a78bfa',
+  wind:      '#a78bfa',
 };
 
 export type ElementAdvantage = 'strong' | 'weak' | 'neutral';
 
 export const ELEMENT_MULTIPLIER = {
-  strong: 1.25,
-  weak: 0.75,
+  strong:  1.25,
+  weak:    0.75,
   neutral: 1.0,
 };
 
 export const ELEMENT_ADVANTAGES: Record<Element, Element[]> = {
-  fire: ['ice'],
-  ice: ['earth'],
-  earth: ['fire'],
-  water: [],
+  fire:      ['ice'],
+  ice:       ['earth'],
+  earth:     ['fire'],
+  water:     [],
   lightning: [],
-  wind: [],
+  wind:      [],
 };
 
 export const ELEMENT_WEAKNESSES: Record<Element, Element[]> = {
-  fire: ['earth'],
-  ice: ['fire'],
-  earth: ['ice'],
-  water: [],
+  fire:      ['earth'],
+  ice:       ['fire'],
+  earth:     ['ice'],
+  water:     [],
   lightning: [],
-  wind: [],
+  wind:      [],
 };
