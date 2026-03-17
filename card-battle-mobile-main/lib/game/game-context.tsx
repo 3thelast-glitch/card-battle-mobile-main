@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useState, ReactNode } fro
 import { Card, GameState, RoundResult, Effect, AbilityType, Side, ElementAdvantage } from './types';
 import { getRandomAbilities } from './abilities';
 import type { DifficultyLevel } from '@/app/screens/difficulty';
-import { determineRoundWinner } from './cards-data';
+import { determineRoundWinner } from './cards-data-exports';
 import { getBotCards } from './bot-ai';
 
 // ─────────────────────────────────────────────────────────────────────────────

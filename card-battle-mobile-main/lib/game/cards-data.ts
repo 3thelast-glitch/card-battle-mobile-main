@@ -1,4 +1,4 @@
-import { Card, Element, ElementAdvantage, Effect, ELEMENT_ADVANTAGES, ELEMENT_WEAKNESSES, ELEMENT_MULTIPLIER } from '../types';
+import { Card, Element, ElementAdvantage, Effect, ELEMENT_ADVANTAGES, ELEMENT_WEAKNESSES, ELEMENT_MULTIPLIER } from './types';
 
 // Batch 1/6 — Cards 1 to 46
 // Universes: One Piece, Naruto, Dragon Ball

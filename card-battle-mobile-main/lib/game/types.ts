@@ -37,7 +37,7 @@ export interface Card {
   cardClass: CardClass;
   element: Element;
   tags: Tag[];
-  emoji: string;
+  emoji?: string;
   videoUrl?: string;
   rarity?: CardRarity;
   stars?: number;

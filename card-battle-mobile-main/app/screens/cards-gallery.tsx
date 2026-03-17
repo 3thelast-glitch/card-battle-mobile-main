@@ -10,7 +10,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
-import { ALL_CARDS } from '@/lib/game/cards-data';
+import { ALL_CARDS } from '@/lib/game/cards-data-exports';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
@@ -109,7 +109,7 @@ export default function CardsGalleryScreen() {
       try {
         const map: Record<string, Partial<Card>> = JSON.parse(raw);
         setSavedMap(map);
-        setCards(ALL_CARDS.map(c => map[c.id] ? { ...c, ...map[c.id] } : c));
+        setCards(ALL_CARDS.map((c: Card) => map[c.id] ? { ...c, ...map[c.id] } : c));
       } catch {}
     });
   }, []);
