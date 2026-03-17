@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet,
   Platform, Modal, ScrollView, Alert, StatusBar,
@@ -9,11 +9,13 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import Animated from 'react-native-reanimated';
-import { useEffect } from 'react';
 
 import { CardItem } from '@/components/game/card-item';
 import { ElementEffect } from '@/components/game/element-effect';
 import { LuxuryBackground } from '@/components/game/luxury-background';
+import { BattleHUD } from '@/components/game/BattleHUD';
+import { BattleResultOverlay } from '@/components/game/BattleResultOverlay';
+import { RoundResultBanner } from '@/components/game/RoundResultBanner';
 import { useGame } from '@/lib/game/game-context';
 import { ELEMENT_EMOJI, ElementAdvantage } from '@/lib/game/types';
 import { getAbilityNameAr } from '@/lib/game/ability-names';
@@ -35,43 +37,18 @@ import {
 const getAdvantageColor = (advantage: ElementAdvantage): string => {
   switch (advantage) {
     case 'strong': return '#4ade80';
-    case 'weak': return '#f87171';
-    default: return '#a0a0a0';
+    case 'weak':   return '#f87171';
+    default:       return '#a0a0a0';
   }
 };
 
 const getAdvantageText = (advantage: ElementAdvantage): string => {
   switch (advantage) {
     case 'strong': return '\u2b06\ufe0f \u0642\u0648\u064a';
-    case 'weak': return '\u2b07\ufe0f \u0636\u0639\u064a\u0641';
-    default: return '';
+    case 'weak':   return '\u2b07\ufe0f \u0636\u0639\u064a\u0641';
+    default:       return '';
   }
 };
-
-// ─── Top HUD ────────────────────────────────────────────────────────────────
-
-const TopHUD = ({
-  playerScore, botScore, currentRound, totalRounds, showResult,
-  lastRoundResult, predictionSummary,
-}: any) => (
-  <View style={styles.topHud}>
-    <View style={styles.hudSide}>
-      <Text style={styles.hudLabel}>\u{1F464} \u0623\u0646\u062a</Text>
-      <Text style={[styles.hudScore, { color: '#4ade80' }]}>{playerScore}</Text>
-    </View>
-    <View style={styles.hudCenter}>
-      <Text style={styles.vsText}>\u2694\ufe0f VS \u2694\ufe0f</Text>
-      {predictionSummary ? <Text style={styles.predictionSummaryHud}>{predictionSummary}</Text> : null}
-      <Text style={styles.roundText}>
-        \u0627\u0644\u062c\u0648\u0644\u0629 {showResult ? lastRoundResult?.round : currentRound}/{totalRounds}
-      </Text>
-    </View>
-    <View style={[styles.hudSide, styles.hudSideRight]}>
-      <Text style={styles.hudLabel}>\u{1F916} \u0627\u0644\u0628\u0648\u062a</Text>
-      <Text style={[styles.hudScore, { color: '#f87171' }]}>{botScore}</Text>
-    </View>
-  </View>
-);
 
 // ─── History chips row ───────────────────────────────────────────────────────
 
@@ -83,7 +60,7 @@ const HistoryRow = ({ results, side }: { results: any[]; side: 'player' | 'bot' 
         {results.map((r: any) => {
           const won = r.winner === side;
           const draw = r.winner === 'draw';
-          const chipColor = won ? 'rgba(74,222,128,0.2)' : draw ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
+          const chipColor  = won ? 'rgba(74,222,128,0.2)' : draw ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
           const borderColor = won ? '#4ade80' : draw ? '#fbbf24' : '#f87171';
           const icon = won ? '\u2713' : draw ? '=' : '\u2717';
           const cardName = side === 'player' ? r.playerCard?.nameAr : r.botCard?.nameAr;
@@ -210,15 +187,20 @@ export default function BattleScreen() {
     onFightDone: () => {},
   });
 
-  // تشغيل أنيمشن النتيجة عند showResult
   useEffect(() => {
     if (showResult) animations.playResultAnimation();
   }, [showResult]);
 
   const abilities = useBattleAbilities();
 
-  // ─ State محلي بسيط ─
-  const [showHistoryModal, setShowHistoryModal] = React.useState(false);
+  // ─ State محلي ─
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showEndOverlay, setShowEndOverlay] = useState(false);
+
+  // فتح Overlay نهاية اللعبة تلقائياً
+  useEffect(() => {
+    if (isGameOver && phase === 'waiting') setShowEndOverlay(true);
+  }, [isGameOver, phase]);
 
   // ─ Lock orientation ─
   useEffect(() => {
@@ -238,7 +220,7 @@ export default function BattleScreen() {
   const predictionSummary = useMemo(() => buildPredictionSummary(state.activeEffects, 'player'), [state.activeEffects]);
 
   const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
-  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+  const displayBotCard    = showResult && lastRoundResult ? lastRoundResult.botCard    : currentBotCard;
 
   const handleNextRound = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -248,24 +230,6 @@ export default function BattleScreen() {
       setPhase('showing');
     }
   }, [isGameOver, router, setPhase]);
-
-  const getResultMessage = () => {
-    if (!lastRoundResult) return '';
-    switch (lastRoundResult.winner) {
-      case 'player': return '\u{1F389} \u0623\u0646\u062a \u0627\u0644\u0641\u0627\u0626\u0632!';
-      case 'bot': return '\u{1F622} \u0627\u0644\u0628\u0648\u062a \u064a\u0641\u0648\u0632!';
-      default: return '\u{1F91D} \u062a\u0639\u0627\u062f\u0644\u0627\u064b!';
-    }
-  };
-
-  const getResultColor = () => {
-    if (!lastRoundResult) return '#a0a0a0';
-    switch (lastRoundResult.winner) {
-      case 'player': return '#4ade80';
-      case 'bot': return '#f87171';
-      default: return '#fbbf24';
-    }
-  };
 
   if (!displayPlayerCard || !displayBotCard) {
     return (
@@ -282,6 +246,7 @@ export default function BattleScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar hidden />
 
+      {/* Background + frame borders */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LuxuryBackground />
         <View style={styles.frameBorderTop} />
@@ -290,15 +255,21 @@ export default function BattleScreen() {
         <View style={styles.frameBorderRight} />
       </View>
 
-      <TopHUD
+      {/* ─ BattleHUD (replaces TopHUD) ─ */}
+      <BattleHUD
         playerScore={state.playerScore}
         botScore={state.botScore}
-        currentRound={roundNumber}
+        maxScore={state.totalRounds}
+        currentRound={state.currentRound}
         totalRounds={state.totalRounds}
-        showResult={showResult}
-        lastRoundResult={lastRoundResult}
-        predictionSummary={predictionSummary}
       />
+
+      {/* ─ prediction summary strip ─ */}
+      {predictionSummary ? (
+        <View style={styles.predictionStrip}>
+          <Text style={styles.predictionStripText}>{predictionSummary}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.arenaSplit}>
 
@@ -356,13 +327,12 @@ export default function BattleScreen() {
               </View>
             )}
           </View>
-          {showResult && lastRoundResult && (
-            <Animated.View style={[styles.resultBanner, { borderColor: getResultColor() }]}>
-              <Text style={[styles.resultBannerText, { color: getResultColor() }]}>
-                {getResultMessage()}
-              </Text>
-            </Animated.View>
-          )}
+
+          {/* ─ RoundResultBanner (replaces inline resultBanner) ─ */}
+          <RoundResultBanner
+            lastRoundResult={lastRoundResult}
+            visible={showResult}
+          />
         </View>
 
       </View>
@@ -398,6 +368,7 @@ export default function BattleScreen() {
         isConfirmDisabled={!isPopularityReady}
       />
 
+      {/* ─ History Modal ─ */}
       <Modal
         visible={showHistoryModal}
         transparent
@@ -422,9 +393,7 @@ export default function BattleScreen() {
                       <Text style={styles.historyCardName}>{result.playerCard.nameAr}</Text>
                       <Text style={styles.historyCardStats}>\u0627\u0644\u0636\u0631\u0631: {result.playerDamage}</Text>
                     </View>
-                    <View style={styles.historyVS}>
-                      <Text style={styles.historyVSText}>VS</Text>
-                    </View>
+                    <View style={styles.historyVS}><Text style={styles.historyVSText}>VS</Text></View>
                     <View style={styles.historyCardSection}>
                       <Text style={styles.historyCardLabel}>\u{1F916} \u0627\u0644\u0628\u0648\u062a</Text>
                       <Text style={styles.historyCardName}>{result.botCard.nameAr}</Text>
@@ -443,57 +412,66 @@ export default function BattleScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─ BattleResultOverlay — نهاية اللعبة ─ */}
+      <BattleResultOverlay
+        visible={showEndOverlay}
+        winner={isGameOver ? (state.playerScore > state.botScore ? 'player' : state.botScore > state.playerScore ? 'bot' : 'draw') : null}
+        playerScore={state.playerScore}
+        botScore={state.botScore}
+        onHome={() => { setShowEndOverlay(false); router.back(); }}
+        onPlayAgain={() => { setShowEndOverlay(false); router.replace('/battle' as any); }}
+      />
+
     </SafeAreaView>
   );
 }
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
-const GOLD = '#e4a52a';
+const GOLD     = '#e4a52a';
 const GOLD_DIM = 'rgba(228,165,42,0.3)';
-const BG_DARK = '#1a0d1a';
-const BG_CARD = 'rgba(26,13,26,0.92)';
+const BG_DARK  = '#1a0d1a';
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG_DARK, flexDirection: 'column' },
-  frameBorderTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: GOLD },
-  frameBorderBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: GOLD },
-  frameBorderLeft: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 2, backgroundColor: GOLD },
-  frameBorderRight: { position: 'absolute', top: 0, bottom: 0, right: 0, width: 2, backgroundColor: GOLD },
-  topHud: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: BG_CARD, borderBottomWidth: 1, borderBottomColor: GOLD_DIM, zIndex: 10 },
-  hudSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hudSideRight: { justifyContent: 'flex-end' },
-  hudLabel: { color: '#ccc', fontSize: 13, fontWeight: '600' },
-  hudScore: { fontSize: 24, fontWeight: '800' },
-  hudCenter: { flex: 1, alignItems: 'center' },
-  vsText: { fontSize: 18, fontWeight: '800', color: '#e94560', letterSpacing: 1 },
-  roundText: { fontSize: 11, color: GOLD, fontWeight: '700', marginTop: 1 },
-  predictionSummaryHud: { fontSize: 10, color: '#fbbf24' },
-  arenaSplit: { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6 },
-  playerArena: { flex: 1, paddingRight: 6, alignItems: 'center', justifyContent: 'space-between', gap: 4 },
-  botArena: { flex: 1, paddingLeft: 6, alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+  frameBorderTop:    { position: 'absolute', top: 0,    left: 0, right: 0,  height: 2, backgroundColor: GOLD },
+  frameBorderBottom: { position: 'absolute', bottom: 0, left: 0, right: 0,  height: 2, backgroundColor: GOLD },
+  frameBorderLeft:   { position: 'absolute', top: 0, bottom: 0, left: 0,   width: 2,  backgroundColor: GOLD },
+  frameBorderRight:  { position: 'absolute', top: 0, bottom: 0, right: 0,  width: 2,  backgroundColor: GOLD },
+  predictionStrip: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  predictionStripText: { fontSize: 10, color: '#fbbf24', fontWeight: '700' },
+  arenaSplit:   { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6 },
+  playerArena:  { flex: 1, paddingRight: 6, alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+  botArena:     { flex: 1, paddingLeft: 6,  alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   arenaDivider: { width: 1, alignSelf: 'stretch', backgroundColor: GOLD_DIM, marginVertical: 4 },
-  cardWrapper: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  damageInfo: { alignItems: 'center', marginTop: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4 },
-  damageText: { fontSize: 12, color: '#e94560', fontWeight: 'bold' },
+  cardWrapper:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  damageInfo:   { alignItems: 'center', marginTop: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4 },
+  damageText:   { fontSize: 12, color: '#e94560', fontWeight: 'bold' },
   advantageText: { fontSize: 11, fontWeight: 'bold', marginTop: 2 },
-  historyRow: { width: '100%', height: 36 },
+  historyRow:   { width: '100%', height: 36 },
   historyRowContent: { alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  historyChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, gap: 4, maxWidth: 110 },
-  historyChipIcon: { fontSize: 11, fontWeight: '800' },
-  historyChipName: { fontSize: 9, color: '#eee', fontWeight: '600', flex: 1 },
+  historyChip:  { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, gap: 4, maxWidth: 110 },
+  historyChipIcon:  { fontSize: 11, fontWeight: '800' },
+  historyChipName:  { fontSize: 9, color: '#eee', fontWeight: '600', flex: 1 },
   historyChipRound: { fontSize: 9, color: '#888' },
   abilitiesRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 4 },
   abilityBtn: { backgroundColor: GOLD, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 16, alignItems: 'center', justifyContent: 'center', minWidth: 80, maxWidth: 110, shadowColor: GOLD, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4, elevation: 4 },
   abilityBtnDisabled: { backgroundColor: '#444', opacity: 0.5, shadowOpacity: 0 },
   abilityBtnText: { fontSize: 10, fontWeight: '700', color: '#1a0d1a', textAlign: 'center' },
-  resultBanner: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center' },
-  resultBannerText: { fontSize: 18, fontWeight: '800' },
   bottomBar: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: 12, backgroundColor: 'rgba(20,10,20,0.98)', borderTopWidth: 1, borderTopColor: GOLD_DIM, gap: 8 },
   bottomBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', gap: 2 },
   bottomBtnPrimary: { backgroundColor: GOLD, borderColor: GOLD, shadowColor: GOLD, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.6, shadowRadius: 6, elevation: 6 },
   bottomBtnMuted: { opacity: 0.4 },
-  bottomBtnIcon: { fontSize: 16, color: '#ddd' },
+  bottomBtnIcon:  { fontSize: 16, color: '#ddd' },
   bottomBtnLabel: { fontSize: 10, color: '#aaa', fontWeight: '600' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { fontSize: 18, color: '#a0a0a0' },
@@ -508,9 +486,9 @@ const styles = StyleSheet.create({
   historyCardsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   historyCardSection: { flex: 1, alignItems: 'center' },
   historyCardLabel: { fontSize: 11, color: '#a0a0a0', marginBottom: 3 },
-  historyCardName: { fontSize: 12, fontWeight: 'bold', color: '#eee', marginBottom: 3 },
+  historyCardName:  { fontSize: 12, fontWeight: 'bold', color: '#eee', marginBottom: 3 },
   historyCardStats: { fontSize: 11, color: '#888' },
-  historyVS: { marginHorizontal: 8 },
+  historyVS:   { marginHorizontal: 8 },
   historyVSText: { fontSize: 12, fontWeight: 'bold', color: GOLD },
   historyWinner: { fontSize: 12, fontWeight: 'bold', textAlign: 'center', marginTop: 6 },
 });
