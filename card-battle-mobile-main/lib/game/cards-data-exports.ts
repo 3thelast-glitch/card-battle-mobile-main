@@ -1,10 +1,10 @@
 /**
  * cards-data-exports.ts
  *
- * يُوفّر ثلاثة exports مطلوبة من ملفات أخرى:
- *   - ALL_CARDS           ← bot-ai.ts
- *   - getElementAdvantage ← bot-ai.ts
- *   - determineRoundWinner← game-context.tsx
+ * يُوفّر exports مطلوبة من ملفات أخرى:
+ *   - ALL_CARDS            ← bot-ai.ts
+ *   - getElementAdvantage  ← bot-ai.ts
+ *   - determineRoundWinner ← game-context.tsx
  */
 
 import { CARDS_BATCH_1 } from './cards-data';
@@ -12,55 +12,90 @@ import {
   Card,
   Element,
   ElementAdvantage,
+  Effect,
   ELEMENT_ADVANTAGES,
   ELEMENT_WEAKNESSES,
   ELEMENT_MULTIPLIER,
 } from './types';
 
 // ─── ALL_CARDS ────────────────────────────────────────────────────────────────
-// يجمع كل الكروت من جميع الـ batches
 export const ALL_CARDS: Card[] = [...CARDS_BATCH_1];
 
 // ─── getElementAdvantage ─────────────────────────────────────────────────────
-/**
- * تُعيد ما إذا كان عنصر المهاجم قوياً أو ضعيفاً أو محايداً ضد عنصر المدافع.
- */
 export function getElementAdvantage(
   attacker: Element,
   defender: Element,
 ): ElementAdvantage {
   const advantages = ELEMENT_ADVANTAGES[attacker] ?? [];
   const weaknesses = ELEMENT_WEAKNESSES[attacker] ?? [];
-
   if (advantages.includes(defender)) return 'strong';
   if (weaknesses.includes(defender)) return 'weak';
   return 'neutral';
 }
 
 // ─── determineRoundWinner ─────────────────────────────────────────────────────
-/**
- * تُحدّد الفائز في الجولة بناءً على الضرر الفعلي لكل طرف.
- *
- * الضرر = attack × multiplier(element)  minus  defense الخصم
- * إذا كان الضرر سالباً يُعامَل كصفر.
- */
+interface RoundWinnerResult {
+  winner: 'player' | 'bot' | 'draw';
+  playerDamage: number;
+  botDamage: number;
+  playerBaseDamage: number;
+  botBaseDamage: number;
+  playerElementAdvantage: ElementAdvantage;
+  botElementAdvantage: ElementAdvantage;
+}
+
 export function determineRoundWinner(
   playerCard: Card,
   botCard: Card,
-): { winner: 'player' | 'bot' | 'draw'; playerDamage: number; botDamage: number } {
+  playerEffects: Effect[] = [],
+  botEffects: Effect[] = [],
+  _abilitiesEnabled = true,
+): RoundWinnerResult {
   const playerAdv = getElementAdvantage(playerCard.element, botCard.element);
   const botAdv    = getElementAdvantage(botCard.element,   playerCard.element);
 
-  const playerRaw    = playerCard.attack * ELEMENT_MULTIPLIER[playerAdv];
-  const botRaw       = botCard.attack    * ELEMENT_MULTIPLIER[botAdv];
+  // تطبيق stat modifiers من التأثيرات
+  let playerAtk = playerCard.attack;
+  let playerDef = playerCard.defense;
+  let botAtk    = botCard.attack;
+  let botDef    = botCard.defense;
 
-  const playerDamage = Math.max(0, Math.floor(playerRaw - botCard.defense));
-  const botDamage    = Math.max(0, Math.floor(botRaw    - playerCard.defense));
+  for (const e of playerEffects) {
+    if (e.kind === 'statModifier') {
+      const d = e.data as { stat?: string; amount?: number } | undefined;
+      if (d?.stat === 'attack')  playerAtk = Math.max(0, playerAtk + (d.amount ?? 0));
+      if (d?.stat === 'defense') playerDef = Math.max(0, playerDef + (d.amount ?? 0));
+    }
+  }
+  for (const e of botEffects) {
+    if (e.kind === 'statModifier') {
+      const d = e.data as { stat?: string; amount?: number } | undefined;
+      if (d?.stat === 'attack')  botAtk = Math.max(0, botAtk + (d.amount ?? 0));
+      if (d?.stat === 'defense') botDef = Math.max(0, botDef + (d.amount ?? 0));
+    }
+  }
+
+  const playerRaw = playerAtk * ELEMENT_MULTIPLIER[playerAdv];
+  const botRaw    = botAtk    * ELEMENT_MULTIPLIER[botAdv];
+
+  const playerBaseDamage = Math.max(0, Math.floor(playerRaw));
+  const botBaseDamage    = Math.max(0, Math.floor(botRaw));
+
+  const playerDamage = Math.max(0, Math.floor(playerRaw - botDef));
+  const botDamage    = Math.max(0, Math.floor(botRaw    - playerDef));
 
   let winner: 'player' | 'bot' | 'draw';
   if (playerDamage > botDamage)       winner = 'player';
   else if (botDamage > playerDamage)  winner = 'bot';
   else                                winner = 'draw';
 
-  return { winner, playerDamage, botDamage };
+  return {
+    winner,
+    playerDamage,
+    botDamage,
+    playerBaseDamage,
+    botBaseDamage,
+    playerElementAdvantage: playerAdv,
+    botElementAdvantage: botAdv,
+  };
 }
