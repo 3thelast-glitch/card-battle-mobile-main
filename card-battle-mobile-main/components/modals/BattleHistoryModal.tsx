@@ -43,10 +43,10 @@ export const BattleHistoryModal = memo(function BattleHistoryModal({
               roundResults.map((result) => {
                 const winnerColor =
                   result.winner === 'player' ? '#4ade80' :
-                  result.winner === 'bot'    ? '#f87171' : '#fbbf24';
+                    result.winner === 'bot' ? '#f87171' : '#fbbf24';
                 const winnerLabel =
                   result.winner === 'player' ? '\u2713 \u0623\u0646\u062a \u0627\u0644\u0641\u0627\u0626\u0632' :
-                  result.winner === 'bot'    ? '\u2717 \u0627\u0644\u0628\u0648\u062a \u064a\u0641\u0648\u0632'   : '= \u062a\u0639\u0627\u062f\u0644';
+                    result.winner === 'bot' ? '\u2717 \u0627\u0644\u0628\u0648\u062a \u064a\u0641\u0648\u0632' : '= \u062a\u0639\u0627\u062f\u0644';
 
                 return (
                   <View key={result.round} style={styles.roundItem}>
