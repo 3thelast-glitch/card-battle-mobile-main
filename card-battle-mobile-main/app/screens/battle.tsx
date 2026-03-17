@@ -38,8 +38,8 @@ import { useGame } from '@/lib/game/game-context';
 import { ELEMENT_EMOJI, ElementAdvantage, Element, CardClass } from '@/lib/game/types';
 import { getAbilityNameAr, getAbilityDescription } from '@/lib/game/ability-names';
 import { AbilityCard } from '@/components/game/ability-card';
-import PredictionModal from '@/app/components/modals/PredictionModal';
-import PopularityModal from '@/app/components/modals/PopularityModal';
+import PredictionModal from '@/components/modals/PredictionModal';
+import PopularityModal from '@/components/modals/PopularityModal';
 import {
   buildPredictionSummary, getRemainingRounds,
   getUpcomingPredictionRounds, isPredictionComplete,
@@ -208,7 +208,6 @@ function ActiveEffectsBar({ effects, side }: { effects: any[]; side: 'player' | 
   return (
     <View style={eff.row}>
       {mine.map((e, i) => {
-        // تحديد لون: بف = أخضر، نيرف = أحمر، محايد = ذهبي
         let isBuff = BUFF_KINDS.has(e.kind);
         let isDebuff = false;
         if (e.kind === 'statModifier') {
@@ -223,14 +222,10 @@ function ActiveEffectsBar({ effects, side }: { effects: any[]; side: 'player' | 
           isDebuff = true;
         }
         const color = isBuff ? '#4ade80' : isDebuff ? '#f87171' : '#fbbf24';
-
-        // عدد الجولات المتبقية
         const roundsLeft = e.expiresAtRound !== undefined
           ? Math.max(0, e.expiresAtRound - (e.createdAtRound ?? 0))
           : null;
-
         const label = getEffectLabel(e);
-
         return (
           <View key={i} style={[eff.chip, { borderColor: color + '66', backgroundColor: color + '18' }]}>
             <Text style={[eff.label, { color }]}>{label}</Text>
@@ -524,7 +519,7 @@ export default function BattleScreen() {
   const botStyle    = useAnimatedStyle(() => ({ transform: [{ scale: botAnim.value }] }));
   const vsStyle     = useAnimatedStyle(() => ({ opacity: vsOpacity.value }));
   const resultStyle = useAnimatedStyle(() => ({ opacity: resultOp.value }));
-  const flashStyle = useAnimatedStyle(() => ({ opacity: flashAnim.value }));
+  const flashStyle  = useAnimatedStyle(() => ({ opacity: flashAnim.value }));
 
   // layout persistence
   useEffect(() => { loadLayout(); }, []);
@@ -680,7 +675,6 @@ export default function BattleScreen() {
 
   const maxScore = state.totalRounds;
 
-  // ── Abilities that need a choice modal ──────────────────────────────────
   const CHOICE_ABILITIES = ['Propaganda', 'AddElement', 'SwapClass', 'Dilemma'];
 
   if (!displayPlayerCard || !displayBotCard) {
@@ -695,7 +689,6 @@ export default function BattleScreen() {
 
   if (!isLandscape) return <RotateHintScreen />;
 
-  // ─── RENDER ───
   return (
     <View style={S.root}>
       <StatusBar hidden />
@@ -939,26 +932,21 @@ export default function BattleScreen() {
                       key={i}
                       onPress={() => {
                         if (!canUse) { if (isSealed) Alert.alert('القدرات مختومة', 'لا يمكنك تفعيل القدرات خلال مدة الختم.'); return; }
-
-                        // Prediction abilities
                         if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(ability.type)) {
                           if (!upcomingRounds.length) return;
                           setPredictionSelections({}); setPredictionAbilityType(ability.type as any);
                           setIsAbilitiesModalOpen(false); setShowPredictionModal(true); return;
                         }
-                        // Popularity abilities
                         if (['Popularity', 'Rescue', 'Penetration'].includes(ability.type)) {
                           if (!remainingRounds.length) return;
                           setSelectedPopularityRound(null); setPopularityAbilityType(ability.type as any);
                           setIsAbilitiesModalOpen(false); setShowPopularityModal(true); return;
                         }
-                        // Choice abilities (Propaganda / AddElement / SwapClass / Dilemma)
                         if (CHOICE_ABILITIES.includes(ability.type)) {
                           setIsAbilitiesModalOpen(false);
                           openChoiceModal(ability.type);
                           return;
                         }
-                        // Default
                         useAbility(ability.type); setIsAbilitiesModalOpen(false);
                         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
@@ -1000,7 +988,7 @@ export default function BattleScreen() {
         visible={showPredictionModal}
         upcomingRounds={upcomingRounds}
         selections={predictionSelections}
-        onSelect={(r, o) => setPredictionSelections(p => ({ ...p, [r]: o }))}
+        onSelect={(r: number, o: 'win' | 'loss') => setPredictionSelections(p => ({ ...p, [r]: o }))}
         onCancel={() => { setShowPredictionModal(false); setPredictionSelections({}); }}
         onRequestClose={() => setShowPredictionModal(false)}
         onConfirm={handleConfirmPrediction}
@@ -1010,7 +998,7 @@ export default function BattleScreen() {
         visible={showPopularityModal}
         remainingRounds={remainingRounds}
         selectedRound={selectedPopularityRound}
-        onSelect={r => setSelectedPopularityRound(r)}
+        onSelect={(r: number) => setSelectedPopularityRound(r)}
         onCancel={() => { setShowPopularityModal(false); setSelectedPopularityRound(null); }}
         onRequestClose={() => setShowPopularityModal(false)}
         onConfirm={handleConfirmPopularity}
@@ -1076,7 +1064,6 @@ const S = StyleSheet.create({
   normalRoot: { flex: 1 },
   screen: { flex: 1, flexDirection: 'column', paddingBottom: 8 },
 
-  // ── TOP HUD
   topHud: {
     height: 68, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SPACE.lg,
@@ -1095,7 +1082,6 @@ const S = StyleSheet.create({
   historyBtn: { paddingHorizontal: SPACE.sm, paddingVertical: 2, borderRadius: RADIUS.full, backgroundColor: 'rgba(228,165,42,0.1)', borderWidth: 1, borderColor: 'rgba(228,165,42,0.25)' },
   historyBtnText: { color: COLOR.gold, fontSize: FONT.xs - 2 },
 
-  // ── ACTIVE EFFECTS BAR
   effectsBar: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1111,7 +1097,6 @@ const S = StyleSheet.create({
   effectsBarDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.08)' },
   effectsBarLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 9, letterSpacing: 0.5, marginBottom: 2 },
 
-  // ── ARENA
   arena: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, gap: SPACE.sm },
   playerPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(10,26,10,0.4)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, gap: SPACE.sm, height: '100%' },
   botPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(26,10,10,0.4)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.2)', borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, gap: SPACE.sm, height: '100%' },
@@ -1119,7 +1104,6 @@ const S = StyleSheet.create({
   botStatus: { marginTop: SPACE.xs, paddingHorizontal: SPACE.md, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   botStatusText: { color: '#94a3b8', fontSize: FONT.xs - 2 },
 
-  // ── CENTER COLUMN
   centerCol: { width: 152, alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, zIndex: 20 },
   vsBadge: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(8,6,18,0.9)', borderWidth: 2, borderColor: 'rgba(228,165,42,0.7)', alignItems: 'center', justifyContent: 'center', ...SHADOW.gold },
   vsIcon: { fontSize: 18 },
@@ -1129,7 +1113,6 @@ const S = StyleSheet.create({
   resultBadge: { paddingHorizontal: SPACE.lg, paddingVertical: SPACE.sm, borderRadius: RADIUS.pill, borderWidth: 1.5, alignItems: 'center' },
   resultBadgeText: { fontSize: FONT.base, letterSpacing: 0.5 },
 
-  // ── CTA
   ctaStack: { gap: SPACE.sm, width: '100%', alignItems: 'center' },
   ctaBtn: { width: 140, height: 48, borderRadius: RADIUS.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.xs, borderWidth: 1.5, backgroundColor: 'rgba(0,0,0,0.4)' },
   ctaBtnAttack: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: '#4ade80', shadowColor: '#4ade80', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 10, elevation: 6 },
@@ -1139,12 +1122,10 @@ const S = StyleSheet.create({
   ctaBtnIcon: { fontSize: 16 },
   ctaBtnText: { color: '#f1f5f9', fontSize: FONT.sm, letterSpacing: 0.3 },
 
-  // ── edit FAB
   editFab: { position: 'absolute', bottom: 16, right: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(228,165,42,0.15)', borderWidth: 1, borderColor: COLOR.goldDim, alignItems: 'center', justifyContent: 'center', zIndex: 50 },
   editFabActive: { backgroundColor: 'rgba(74,222,128,0.2)', borderColor: '#4ade80' },
   editFabText: { fontSize: 16 },
 
-  // ── GRID
   gridContainer: { position: 'absolute', inset: 0, zIndex: 2 },
   vLine: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
   hLine: { position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: 'rgba(228,165,42,0.4)' },
@@ -1152,7 +1133,6 @@ const S = StyleSheet.create({
   hLineThin: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(228,165,42,0.15)' },
   gridCenter: { position: 'absolute', left: '50%', top: '50%', width: 12, height: 12, borderRadius: 6, backgroundColor: COLOR.gold, marginLeft: -6, marginTop: -6 },
 
-  // ── SIDEBAR
   sidebar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 280, backgroundColor: 'rgba(20,14,30,0.97)', zIndex: 300, borderRightWidth: 2, borderRightColor: 'rgba(228,165,42,0.3)' },
   sidebarHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACE.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(228,165,42,0.2)', backgroundColor: 'rgba(228,165,42,0.06)' },
   sidebarTitle: { color: COLOR.gold, fontSize: FONT.base },
@@ -1165,7 +1145,6 @@ const S = StyleSheet.create({
   sidebarAction: { padding: SPACE.md, backgroundColor: COLOR.gold, borderRadius: RADIUS.md, alignItems: 'center' },
   sidebarActionText: { color: '#1A0D1A', fontSize: FONT.sm },
 
-  // ── DraggableResizable
   resizeHandle: { position: 'absolute', width: 12, height: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2196F3', borderRadius: 2, zIndex: 10 },
   resizeHandleInner: { width: '100%', height: '100%', backgroundColor: '#2196F3' },
   rh_topleft: { top: 0, left: 0 },
@@ -1186,7 +1165,6 @@ const S = StyleSheet.create({
   editElem: { alignItems: 'center' },
   editLabel: { color: COLOR.gold, fontSize: FONT.sm, marginBottom: SPACE.sm },
 
-  // ── MODALS
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
   abilitiesModal: { width: '92%', maxWidth: 820, backgroundColor: 'rgba(12,18,36,0.97)', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(51,65,85,0.7)', padding: SPACE.xl, paddingBottom: SPACE.lg },
   historyModal: { backgroundColor: 'rgba(18,14,28,0.97)', borderRadius: RADIUS.lg, width: '90%', maxHeight: '82%', padding: SPACE.xl, borderWidth: 1, borderColor: '#1e293b' },
