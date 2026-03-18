@@ -8,7 +8,7 @@ export const ALL_ABILITIES: AbilityType[] = [
   'LogicalEncounter', 'Recall', 'Protection', 'Arise', 'Reinforcement',
   'Wipe', 'Purge', 'HalvePoints', 'Seal', 'DoubleOrNothing',
   'StarSuperiority', 'Reduction', 'Sacrifice', 'Popularity', 'Eclipse',
-  'CancelAbility', 'Revive', 'Shambles', 'ConsecutiveLossBuff', 'Lifesteal',
+  'CancelAbility', 'Revive', 'ConsecutiveLossBuff', 'Lifesteal',
   'Revenge', 'Suicide', 'Disaster', 'Compensation', 'Weakening',
   'Misdirection', 'StealAbility', 'Rescue', 'Trap', 'ConvertDebuffsToBuffs',
   'Sniping', 'Merge', 'DoubleNextCards', 'Deprivation', 'Greed',

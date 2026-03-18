@@ -79,7 +79,6 @@ export type AbilityType =
   | 'Eclipse'
   | 'CancelAbility'
   | 'Revive'
-  | 'Shambles'
   | 'ConsecutiveLossBuff'
   | 'Lifesteal'
   | 'Revenge'
