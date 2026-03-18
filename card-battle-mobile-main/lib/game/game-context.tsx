@@ -601,15 +601,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Recall': {
-          const lastRound = state.roundResults[state.roundResults.length - 1];
-          if (lastRound) {
+          // دعم roundIndex — fallback لآخر جولة
+          const recallIdx = data?.roundIndex !== undefined
+            ? Number(data.roundIndex)
+            : state.roundResults.length - 1;
+          const recallResult = state.roundResults[recallIdx];
+          if (recallResult) {
             if (side === 'player') {
               const d = [...state.playerDeck];
-              d[state.currentRound] = { ...lastRound.playerCard, ability: undefined };
+              d[state.currentRound] = { ...recallResult.playerCard, ability: undefined };
               nextState = { ...nextState, playerDeck: d };
             } else {
               const d = [...state.botDeck];
-              d[state.currentRound] = { ...lastRound.botCard, ability: undefined };
+              d[state.currentRound] = { ...recallResult.botCard, ability: undefined };
               nextState = { ...nextState, botDeck: d };
             }
           }
@@ -628,14 +632,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Arise': {
-          const oppCard = side === 'player' ? state.botDeck[state.currentRound] : state.playerDeck[state.currentRound];
-          if (oppCard) {
-            if (side === 'player') {
-              const d = [...state.playerDeck]; d[state.currentRound] = oppCard;
-              nextState = { ...nextState, playerDeck: d };
-            } else {
-              const d = [...state.botDeck]; d[state.currentRound] = oppCard;
-              nextState = { ...nextState, botDeck: d };
+          // دعم roundIndex — يأخذ كرت الخصم من جولة سابقة محددة
+          const ariseIdx = data?.roundIndex !== undefined
+            ? Number(data.roundIndex)
+            : state.roundResults.length - 1;
+          const ariseResult = state.roundResults[ariseIdx];
+          if (ariseResult) {
+            const oppCard = side === 'player' ? ariseResult.botCard : ariseResult.playerCard;
+            if (oppCard) {
+              if (side === 'player') {
+                const d = [...state.playerDeck]; d[state.currentRound] = { ...oppCard, ability: undefined };
+                nextState = { ...nextState, playerDeck: d };
+              } else {
+                const d = [...state.botDeck]; d[state.currentRound] = { ...oppCard, ability: undefined };
+                nextState = { ...nextState, botDeck: d };
+              }
             }
           }
           break;
@@ -766,9 +777,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Revive': {
-          const pastRound = state.roundResults[state.roundResults.length - 1];
-          if (pastRound) {
-            const pastCard = side === 'player' ? pastRound.playerCard : pastRound.botCard;
+          // دعم roundIndex — fallback لآخر جولة
+          const reviveIdx = data?.roundIndex !== undefined
+            ? Number(data.roundIndex)
+            : state.roundResults.length - 1;
+          const reviveResult = state.roundResults[reviveIdx];
+          if (reviveResult) {
+            const pastCard = side === 'player' ? reviveResult.playerCard : reviveResult.botCard;
             const revivedCard: Card = {
               ...pastCard,
               attack: Math.ceil(pastCard.attack / 2),
@@ -964,9 +979,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Merge': {
-          const lastR = state.roundResults[state.roundResults.length - 1];
-          if (lastR) {
-            const pastCard = side === 'player' ? lastR.playerCard : lastR.botCard;
+          // دعم roundIndex — fallback لآخر جولة
+          const mergeIdx = data?.roundIndex !== undefined
+            ? Number(data.roundIndex)
+            : state.roundResults.length - 1;
+          const mergeResult = state.roundResults[mergeIdx];
+          if (mergeResult) {
+            const pastCard = side === 'player' ? mergeResult.playerCard : mergeResult.botCard;
             const curCard = side === 'player'
               ? state.playerDeck[state.currentRound]
               : state.botDeck[state.currentRound];
