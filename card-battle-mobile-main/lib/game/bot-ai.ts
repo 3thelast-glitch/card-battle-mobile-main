@@ -6,8 +6,8 @@
  *  1  سهل      — عشوائي تماماً، لا قدرات
  *  2  متوسط    — أفضل نصف الكروت، قدرات عشوائية خفيفة
  *  3  صعب      — نفس الكروت لكن يحسب التوقيت + threshold أعلى + noise أقل
- *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5٪)
- *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٪)
+ *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5؉)
+ *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3؉)
  */
 
 import { Card, GameState, AbilityType, AbilityState, RoundResult, Element, CardClass } from './types';
@@ -191,7 +191,7 @@ export function evaluateAbilityTiming(
     if (roundsLeft <= 4) return losing || closeMatch ? 0.85 : 0.55;
     return 0.35;
   }
-  if (['Rescue', 'Popularity', 'Penetration'].includes(ability)) {
+  if (['Rescue', 'Popularity', 'Penetration', 'Sniping'].includes(ability)) {
     if (losing && roundsLeft <= 3) return 0.90;
     if (losing) return 0.70;
     if (closeMatch) return 0.50;
@@ -207,7 +207,7 @@ export function evaluateAbilityTiming(
     if (mode === 'balanced')   return closeMatch ? 0.65 : 0.40;
     return 0.25;
   }
-  if (['Recall', 'Arise', 'Revive', 'Shambles', 'Sacrifice'].includes(ability)) {
+  if (['Recall', 'Arise', 'Revive', 'Sacrifice'].includes(ability)) {
     if (losing && closeMatch) return 0.75;
     if (losing) return 0.60;
     return 0.35;
@@ -295,11 +295,10 @@ export function buildBotAbilityData(
     return { myClass: pick, oppClass: playerCard.cardClass };
   }
 
-  // ✅ إصلاح #3: Sniping يرسل الجولة القادمة كـ round
   if (abilityType === 'Sniping') {
-    const nextRound = currentRound + 2; // currentRound هو index (0-based)، roundNumber = currentRound + 1
+    const nextRound = currentRound + 2;
     if (nextRound <= totalRounds) return { round: nextRound };
-    return { round: currentRound + 1 }; // fallback للجولة الحالية إن لم توجد قادمة
+    return { round: currentRound + 1 };
   }
 
   if (['Popularity', 'Rescue', 'Penetration'].includes(abilityType)) {
@@ -317,12 +316,10 @@ export function buildBotAbilityData(
     return { predictions };
   }
 
-  // ── Subhan: البوت يخمّن هجوم كرت اللاعب القادم ──
   if (abilityType === 'Subhan') {
     const nextPlayerCard = gameState.playerDeck[currentRound + 1];
     if (!nextPlayerCard) return {};
-    // البوت يخمّن بذكاء: القيمة الفعلية ± 2 عشوائياً
-    const noise = Math.floor(Math.random() * 5) - 2; // -2 إلى +2
+    const noise = Math.floor(Math.random() * 5) - 2;
     return { guessedAttack: nextPlayerCard.attack + noise };
   }
 
