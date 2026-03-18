@@ -4,12 +4,12 @@ import {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-import type { AnimatedStyleProp } from 'react-native-reanimated';
+import type { AnimatedStyle } from 'react-native-reanimated';
 import type { ViewStyle } from 'react-native';
 
 export interface UseBattleAnimationsReturn {
-  playerCardAnimatedStyle: AnimatedStyleProp<ViewStyle>;
-  botCardAnimatedStyle: AnimatedStyleProp<ViewStyle>;
+  playerCardAnimatedStyle: AnimatedStyle<ViewStyle>;
+  botCardAnimatedStyle: AnimatedStyle<ViewStyle>;
   resultOpacity: ReturnType<typeof useSharedValue<number>>;
   resetAnimations: () => void;
   playEntranceAnimation: () => void;
