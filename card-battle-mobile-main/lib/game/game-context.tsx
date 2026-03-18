@@ -601,7 +601,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Recall': {
-          // دعم roundIndex — fallback لآخر جولة
           const recallIdx = data?.roundIndex !== undefined
             ? Number(data.roundIndex)
             : state.roundResults.length - 1;
@@ -632,7 +631,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Arise': {
-          // دعم roundIndex — يأخذ كرت الخصم من جولة سابقة محددة
           const ariseIdx = data?.roundIndex !== undefined
             ? Number(data.roundIndex)
             : state.roundResults.length - 1;
@@ -777,7 +775,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Revive': {
-          // دعم roundIndex — fallback لآخر جولة
           const reviveIdx = data?.roundIndex !== undefined
             ? Number(data.roundIndex)
             : state.roundResults.length - 1;
@@ -979,7 +976,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         case 'Merge': {
-          // دعم roundIndex — fallback لآخر جولة
           const mergeIdx = data?.roundIndex !== undefined
             ? Number(data.roundIndex)
             : state.roundResults.length - 1;
@@ -1316,7 +1312,8 @@ interface GameContextType {
   nextRound: () => void;
   addEffect: (effect: Effect) => void;
   removeEffects: (targetSide?: Side | 'all', sourceSide?: Side | 'all') => void;
-  useAbility: (abilityType: AbilityType, data?: Record<string, unknown>) => void;
+  // ✅ إصلاح #1: إضافة isPlayer كـ parameter اختياري (default = true للاعب)
+  useAbility: (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer?: boolean) => void;
   resetGame: () => void;
   setDifficulty: (level: DifficultyLevel) => void;
   setAbilitiesEnabled: (enabled: boolean) => void;
@@ -1344,8 +1341,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const removeEffects = (targetSide?: Side | 'all', sourceSide?: Side | 'all') =>
     dispatch({ type: 'REMOVE_EFFECTS', payload: { targetSide, sourceSide } });
 
-  const useAbility = (abilityType: AbilityType, data?: Record<string, unknown>) =>
-    dispatch({ type: 'USE_ABILITY', payload: { abilityType, isPlayer: true, data } });
+  // ✅ إصلاح #1: isPlayer = true بشكل افتراضي للاعب، false للبوت
+  const useAbility = (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer: boolean = true) =>
+    dispatch({ type: 'USE_ABILITY', payload: { abilityType, isPlayer, data } });
 
   const setDifficulty = (level: DifficultyLevel) => {
     setDifficultyState(level);
