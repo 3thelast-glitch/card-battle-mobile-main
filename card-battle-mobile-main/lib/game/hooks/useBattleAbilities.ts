@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import type { AbilityType } from '@/lib/game/types';
 
 type PredictionAbilityType = 'LogicalEncounter' | 'Eclipse' | 'Trap' | 'Pool';
-type PopularityAbilityType = 'Popularity' | 'Rescue' | 'Penetration';
+type PopularityAbilityType = 'Popularity' | 'Rescue' | 'Penetration' | 'Sniping';
 
 export interface UseBattleAbilitiesReturn {
   // Prediction Modal
@@ -16,7 +16,7 @@ export interface UseBattleAbilitiesReturn {
   handleSelectPrediction: (round: number, outcome: 'win' | 'loss') => void;
   handleConfirmPrediction: (useAbility: (type: AbilityType, payload?: any) => void) => void;
 
-  // Popularity Modal
+  // Popularity / Sniping Modal (round picker)
   showPopularityModal: boolean;
   selectedPopularityRound: number | null;
   popularityAbilityType: PopularityAbilityType;
@@ -24,6 +24,14 @@ export interface UseBattleAbilitiesReturn {
   closePopularityModal: () => void;
   handleSelectPopularityRound: (round: number) => void;
   handleConfirmPopularity: (useAbility: (type: AbilityType, payload?: any) => void) => void;
+
+  // Subhan Modal (attack guess input)
+  showSubhanModal: boolean;
+  subhanGuess: string;
+  openSubhanModal: () => void;
+  closeSubhanModal: () => void;
+  handleSubhanGuessChange: (value: string) => void;
+  handleConfirmSubhan: (useAbility: (type: AbilityType, payload?: any) => void) => void;
 }
 
 export function useBattleAbilities(): UseBattleAbilitiesReturn {
@@ -32,10 +40,14 @@ export function useBattleAbilities(): UseBattleAbilitiesReturn {
   const [predictionSelections, setPredictionSelections] = useState<Record<number, 'win' | 'loss'>>({});
   const [predictionAbilityType, setPredictionAbilityType] = useState<PredictionAbilityType>('LogicalEncounter');
 
-  // ─ Popularity state ─
+  // ─ Popularity / Sniping state ─
   const [showPopularityModal, setShowPopularityModal] = useState(false);
   const [selectedPopularityRound, setSelectedPopularityRound] = useState<number | null>(null);
   const [popularityAbilityType, setPopularityAbilityType] = useState<PopularityAbilityType>('Popularity');
+
+  // ─ Subhan state ─
+  const [showSubhanModal, setShowSubhanModal] = useState(false);
+  const [subhanGuess, setSubhanGuess] = useState('');
 
   // ─ Prediction handlers ─
   const openPredictionModal = useCallback((type: PredictionAbilityType) => {
@@ -63,7 +75,7 @@ export function useBattleAbilities(): UseBattleAbilitiesReturn {
     [predictionAbilityType, predictionSelections]
   );
 
-  // ─ Popularity handlers ─
+  // ─ Popularity / Sniping handlers ─
   const openPopularityModal = useCallback((type: PopularityAbilityType) => {
     setSelectedPopularityRound(null);
     setPopularityAbilityType(type);
@@ -90,6 +102,34 @@ export function useBattleAbilities(): UseBattleAbilitiesReturn {
     [popularityAbilityType, selectedPopularityRound]
   );
 
+  // ─ Subhan handlers ─
+  const openSubhanModal = useCallback(() => {
+    setSubhanGuess('');
+    setShowSubhanModal(true);
+  }, []);
+
+  const closeSubhanModal = useCallback(() => {
+    setShowSubhanModal(false);
+    setSubhanGuess('');
+  }, []);
+
+  const handleSubhanGuessChange = useCallback((value: string) => {
+    // اقبل أرقام فقط
+    if (/^\d*$/.test(value)) setSubhanGuess(value);
+  }, []);
+
+  const handleConfirmSubhan = useCallback(
+    (useAbility: (type: AbilityType, payload?: any) => void) => {
+      const guessedAttack = parseInt(subhanGuess, 10);
+      if (Number.isNaN(guessedAttack)) return;
+      useAbility('Subhan', { guessedAttack });
+      setShowSubhanModal(false);
+      setSubhanGuess('');
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [subhanGuess]
+  );
+
   return {
     showPredictionModal,
     predictionSelections,
@@ -105,5 +145,11 @@ export function useBattleAbilities(): UseBattleAbilitiesReturn {
     closePopularityModal,
     handleSelectPopularityRound,
     handleConfirmPopularity,
+    showSubhanModal,
+    subhanGuess,
+    openSubhanModal,
+    closeSubhanModal,
+    handleSubhanGuessChange,
+    handleConfirmSubhan,
   };
 }
