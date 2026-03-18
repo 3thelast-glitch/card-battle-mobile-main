@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ✅ موحَّد مع abilities-store.ts
 export const DISABLED_ABILITIES_KEY = 'disabled_abilities_v1';
 
-// قائمة بجميع القدرات المتاحة
 export const ALL_ABILITIES: AbilityType[] = [
   'LogicalEncounter', 'Recall', 'Protection', 'Arise', 'Reinforcement',
   'Wipe', 'Purge', 'HalvePoints', 'Seal', 'DoubleOrNothing',
@@ -18,10 +17,6 @@ export const ALL_ABILITIES: AbilityType[] = [
   'TakeIt', 'Skip', 'AddElement', 'Explosion', 'DoublePoints', 'ElementalMastery'
 ];
 
-/**
- * خريطة تحويل من nameEn (في data/abilities.ts) إلى AbilityType (في types.ts)
- * لأن الأسماء تختلف قليلاً بين الملفين.
- */
 export const NAME_TO_ABILITY_TYPE: Record<string, AbilityType> = {
   'Logical Encounter': 'LogicalEncounter',
   'Recall': 'Recall',
@@ -76,7 +71,6 @@ export const NAME_TO_ABILITY_TYPE: Record<string, AbilityType> = {
   'Deprivation (Ability)': 'Deprivation',
 };
 
-/** قراءة القدرات المعطّلة من AsyncStorage (sync-safe عبر cache) */
 let _disabledCache: Set<AbilityType> | null = null;
 
 export async function loadDisabledAbilities(): Promise<Set<AbilityType>> {
@@ -99,10 +93,6 @@ export async function saveDisabledAbilities(disabled: Set<AbilityType>): Promise
   await AsyncStorage.setItem(DISABLED_ABILITIES_KEY, JSON.stringify([...disabled]));
 }
 
-/**
- * اختيار عشوائي مع استثناء المعطّلة.
- * يُستخدم في game-context عند START_BATTLE.
- */
 export function getRandomAbilities(count: number): AbilityType[] {
   const disabled = getDisabledAbilitiesCache();
   const available = ALL_ABILITIES.filter(a => !disabled.has(a));
@@ -111,7 +101,6 @@ export function getRandomAbilities(count: number): AbilityType[] {
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
-// تعريف واجهة لدالة تنفيذ القدرة
 interface AbilityExecutionResult {
   newEffects: ActiveEffect[];
   newPlayerScore?: number;
@@ -125,73 +114,257 @@ export type AbilityExecutor = (
   isPlayer: boolean,
 ) => AbilityExecutionResult;
 
-// خريطة لتخزين دوال تنفيذ القدرات
-export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
-  LogicalEncounter: (state, isPlayer) => ({ newEffects: [] }),
-  Recall: (state, isPlayer) => ({ newEffects: [] }),
-  Arise: (state, isPlayer) => ({ newEffects: [] }),
-  Popularity: (state, isPlayer) => ({ newEffects: [] }),
-  Revive: (state, isPlayer) => ({ newEffects: [] }),
-  Sniping: (state, isPlayer) => ({ newEffects: [] }),
-  Subhan: (state, isPlayer) => ({ newEffects: [] }),
-  Propaganda: (state, isPlayer) => ({ newEffects: [] }),
+// ─────────────────────────────────────────────────────────
+// دوال مساعدة: تطبيق تأثير على كل كروت الديك
+// ─────────────────────────────────────────────────────────
 
-  // Protection → يرفع الدفاع
+/**
+ * تطبق buff أو debuff على جميع كروت الديك بحسب نتيجة الجولة.
+ * تُستخدم لـ: Reinforcement, Greed, Revenge, Compensation, Explosion, Weakening
+ */
+function applyDeckEffect(
+  deck: Card[],
+  target: 'player' | 'bot',
+  stat: 'attack' | 'defense',
+  delta: number,
+  sourceAbility: AbilityType,
+  currentRound: number,
+): ActiveEffect[] {
+  // نطبق بف واحد لكل كرت لم يُلعب بعد (index > currentRound)
+  return deck
+    .slice(currentRound + 1)
+    .map((_, i) => ({
+      type: delta > 0 ? 'buff' as const : 'debuff' as const,
+      target,
+      stat,
+      value: delta,
+      roundsLeft: deck.length - currentRound - 1 - i,
+      sourceAbility,
+    }));
+}
+
+export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
+
+  // ──────────────────── لم يُنفّذ بعد (UI مطلوب) ────────────────────
+  LogicalEncounter: () => ({ newEffects: [] }),
+  Recall:           () => ({ newEffects: [] }),
+  Arise:            () => ({ newEffects: [] }),
+  Popularity:       () => ({ newEffects: [] }),
+  Revive:           () => ({ newEffects: [] }),
+  Sniping:          () => ({ newEffects: [] }),
+  Subhan:           () => ({ newEffects: [] }),
+  Propaganda:       () => ({ newEffects: [] }),
+  CancelAbility:    () => ({ newEffects: [] }),
+  Shambles:         () => ({ newEffects: [] }),
+  Disaster:         () => ({ newEffects: [] }),
+  StealAbility:     () => ({ newEffects: [] }),
+  Rescue:           () => ({ newEffects: [] }),
+  Trap:             () => ({ newEffects: [] }),
+  Merge:            () => ({ newEffects: [] }),
+  Dilemma:          () => ({ newEffects: [] }),
+  Pool:             () => ({ newEffects: [] }),
+  SwapClass:        () => ({ newEffects: [] }),
+  Skip:             () => ({ newEffects: [] }),
+  AddElement:       () => ({ newEffects: [] }),
+  DoubleOrNothing:  () => ({ newEffects: [] }),
+  Sacrifice:        () => ({ newEffects: [] }),
+  ConsecutiveLossBuff: () => ({ newEffects: [] }),
+
+  // ──────────────────── أولوية عالية ✔️ ────────────────────
+
+  // Wipe: امسح كل التأثيرات السلبية على اللاعب فقط
+  Wipe: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const filtered = (state.activeEffects as unknown as ActiveEffect[]).filter(
+      e => !(e.target === myTarget && e.type === 'debuff')
+    );
+    // نرجع التأثيرات المتبقية كـ newEffects بقيم صفر
+    // (game-context يجب أن يستبدل activeEffects بالكامل بعد الفلترة)
+    return { newEffects: filtered };
+  },
+
+  // Purge: امسح كل التأثيرات للجميع
+  Purge: () => ({ newEffects: [] }),
+
+  // Reinforcement: في حال الفوز +1 دفاع لكل كروتك القادمة
+  Reinforcement: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const myDeck   = isPlayer ? state.playerDeck : state.botDeck;
+    const effects  = applyDeckEffect(myDeck, myTarget, 'defense', 1, 'Reinforcement', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // Greed: في حال الفوز +1 هجوم لكل كروتك القادمة
+  Greed: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const myDeck   = isPlayer ? state.playerDeck : state.botDeck;
+    const effects  = applyDeckEffect(myDeck, myTarget, 'attack', 1, 'Greed', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // Revenge: في حال الخسارة +1 هجوم لكل كروتك القادمة
+  Revenge: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const myDeck   = isPlayer ? state.playerDeck : state.botDeck;
+    const effects  = applyDeckEffect(myDeck, myTarget, 'attack', 1, 'Revenge', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // Compensation: في حال الخسارة +1 دفاع لكل كروتك القادمة
+  Compensation: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const myDeck   = isPlayer ? state.playerDeck : state.botDeck;
+    const effects  = applyDeckEffect(myDeck, myTarget, 'defense', 1, 'Compensation', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // Explosion: في حال الخسارة -1 دفاع لكل كروت الخصم القادمة
+  Explosion: (state, isPlayer) => {
+    const opponentTarget = isPlayer ? 'bot' : 'player';
+    const opponentDeck   = isPlayer ? state.botDeck : state.playerDeck;
+    const effects = applyDeckEffect(opponentDeck, opponentTarget, 'defense', -1, 'Explosion', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // Lifesteal: مع الفوز ترجع نقطة صحة (+1 score)
+  Lifesteal: (state, isPlayer) => {
+    if (isPlayer) {
+      return { newEffects: [], newPlayerScore: state.playerScore + 1 };
+    }
+    return { newEffects: [], newBotScore: state.botScore + 1 };
+  },
+
+  // Suicide: مع الخسارة ينقص الخصم نقطة صحة (-1 score للخصم)
+  Suicide: (state, isPlayer) => {
+    if (isPlayer) {
+      const newScore = Math.max(0, state.botScore - 1);
+      return { newEffects: [], newBotScore: newScore };
+    }
+    const newScore = Math.max(0, state.playerScore - 1);
+    return { newEffects: [], newPlayerScore: newScore };
+  },
+
+  // Weakening: في حال الخسارة -1 هجوم لكل كروت الخصم القادمة
+  Weakening: (state, isPlayer) => {
+    const opponentTarget = isPlayer ? 'bot' : 'player';
+    const opponentDeck   = isPlayer ? state.botDeck : state.playerDeck;
+    const effects = applyDeckEffect(opponentDeck, opponentTarget, 'attack', -1, 'Weakening', state.currentRound);
+    return { newEffects: effects };
+  },
+
+  // ──────────────────── أولوية متوسطة ✔️ ────────────────────
+
+  // TakeIt: أعطِ كل النيرفات التي عليك للخصم
+  TakeIt: (state, isPlayer) => {
+    const myTarget       = isPlayer ? 'player' : 'bot';
+    const opponentTarget = isPlayer ? 'bot' : 'player';
+    const effects = (state.activeEffects as unknown as ActiveEffect[])
+      .filter(e => e.target === myTarget && e.type === 'debuff')
+      .map(e => ({ ...e, target: opponentTarget, sourceAbility: 'TakeIt' as AbilityType }));
+    return { newEffects: effects };
+  },
+
+  // ConvertDebuffsToBuffs: حوّل النيرفات عليك إلى بفات
+  ConvertDebuffsToBuffs: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const converted = (state.activeEffects as unknown as ActiveEffect[])
+      .filter(e => e.target === myTarget && e.type === 'debuff')
+      .map(e => ({ ...e, type: 'buff' as const, value: Math.abs(e.value), sourceAbility: 'ConvertDebuffsToBuffs' as AbilityType }));
+    return { newEffects: converted };
+  },
+
+  // DoubleYourBuffs: دبل كل البفات الحالية لك
+  DoubleYourBuffs: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const doubled = (state.activeEffects as unknown as ActiveEffect[])
+      .filter(e => e.target === myTarget && e.type === 'buff')
+      .map(e => ({ ...e, value: e.value * 2, sourceAbility: 'DoubleYourBuffs' as AbilityType }));
+    return { newEffects: doubled };
+  },
+
+  // Conversion: حوّل بفات الخصم إلى نيرفات
+  Conversion: (state, isPlayer) => {
+    const opponentTarget = isPlayer ? 'bot' : 'player';
+    const converted = (state.activeEffects as unknown as ActiveEffect[])
+      .filter(e => e.target === opponentTarget && e.type === 'buff')
+      .map(e => ({ ...e, type: 'debuff' as const, value: -Math.abs(e.value), sourceAbility: 'Conversion' as AbilityType }));
+    return { newEffects: converted };
+  },
+
+  // Deprivation: خذ أول بف من الخصم واجعله بفاً لك
+  Deprivation: (state, isPlayer) => {
+    const myTarget       = isPlayer ? 'player' : 'bot';
+    const opponentTarget = isPlayer ? 'bot' : 'player';
+    const opponentBuffs  = (state.activeEffects as unknown as ActiveEffect[])
+      .filter(e => e.target === opponentTarget && e.type === 'buff');
+    if (opponentBuffs.length === 0) return { newEffects: [] };
+    const stolen = { ...opponentBuffs[0], target: myTarget, sourceAbility: 'Deprivation' as AbilityType };
+    return { newEffects: [stolen] };
+  },
+
+  // ConsecutiveLossBuff: خسارة جولتين متتاليتين = +1 هجوم ودفاع
+  ConsecutiveLossBuff: (state, isPlayer) => {
+    const myTarget = isPlayer ? 'player' : 'bot';
+    const results  = state.roundResults;
+    const lastTwo  = results.slice(-2);
+    const twoLosses = lastTwo.length === 2 && lastTwo.every(
+      r => (isPlayer ? r.winner === 'bot' : r.winner === 'player')
+    );
+    if (!twoLosses) return { newEffects: [] };
+    return {
+      newEffects: [
+        { type: 'buff', target: myTarget, stat: 'attack',  value: 1, roundsLeft: state.totalRounds - state.currentRound, sourceAbility: 'ConsecutiveLossBuff' },
+        { type: 'buff', target: myTarget, stat: 'defense', value: 1, roundsLeft: state.totalRounds - state.currentRound, sourceAbility: 'ConsecutiveLossBuff' },
+      ],
+    };
+  },
+
+  // ──────────────────── قدرات منفّذة سابقاً ────────────────────
+
   Protection: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'defense', value: 5, roundsLeft: 1, sourceAbility: 'Protection' }] };
   },
-  // HalvePoints → يخصم نصف هجوم الخصم الحقيقي ديناميكياً
+
   HalvePoints: (state, isPlayer) => {
-    const target = isPlayer ? 'bot' : 'player';
+    const target       = isPlayer ? 'bot' : 'player';
     const opponentDeck = isPlayer ? state.botDeck : state.playerDeck;
-    const currentCard = opponentDeck[state.currentRound];
-    const halfAttack = currentCard ? Math.floor(currentCard.attack / 2) : 5;
+    const currentCard  = opponentDeck[state.currentRound];
+    const halfAttack   = currentCard ? Math.floor(currentCard.attack / 2) : 5;
     return { newEffects: [{ type: 'debuff', target, stat: 'attack', value: -halfAttack, roundsLeft: 1, sourceAbility: 'HalvePoints' }] };
   },
+
   Seal: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
     return { newEffects: [{ type: 'seal', target, stat: 'ability', value: 0, roundsLeft: 5, sourceAbility: 'Seal' }] };
   },
+
   StarSuperiority: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
-    const rem = state.totalRounds - state.currentRound;
+    const rem    = state.totalRounds - state.currentRound;
     return { newEffects: [{ type: 'buff', target, stat: 'attack', value: 3, roundsLeft: rem, sourceAbility: 'StarSuperiority' }] };
   },
+
   Reduction: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
     return { newEffects: [{ type: 'debuff', target, stat: 'defense', value: -2, roundsLeft: 1, sourceAbility: 'Reduction' }] };
   },
+
   Eclipse: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
     return { newEffects: [{ type: 'debuff', target, stat: 'attack', value: -9999, roundsLeft: 1, sourceAbility: 'Eclipse' }] };
   },
+
   Avatar: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'attack', value: 2, roundsLeft: 1, sourceAbility: 'Avatar' }] };
   },
+
   Penetration: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
     return { newEffects: [{ type: 'debuff', target, stat: 'defense', value: -9999, roundsLeft: 1, sourceAbility: 'Penetration' }] };
   },
-  Reinforcement: () => ({ newEffects: [] }),
-  DoubleOrNothing: () => ({ newEffects: [] }),
-  Sacrifice: () => ({ newEffects: [] }),
-  Lifesteal: () => ({ newEffects: [] }),
-  Revenge: () => ({ newEffects: [] }),
-  Suicide: () => ({ newEffects: [] }),
-  Compensation: () => ({ newEffects: [] }),
-  Weakening: () => ({ newEffects: [] }),
-  Greed: () => ({ newEffects: [] }),
-  Explosion: () => ({ newEffects: [] }),
-  ConsecutiveLossBuff: () => ({ newEffects: [] }),
-  Wipe: () => ({ newEffects: [] }),
-  Purge: () => ({ newEffects: [] }),
-  ConvertDebuffsToBuffs: () => ({ newEffects: [] }),
-  Deprivation: () => ({ newEffects: [] }),
-  DoubleYourBuffs: () => ({ newEffects: [] }),
-  Conversion: () => ({ newEffects: [] }),
-  TakeIt: () => ({ newEffects: [] }),
+
   Misdirection: (state, isPlayer) => {
     const opponentTarget = isPlayer ? 'bot' : 'player';
     const debuffs = (state.activeEffects as unknown as ActiveEffect[]).filter(
@@ -199,30 +372,22 @@ export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
     );
     return { newEffects: debuffs.map(e => ({ ...e, value: e.value * 2, sourceAbility: 'Misdirection' as AbilityType })) };
   },
-  CancelAbility: () => ({ newEffects: [] }),
-  Shambles: () => ({ newEffects: [] }),
-  Disaster: () => ({ newEffects: [] }),
-  StealAbility: () => ({ newEffects: [] }),
-  Rescue: () => ({ newEffects: [] }),
-  Trap: () => ({ newEffects: [] }),
-  Merge: () => ({ newEffects: [] }),
+
   DoubleNextCards: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'attack', value: 2, roundsLeft: 2, sourceAbility: 'DoubleNextCards' }] };
   },
-  Dilemma: () => ({ newEffects: [] }),
-  Pool: () => ({ newEffects: [] }),
+
   Shield: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'defense', value: 5, roundsLeft: 1, sourceAbility: 'Shield' }] };
   },
-  SwapClass: () => ({ newEffects: [] }),
-  Skip: () => ({ newEffects: [] }),
-  AddElement: () => ({ newEffects: [] }),
+
   DoublePoints: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'attack', value: 100, roundsLeft: 1, sourceAbility: 'DoublePoints' }] };
   },
+
   ElementalMastery: (state, isPlayer) => {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'attack', value: 4, roundsLeft: state.totalRounds - state.currentRound, sourceAbility: 'ElementalMastery' }] };
