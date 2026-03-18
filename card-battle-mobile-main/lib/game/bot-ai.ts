@@ -6,8 +6,8 @@
  *  1  سهل      — عشوائي تماماً، لا قدرات
  *  2  متوسط    — أفضل نصف الكروت، قدرات عشوائية خفيفة
  *  3  صعب      — نفس الكروت لكن يحسب التوقيت + threshold أعلى + noise أقل
- *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5٪)
- *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٪)
+ *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5٩)
+ *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٩)
  */
 
 import { Card, GameState, AbilityType, AbilityState, RoundResult, Element, CardClass } from './types';
@@ -65,7 +65,12 @@ let _memory: BotMemory = {
 
 export function getBotMemory(): Readonly<BotMemory> { return { ..._memory }; }
 
-export function updateBotMemory(result: RoundResult, playerUsedAbility?: AbilityType): void {
+// ✅ إصلاح #2أ: تحديث strongestBotAbility بأقوى قدرة متاحة للبوت
+export function updateBotMemory(
+  result: RoundResult,
+  playerUsedAbility?: AbilityType,
+  botAbilities?: AbilityState[],
+): void {
   _memory.totalRoundsPlayed++;
   if (result.winner === 'player') {
     _memory.playerWinStreak++;
@@ -77,6 +82,27 @@ export function updateBotMemory(result: RoundResult, playerUsedAbility?: Ability
   const el = result.playerCard.element;
   _memory.playerFavoredElements[el] = (_memory.playerFavoredElements[el] ?? 0) + 1;
   if (playerUsedAbility) _memory.playerUsedAbilities.push(playerUsedAbility);
+
+  // ✅ تحديث strongestBotAbility: القدرة الأخيرة غير المستخدمة في قائمة البوت
+  if (botAbilities) {
+    const ABILITY_PRIORITY: Partial<Record<AbilityType, number>> = {
+      Eclipse: 10, Penetration: 10, Popularity: 9, Sniping: 9,
+      Merge: 8, DoubleNextCards: 8, DoublePoints: 8,
+      Seal: 7, CancelAbility: 7, Avatar: 7,
+      Disaster: 6, Wipe: 6, Purge: 6,
+    };
+    const unused = botAbilities.filter(a => !a.used);
+    if (unused.length > 0) {
+      const strongest = unused.reduce((best, curr) => {
+        const bScore = ABILITY_PRIORITY[best.type] ?? 3;
+        const cScore = ABILITY_PRIORITY[curr.type] ?? 3;
+        return cScore > bScore ? curr : best;
+      });
+      _memory.strongestBotAbility = strongest.type;
+    } else {
+      _memory.strongestBotAbility = null;
+    }
+  }
 }
 
 export function resetBotMemory(): void {
@@ -226,22 +252,17 @@ export function buildBotAbilityData(
   // الهدف: أقوى كرت خسره البوت (نُعيد أقوى ما فقدناه)
   if (abilityType === 'Recall' || abilityType === 'Revive' || abilityType === 'Merge') {
     if (!roundResults.length) return {};
-    // اختر الجولة التي كان فيها كرت اللاعب الأقوى (أخطر جولة على البوت)
-    const bestIdx = roundResults.reduce((best, r, i) =>
-      cardPower(r.playerCard) > cardPower(roundResults[best].playerCard) ? i : best, 0);
-    // للـ Recall/Merge نريد كرت البوت الأقوى السابق
     const botBestIdx = roundResults.reduce((best, r, i) =>
       cardPower(r.botCard) > cardPower(roundResults[best].botCard) ? i : best, 0);
-    return { roundIndex: abilityType === 'Merge' ? botBestIdx : botBestIdx };
+    return { roundIndex: botBestIdx };
   }
 
-  // ── قدرات تحتاج roundIndex من جولات اللاعب السابقة ──
-  // الهدف: أضعف كرت للاعب = أقل خطراً يُعاد للميدان
+  // ── Arise: يأخذ كرت الخصم (أضعف كرت للاعب سبق) ──
   if (abilityType === 'Arise') {
     if (!roundResults.length) return {};
-    const weakestIdx = roundResults.reduce((best, r, i) =>
-      cardPower(r.botCard) < cardPower(roundResults[best].botCard) ? i : best, 0);
-    return { roundIndex: weakestIdx };
+    const weakestPlayerIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.playerCard) < cardPower(roundResults[best].playerCard) ? i : best, 0);
+    return { roundIndex: weakestPlayerIdx };
   }
 
   // ── Disaster: بدّل كرت اللاعب الحالي بأضعف كرت له سابق ──
@@ -252,7 +273,8 @@ export function buildBotAbilityData(
     return { roundIndex: weakestPlayerIdx };
   }
 
-  // ── Dilemma: استبدل بأضعف كرت للاعب السابق ──
+  // ── ✅ إصلاح #2ب: Dilemma يضع أضعف كرت للبوت في دك اللاعب (weakestBotIdx) ──
+  // منطق Dilemma: يستبدل كرت الخصم بكرت أضعف لك = تضع في دك اللاعب أضعف كرتك السابق
   if (abilityType === 'Dilemma') {
     if (!roundResults.length) return {};
     const weakestBotIdx = roundResults.reduce((best, r, i) =>
