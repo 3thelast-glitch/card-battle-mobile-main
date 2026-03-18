@@ -10,7 +10,7 @@
  *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٪)
  */
 
-import { Card, GameState, AbilityType, AbilityState, RoundResult } from './types';
+import { Card, GameState, AbilityType, AbilityState, RoundResult, Element, CardClass } from './types';
 import { ALL_CARDS, getElementAdvantage } from './cards-data-exports';
 import type { DifficultyLevel } from '@/app/screens/difficulty';
 
@@ -41,6 +41,7 @@ export interface BotDecision {
   mode: BotMode;
   score: number;
   breakdown: UtilityBreakdown;
+  abilityData?: Record<string, unknown>;
 }
 
 // ──────────────────────────────── Weights ────────────────────────────────
@@ -48,8 +49,8 @@ type WeightMap = Record<keyof UtilityBreakdown, number>;
 
 const WEIGHTS: Record<BotMode, WeightMap> = {
   aggressive: { winChance: 0.30, damage: 0.28, element: 0.14, roundPressure: 0.14, saveAbility: 0.04, risk: 0.10 },
-  balanced: { winChance: 0.34, damage: 0.22, element: 0.14, roundPressure: 0.12, saveAbility: 0.10, risk: 0.08 },
-  safe: { winChance: 0.36, damage: 0.16, element: 0.14, roundPressure: 0.10, saveAbility: 0.16, risk: 0.08 },
+  balanced:   { winChance: 0.34, damage: 0.22, element: 0.14, roundPressure: 0.12, saveAbility: 0.10, risk: 0.08 },
+  safe:       { winChance: 0.36, damage: 0.16, element: 0.14, roundPressure: 0.10, saveAbility: 0.16, risk: 0.08 },
 };
 
 // ──────────────────────────────── Memory ────────────────────────────────
@@ -89,14 +90,13 @@ export function resetBotMemory(): void {
 // ──────────────────────────────── Helpers ────────────────────────────────
 const clamp = (v: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
 
-// cardPower → attack + defense فقط (حذفنا speed)
 function cardPower(c: Card): number { return c.attack + c.defense; }
 
 function cardPowerAgainst(attacker: Card, defender: Card): number {
   const base = cardPower(attacker);
   const adv = getElementAdvantage(attacker.element, defender.element);
   if (adv === 'strong') return base * 1.5;
-  if (adv === 'weak') return base * 0.7;
+  if (adv === 'weak')   return base * 0.7;
   return base;
 }
 
@@ -129,23 +129,23 @@ function evaluateCardVs(
   currentRound: number, totalRounds: number,
   botScore: number, playerScore: number, mode: BotMode,
 ): UtilityBreakdown {
-  const botPower = cardPowerAgainst(botCard, playerCard);
+  const botPower   = cardPowerAgainst(botCard, playerCard);
   const playerPower = cardPowerAgainst(playerCard, botCard);
-  const adv = getElementAdvantage(botCard.element, playerCard.element);
+  const adv        = getElementAdvantage(botCard.element, playerCard.element);
   const roundsLeft = totalRounds - currentRound;
   const totalPower = botPower + playerPower;
 
-  const winChance = totalPower > 0 ? clamp(botPower / totalPower) : 0.5;
-  const maxPossible = Math.max(...ALL_CARDS.map(c => c.attack + c.defense)) * 1.5;
-  const damage = clamp(botPower / maxPossible);
-  const element = adv === 'strong' ? 1.0 : adv === 'weak' ? 0.0 : 0.5;
-  const scoreDiff = Math.abs(botScore - playerScore);
-  const urgencyBase = scoreDiff >= 2 && roundsLeft <= 2 ? 1.0
+  const winChance     = totalPower > 0 ? clamp(botPower / totalPower) : 0.5;
+  const maxPossible   = Math.max(...ALL_CARDS.map(c => c.attack + c.defense)) * 1.5;
+  const damage        = clamp(botPower / maxPossible);
+  const element       = adv === 'strong' ? 1.0 : adv === 'weak' ? 0.0 : 0.5;
+  const scoreDiff     = Math.abs(botScore - playerScore);
+  const urgencyBase   = scoreDiff >= 2 && roundsLeft <= 2 ? 1.0
     : scoreDiff >= 1 && roundsLeft <= 3 ? 0.75
-      : roundsLeft <= 2 ? 0.6 : 0.4;
+    : roundsLeft <= 2 ? 0.6 : 0.4;
   const roundPressure = clamp(urgencyBase);
-  const saveAbility = winChance > 0.70 ? 0.8 : winChance > 0.55 ? 0.5 : 0.2;
-  const risk = mode === 'aggressive' ? clamp(1 - winChance + 0.3) : clamp(1 - winChance);
+  const saveAbility   = winChance > 0.70 ? 0.8 : winChance > 0.55 ? 0.5 : 0.2;
+  const risk          = mode === 'aggressive' ? clamp(1 - winChance + 0.3) : clamp(1 - winChance);
 
   return { winChance, damage, element, roundPressure, saveAbility, risk };
 }
@@ -157,10 +157,10 @@ export function evaluateAbilityTiming(
   botScore: number, playerScore: number,
   mode: BotMode, memory: BotMemory,
 ): number {
-  const roundsLeft = totalRounds - currentRound;
-  const scoreDiff = botScore - playerScore;
-  const losing = scoreDiff < 0;
-  const closeMatch = Math.abs(scoreDiff) <= 1;
+  const roundsLeft  = totalRounds - currentRound;
+  const scoreDiff   = botScore - playerScore;
+  const losing      = scoreDiff < 0;
+  const closeMatch  = Math.abs(scoreDiff) <= 1;
 
   if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(ability)) {
     if (roundsLeft < 2) return 0.1;
@@ -180,7 +180,7 @@ export function evaluateAbilityTiming(
   }
   if (['Reinforcement', 'Wipe', 'HalvePoints', 'Disaster', 'Explosion', 'DoublePoints'].includes(ability)) {
     if (mode === 'aggressive') return losing ? 0.92 : 0.70;
-    if (mode === 'balanced') return closeMatch ? 0.65 : 0.40;
+    if (mode === 'balanced')   return closeMatch ? 0.65 : 0.40;
     return 0.25;
   }
   if (['Recall', 'Arise', 'Revive', 'Shambles', 'Sacrifice'].includes(ability)) {
@@ -196,11 +196,10 @@ export function evaluateAbilityTiming(
 }
 
 // ──────────────────────────────── Per-level ability config ────────────────────────────────
-
 function abilityThreshold(mode: BotMode, difficulty: DifficultyLevel): number {
   const base = mode === 'aggressive' ? 0.50 : mode === 'safe' ? 0.68 : 0.58;
-  if (difficulty === 3) return Math.min(base + 0.08, 0.90);
-  if (difficulty >= 5) return Math.max(base - 0.05, 0.35);
+  if (difficulty === 3)  return Math.min(base + 0.08, 0.90);
+  if (difficulty >= 5)   return Math.max(base - 0.05, 0.35);
   return base;
 }
 
@@ -211,6 +210,105 @@ function abilityNoise(difficulty: DifficultyLevel): number {
   return 0;
 }
 
+// ──────────────────────────────── buildBotAbilityData ────────────────────────────────
+/**
+ * يبني الـ data المطلوبة لكل قدرة يستخدمها البوت.
+ * يُستدعى بعد اتخاذ القرار مباشرةً قبل تمرير القدرة لـ useAbility.
+ */
+export function buildBotAbilityData(
+  abilityType: AbilityType,
+  gameState: GameState,
+  playerCard: Card,
+): Record<string, unknown> {
+  const { roundResults, botDeck, currentRound, totalRounds } = gameState;
+
+  // ── قدرات تحتاج roundIndex من جولات البوت السابقة ──
+  // الهدف: أقوى كرت خسره البوت (نُعيد أقوى ما فقدناه)
+  if (abilityType === 'Recall' || abilityType === 'Revive' || abilityType === 'Merge') {
+    if (!roundResults.length) return {};
+    // اختر الجولة التي كان فيها كرت اللاعب الأقوى (أخطر جولة على البوت)
+    const bestIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.playerCard) > cardPower(roundResults[best].playerCard) ? i : best, 0);
+    // للـ Recall/Merge نريد كرت البوت الأقوى السابق
+    const botBestIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.botCard) > cardPower(roundResults[best].botCard) ? i : best, 0);
+    return { roundIndex: abilityType === 'Merge' ? botBestIdx : botBestIdx };
+  }
+
+  // ── قدرات تحتاج roundIndex من جولات اللاعب السابقة ──
+  // الهدف: أضعف كرت للاعب = أقل خطراً يُعاد للميدان
+  if (abilityType === 'Arise') {
+    if (!roundResults.length) return {};
+    const weakestIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.botCard) < cardPower(roundResults[best].botCard) ? i : best, 0);
+    return { roundIndex: weakestIdx };
+  }
+
+  // ── Disaster: بدّل كرت اللاعب الحالي بأضعف كرت له سابق ──
+  if (abilityType === 'Disaster') {
+    if (!roundResults.length) return {};
+    const weakestPlayerIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.playerCard) < cardPower(roundResults[best].playerCard) ? i : best, 0);
+    return { roundIndex: weakestPlayerIdx };
+  }
+
+  // ── Dilemma: استبدل بأضعف كرت للاعب السابق ──
+  if (abilityType === 'Dilemma') {
+    if (!roundResults.length) return {};
+    const weakestBotIdx = roundResults.reduce((best, r, i) =>
+      cardPower(r.botCard) < cardPower(roundResults[best].botCard) ? i : best, 0);
+    return { roundIndex: weakestBotIdx };
+  }
+
+  // ── Propaganda: استهدف الـ class الأكثر شيوعاً عند اللاعب ──
+  if (abilityType === 'Propaganda') {
+    const classCounts: Record<string, number> = {};
+    for (const r of roundResults) {
+      classCounts[r.playerCard.cardClass] = (classCounts[r.playerCard.cardClass] ?? 0) + 1;
+    }
+    classCounts[playerCard.cardClass] = (classCounts[playerCard.cardClass] ?? 0) + 1;
+    const topClass = (Object.entries(classCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+      ?? 'warrior') as CardClass;
+    return { selection: topClass, targetClass: topClass };
+  }
+
+  // ── AddElement: اختر العنصر الأقوى ضد كرت اللاعب الحالي ──
+  if (abilityType === 'AddElement') {
+    const allElements: Element[] = ['fire', 'ice', 'water', 'earth', 'lightning', 'wind'];
+    const strongEl = allElements.find(
+      e => getElementAdvantage(e, playerCard.element) === 'strong'
+    ) ?? 'fire';
+    return { element: strongEl };
+  }
+
+  // ── SwapClass: اختر class عشوائي من أحسن الخيارات ──
+  if (abilityType === 'SwapClass') {
+    const classes: CardClass[] = ['warrior', 'knight', 'mage', 'archer', 'berserker', 'paladin'];
+    const pick = classes[Math.floor(Math.random() * classes.length)];
+    return { myClass: pick, oppClass: playerCard.cardClass };
+  }
+
+  // ── Popularity / Rescue / Penetration: اختر أقرب جولة قادمة ──
+  if (['Popularity', 'Rescue', 'Penetration'].includes(abilityType)) {
+    const nextRound = currentRound + 1;
+    if (nextRound < totalRounds) return { round: nextRound };
+    return { round: currentRound };
+  }
+
+  // ── قدرات التنبؤ: توقعات عشوائية للجولات القادمة ──
+  if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(abilityType)) {
+    const predictions: Record<number, 'win' | 'loss'> = {};
+    const upcomingCount = Math.min(3, totalRounds - currentRound - 1);
+    for (let i = 1; i <= upcomingCount; i++) {
+      predictions[currentRound + i] = Math.random() > 0.5 ? 'win' : 'loss';
+    }
+    return { predictions };
+  }
+
+  // ── قدرات مباشرة لا تحتاج data ──
+  return {};
+}
+
 // ──────────────────────────────── Main decision engine ────────────────────────────────
 export function decideBotAbility(
   botAbilities: AbilityState[],
@@ -219,8 +317,8 @@ export function decideBotAbility(
   difficulty: DifficultyLevel,
 ): BotDecision {
   const { currentRound, totalRounds, botScore, playerScore } = gameState;
-  const mode = chooseBotMode(playerScore, botScore, currentRound, totalRounds, difficulty);
-  const memory = getBotMemory();
+  const mode    = chooseBotMode(playerScore, botScore, currentRound, totalRounds, difficulty);
+  const memory  = getBotMemory();
   const botCard = gameState.botDeck[currentRound];
 
   const noAbilityBreakdown = evaluateCardVs(
@@ -261,13 +359,17 @@ export function decideBotAbility(
   }
 
   const threshold = abilityThreshold(mode, difficulty);
-  const noise = abilityNoise(difficulty);
-  const finalUse = bestAbility !== undefined
-    && (bestAbilityScore + noise) > threshold;
+  const noise     = abilityNoise(difficulty);
+  const finalUse  = bestAbility !== undefined && (bestAbilityScore + noise) > threshold;
+
+  const abilityData = finalUse && bestAbility
+    ? buildBotAbilityData(bestAbility, gameState, playerCard)
+    : undefined;
 
   return {
     useAbility: finalUse,
     abilityType: finalUse ? bestAbility : undefined,
+    abilityData,
     mode,
     score: bestAbilityScore,
     breakdown: noAbilityBreakdown,
@@ -275,7 +377,6 @@ export function decideBotAbility(
 }
 
 // ──────────────────────────────── Card selection ────────────────────────────────
-
 function pickRandom(count: number): Card[] {
   return [...ALL_CARDS].sort(() => Math.random() - 0.5).slice(0, count);
 }
@@ -297,7 +398,7 @@ function pickBalancedHard(count: number): Card[] {
 }
 
 function pickSmart(count: number, playerCards: Card[], randomnessFraction: number): Card[] {
-  const memory = getBotMemory();
+  const memory   = getBotMemory();
   const selected: Card[] = [];
 
   for (let i = 0; i < count; i++) {
