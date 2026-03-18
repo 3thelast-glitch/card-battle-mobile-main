@@ -38,7 +38,8 @@ export interface Card {
   name: string;
   nameAr: string;
   nameEn?: string;
-  finalImage: ImageSourcePropType;
+  /** Local image source — optional when imageUrl is provided instead */
+  finalImage?: ImageSourcePropType;
   /** URL string fallback used by anime-cards-data (remote images) */
   imageUrl?: string;
   attack: number;
