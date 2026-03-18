@@ -1,7 +1,8 @@
 import { Card, AbilityType, ActiveEffect, GameState } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const DISABLED_ABILITIES_KEY = 'disabledAbilities';
+// ✅ موحَّد مع abilities-store.ts
+export const DISABLED_ABILITIES_KEY = 'disabled_abilities_v1';
 
 // قائمة بجميع القدرات المتاحة
 export const ALL_ABILITIES: AbilityType[] = [
@@ -140,10 +141,13 @@ export const abilityExecutors: Record<AbilityType, AbilityExecutor> = {
     const target = isPlayer ? 'player' : 'bot';
     return { newEffects: [{ type: 'buff', target, stat: 'defense', value: 5, roundsLeft: 1, sourceAbility: 'Protection' }] };
   },
-  // HalvePoints → يخصم نصف هجوم ودفاع الخصم (منطق halvePoints في cards-data)
+  // HalvePoints → يخصم نصف هجوم الخصم الحقيقي ديناميكياً
   HalvePoints: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
-    return { newEffects: [{ type: 'debuff', target, stat: 'attack', value: -50, roundsLeft: 1, sourceAbility: 'HalvePoints' }] };
+    const opponentDeck = isPlayer ? state.botDeck : state.playerDeck;
+    const currentCard = opponentDeck[state.currentRound];
+    const halfAttack = currentCard ? Math.floor(currentCard.attack / 2) : 5;
+    return { newEffects: [{ type: 'debuff', target, stat: 'attack', value: -halfAttack, roundsLeft: 1, sourceAbility: 'HalvePoints' }] };
   },
   Seal: (state, isPlayer) => {
     const target = isPlayer ? 'bot' : 'player';
