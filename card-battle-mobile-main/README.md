@@ -1,58 +1,46 @@
 <div dir="rtl">
 
-# ⚔️ Card Battle — لعبة معركة البطاقات
+# ⚔️ Card Clash — لعبة معركة البطاقات
 
-> لعبة بطاقات استراتيجية احترافية مبنية بـ **React Native / Expo** تدعم اللعب الفردي ضد الذكاء الاصطناعي، مع نظام قدرات متكامل ولوحة متصدرين.
-
----
-
-## 📋 فهرس المحتويات
-
-- [نظرة عامة](#-نظرة-عامة)
-- [المميزات الرئيسية](#-المميزات-الرئيسية)
-- [التقنيات المستخدمة](#-التقنيات-المستخدمة)
-- [هيكل المشروع](#-هيكل-المشروع)
-- [الشاشات والصفحات](#-الشاشات-والصفحات)
-- [نظام اللعب](#-نظام-اللعب)
-- [نظام القدرات](#-نظام-القدرات)
-- [قاعدة البيانات](#-قاعدة-البيانات)
-- [تشغيل المشروع](#-تشغيل-المشروع)
-- [أوامر مفيدة](#-أوامر-مفيدة)
+> لعبة بطاقات استراتيجية مبنية بـ **React Native / Expo** تدعم اللعب الفردي ضد الذكاء الاصطناعي واللعب الجماعي أونلاين عبر WebSocket.
 
 ---
 
-## 🌟 نظرة عامة
+## 📊 نظرة عامة
 
-**Card Battle** لعبة موبايل استراتيجية يختار فيها اللاعب مجموعة من البطاقات ويرتّبها عبر جولات متعددة للمنافسة ضد الذكاء الاصطناعي. تتميز اللعبة بنظام قدرات خاصة يُضاف عشوائياً في كل جلسة، مما يجعل كل مباراة تجربة مختلفة.
+**Card Clash** لعبة موبايل يختار فيها اللاعب بطاقات أنمي ويرتّبها عبر جولات متعددة للمنافسة ضد الذكاء الاصطناعي أو ضد لاعب حقيقي في الوقت الفعلي. تتميز اللعبة بنظام قدرات خاصة وتأثيرات بصرية فاخرة.
 
-اللعبة مدعومة بالكامل باللغتين **العربية والإنجليزية**، وتعمل بوضع **Landscape (أفقي)** للحصول على تجربة بصرية مثلى.
+اللعبة مدعومة باللغتين **العربية والإنجليزية**، وتعمل بوضع **Landscape (أفقي)** للحصول على تجربة بصرية مثلى.
 
 ---
 
 ## ✨ المميزات الرئيسية
 
-- 🃏 **نظام بطاقات متكامل** — بطاقات شخصيات بإحصائيات (هجوم، دفاع، HP، نجوم)
+- 🃏 **نظام بطاقات متكامل** — بطاقات أنمي بإحصائيات (هجوم، دفاع، HP، نجوم)، مع نظام ندرة (Common → Legendary)
 - ⚡ **50+ قدرة فريدة** — موزّعة على 4 مستويات: Common / Rare / Epic / Legendary
-- 🧠 **ذكاء اصطناعي** — خصم يختار قدراته ويلعب استراتيجياً
-- 🏆 **لوحة متصدرين** — تسجيل أفضل النتائج محلياً
-- 🎨 **تصميم فاخر** — خلفيات ديناميكية، أنيميشن سلس، ثيم ذهبي/بنفسجي
-- 🔒 **نظام تعطيل القدرات** — التحكم الكامل بالقدرات النشطة في اللعبة
-- 📱 **دعم كامل للموبايل** — iOS & Android عبر Expo
+- 🧠 **ذكاء اصطناعي** — ثلاثة مستويات صعوبة، يختار قدراته ويلعب استراتيجياً
+- 🌐 **Multiplayer حقيقي** — غرف WebSocket، مباريات فورية، lobby + waiting
+- 🏆 **لوحة متصدرين** — إحصائيات اللاعب وتسجيل النتائج
+- 🎨 **تصميم فاخر** — أنيميشن سلس، خلفيات ديناميكية، ثيم ذهبي/بنفسجي
+- 🔒 **نظام تعطيل القدرات** — التحكم الكامل بالقدرات النشطة
+- 📱 **دعم كامل للموبايل** — iOS & Android & Web عبر Expo
 
 ---
 
 ## 🛠️ التقنيات المستخدمة
 
-| التقنية | الاستخدام |
+| الطبقة | التقنية |
 |---|---|
-| **React Native + Expo** | إطار العمل الأساسي للموبايل |
-| **TypeScript** | لغة البرمجة |
-| **Expo Router** | نظام التنقل بين الصفحات (file-based routing) |
-| **Drizzle ORM + SQLite** | قاعدة البيانات المحلية |
-| **AsyncStorage** | تخزين الإعدادات والقدرات المعطّلة |
-| **NativeWind + Tailwind** | التنسيق (CSS-in-JS) |
-| **React Context API** | إدارة حالة اللعبة |
-| **Reanimated** | الأنيميشن المتقدم |
+| تطبيق الموبايل | React Native 0.81 + Expo 54 + Expo Router 6 |
+| التنسيق | NativeWind 4 (Tailwind CSS) |
+| الحالة / البيانات | React Context + TanStack Query |
+| API | tRPC v11 (type-safe RPC) |
+| Multiplayer | WebSocket (ws) — Node.js server مستقل |
+| قاعدة البيانات | MySQL + Drizzle ORM |
+| المصادقة | OAuth (Manus) عبر tRPC |
+| اللغة | TypeScript 5.9 |
+| إدارة الحزم | **pnpm فقط** (لا npm ولا yarn) |
+| الاختبارات | Vitest |
 
 ---
 
@@ -60,210 +48,198 @@
 
 ```
 card-battle-mobile-main/
-│
-├── app/                        # صفحات التطبيق (Expo Router)
-│   ├── index.tsx               # الصفحة الرئيسية
-│   └── screens/
-│       ├── leaderboard.tsx     # لوحة المتصدرين
-│       ├── card-selection.tsx  # ترتيب البطاقات واختيار الجولات
-│       ├── battle.tsx          # شاشة المعركة
-│       └── abilities.tsx       # إدارة القدرات
+├── app/                        # شاشات التطبيق (Expo Router)
+│   ├── _layout.tsx             # Root layout — providers + navigation
+│   ├── screens/                # جميع شاشات اللعبة (17 شاشة)
+│   │   ├── splash.tsx
+│   │   ├── game-mode.tsx
+│   │   ├── difficulty.tsx
+│   │   ├── rounds-config.tsx
+│   │   ├── card-selection.tsx
+│   │   ├── battle.tsx
+│   │   ├── battle-results.tsx
+│   │   ├── abilities.tsx
+│   │   ├── edit-ability.tsx
+│   │   ├── collection.tsx
+│   │   ├── cards-gallery.tsx
+│   │   ├── stats.tsx
+│   │   ├── leaderboard.tsx
+│   │   ├── multiplayer-lobby.tsx
+│   │   ├── multiplayer-waiting.tsx
+│   │   ├── multiplayer-battle.tsx
+│   │   └── multiplayer-results.tsx
+│   └── oauth/callback.tsx      # OAuth redirect handler
 │
 ├── components/
-│   ├── game/                   # مكونات اللعبة (بطاقات، خلفية، أنيميشن)
-│   └── ui/                     # مكونات الواجهة (أزرار، نصوص، design tokens)
+│   ├── game/                   # 17 مكوّن واجهة اللعبة
+│   ├── modals/                 # BattleHistory, Popularity, Prediction
+│   └── ui/                     # ProButton, design-tokens
 │
 ├── lib/
-│   └── game/
-│       ├── game-context.tsx    # Context الرئيسي لإدارة حالة اللعبة
-│       ├── types.ts            # جميع أنواع TypeScript
-│       ├── abilities.ts        # منطق القدرات + ALL_ABILITIES
-│       ├── abilities-store.ts  # حفظ/قراءة القدرات المعطّلة من AsyncStorage
-│       ├── ai-logic.ts         # منطق الذكاء الاصطناعي
-│       └── useCards.ts         # Hook لتحميل البطاقات
+│   ├── game/                   # منطق اللعبة الكامل
+│   │   ├── game-context.tsx    # حالة اللعبة الرئيسية
+│   │   ├── cards-data.ts       # بيانات البطاقات (91KB)
+│   │   ├── anime-cards-data.ts # بطاقات الأنمي (43KB)
+│   │   ├── bot-ai.ts           # محرك الذكاء الاصطناعي (19KB)
+│   │   ├── abilities.ts        # تعريف القدرات
+│   │   ├── abilities-store.ts  # حفظ/قراءة القدرات المعطّلة
+│   │   ├── ability-names.ts    # أسماء القدرات بالعربية
+│   │   ├── card-rarity.ts      # نظام الندرة
+│   │   ├── types.ts            # جميع أنواع TypeScript
+│   │   ├── hooks/              # game hooks
+│   │   └── __tests__/          # اختبارات Vitest
+│   ├── multiplayer/            # WebSocket client
+│   ├── _core/                  # Manus runtime + tRPC helpers
+│   ├── theme-provider.tsx
+│   ├── animations.ts
+│   └── trpc.ts
 │
-├── data/
-│   ├── abilities.ts            # بيانات جميع القدرات (اسم، وصف، أيقونة، نادرية)
-│   └── cards.ts                # بيانات البطاقات
+├── server/                     # Backend
+│   ├── _core/                  # tRPC + Auth + Drizzle (PORT 3000)
+│   ├── multiplayer/            # WebSocket server (PORT 3001)
+│   │   ├── websocket-server.ts
+│   │   └── room-manager.ts
+│   ├── db.ts
+│   └── routers.ts
 │
-├── utils/
-│   └── layout.ts               # حسابات الحجم والشبكة حسب حجم الشاشة
+├── drizzle/                    # Migrations قاعدة البيانات
+│   ├── schema.ts               # جدول users
+│   └── migrations/
 │
-├── server/                     # خادم Multiplayer (تصميم مستقبلي)
-├── shared/                     # أنواع مشتركة بين Client/Server
-└── drizzle/                    # migrations قاعدة البيانات
+├── constants/
+├── hooks/
+├── assets/                     # خطوط، صور
+└── scripts/                    # generate_qr.mjs
 ```
 
 ---
 
-## 🖥️ الشاشات والصفحات
-
-### 1. الصفحة الرئيسية `/`
-نقطة الانطلاق، تحتوي على خيارات بدء اللعبة والانتقال للإعدادات.
-
-### 2. لوحة المتصدرين `/screens/leaderboard`
-تعرض أفضل النتائج المسجّلة محلياً مع إمكانية حذف السجلات.
-
-### 3. ترتيب البطاقات `/screens/card-selection`
-الشاشة الأهم قبل المعركة:
-- يعرض عدداً من البطاقات العشوائية بناءً على عدد الجولات
-- اللاعب يُعيّن كل بطاقة لجولة محددة
-- يعرض مودال القدرات المختارة عشوائياً للجلسة (من القدرات المفعّلة فقط)
-- زر الخلط التلقائي 🔀
-
-### 4. شاشة المعركة `/screens/battle`
-قلب اللعبة:
-- مقارنة بطاقة اللاعب ببطاقة الذكاء الاصطناعي جولةً بجولة
-- تطبيق القدرات والتأثيرات النشطة (buffs/debuffs)
-- حساب النقاط والفائز في كل جولة
-- عرض ملخص النتيجة النهائية
-
-### 5. إدارة القدرات `/screens/abilities`
-لوحة تحكم كاملة في القدرات:
-- عرض جميع القدرات مع فلترة (All / Common / Rare / Epic / Legendary)
-- تفعيل أو تعطيل أي قدرة
-- القدرات المعطّلة لا تظهر ولا تُختار في الجلسات القادمة
-
----
-
-## 🎮 نظام اللعب
+## 🌐 بنية الـ Backend
 
 ```
-1. اللاعب يختار عدد الجولات (افتراضي: 5)
-2. يتم اختيار بطاقات عشوائية بعدد الجولات
-3. اللاعب يرتّب البطاقات على الجولات
-4. يتم اختيار 3 قدرات عشوائية للجلسة (من المفعّلة فقط)
-5. تبدأ المعركة جولةً بجولة:
-   - مقارنة إحصائيات البطاقتين
-   - تطبيق تأثيرات القدرات
-   - احتساب الفائز بالجولة
-6. من يفوز بأكثر الجولات يفوز بالمباراة
-7. حفظ النتيجة في لوحة المتصدرين
+Client (Expo)
+  │
+  ├── [HTTP/tRPC] ▶ server/_core/  (PORT 3000)
+  │                   └── Auth · Users · Drizzle/MySQL
+  │
+  └── [WebSocket]  ▶ server/index.ts (PORT 3001)
+                      └── Rooms · Real-time battle · Room Manager
 ```
 
-### أنواع التأثيرات
-
-| النوع | الوصف |
-|---|---|
-| `buff` | تعزيز إحصائيات اللاعب |
-| `debuff` | إضعاف إحصائيات الخصم |
-| `seal` | منع استخدام القدرة للعدة جولات |
-
----
-
-## ⚡ نظام القدرات
-
-القدرات مُصنَّفة بـ 4 مستويات نادرية:
-
-| المستوى | اللون | الوصف |
-|---|---|---|
-| **Common** | 🟢 أخضر | قدرات أساسية شائعة |
-| **Rare** | 🔵 أزرق | قدرات متوسطة نادرة |
-| **Epic** | 🟣 بنفسجي | قدرات قوية ونادرة |
-| **Legendary** | 🟡 ذهبي | قدرات استثنائية وحاسمة |
-
-### آلية التخزين
-
-القدرات المعطّلة تُحفظ في `AsyncStorage` بالمفتاح `disabled_abilities_v1` كـ **مصفوفة من أرقام IDs**، ويتم قراءتها وتحويلها عند كل جلسة لعب لاستثناء القدرات غير المرغوب فيها.
-
-### أمثلة على القدرات
-
-- **Eclipse** ⭐⭐⭐⭐ — هجوم الخصم يصبح 0 لجولة واحدة
-- **Shield** ⭐⭐⭐⭐ — يضيف حماية لبطاقتك
-- **Cancel Ability** ⭐⭐⭐⭐ — يلغي قدرة الخصم
-- **Double Your Buffs** ⭐⭐⭐⭐ — يضاعف جميع البافات الخاصة بك
-- **Star Superiority** ⭐⭐⭐⭐ — كل كرتاتك تتفوق بالنجوم على الخصم
-- **Trap** ⭐⭐ — قبل الراوند: تفعيل الفخ
-
----
-
-## 🗄️ قاعدة البيانات
-
-يستخدم المشروع **Drizzle ORM** مع **SQLite** محلياً لتخزين:
-- سجلات نتائج المباريات
-- إحصائيات اللاعب
-
-ملفات الـ migrations موجودة في مجلد `drizzle/`.
+### Health endpoints
+```
+GET http://localhost:3001/health  ➜ server status + active rooms
+GET http://localhost:3001/rooms   ➜ list of active game rooms
+```
 
 ---
 
 ## 🚀 تشغيل المشروع
 
 ### المتطلبات
+- Node.js ≥ 18
+- pnpm 9.12.0 — `npm i -g pnpm@9.12.0`
+- MySQL database
+- تطبيق Expo Go على الهاتف
 
-- Node.js >= 18
-- npm أو pnpm
-- Expo CLI
-- جهاز/محاكي iOS أو Android
-
-### خطوات التثبيت
-
+### 1. تثبيت الاعتمادات
 ```bash
-# 1. استنساخ المشروع
-git clone https://github.com/3thelast-glitch/card-battle-mobile-main.git
-cd card-battle-mobile-main/card-battle-mobile-main
-
-# 2. تثبيت الاعتمادات
-npm install
-# أو
 pnpm install
-
-# 3. تشغيل المشروع
-npx expo start
-
-# 4. لتشغيل على الويب (للاختبار)
-npx expo start --web
 ```
 
-### تشغيل على الجهاز
+### 2. إعداد متغيرات البيئة
+```bash
+cp .env.example .env
+```
+
+```env
+DATABASE_URL=mysql://user:password@host:3306/dbname
+MULTIPLAYER_PORT=3001
+```
+
+### 3. تهيئة قاعدة البيانات
+```bash
+pnpm db:push
+```
+
+### 4. تشغيل المشروع (كل شيء دفعة واحدة)
+```bash
+pnpm dev
+```
+
+يُشغّل: tRPC server (3000) + Expo Metro bundler معاً.
+
+---
+
+## 🧑‍💻 أوامر مفيدة
+
+| الأمر | الوصف |
+|---|---|
+| `pnpm dev` | تشغيل كل شيء (tRPC + Metro) |
+| `pnpm server:multiplayer` | تشغيل WebSocket server فقط |
+| `pnpm android` | تشغيل على Android |
+| `pnpm ios` | تشغيل على iOS |
+| `pnpm qr` | توليد QR code لـ Expo Go |
+| `pnpm test` | تشغيل اختبارات Vitest |
+| `pnpm check` | فحص TypeScript |
+| `pnpm lint` | ESLint عبر Expo |
+| `pnpm format` | تنسيق الكود بـ Prettier |
+| `pnpm db:push` | توليد + تطبيق migrations |
+| `pnpm build` | بناء tRPC server للإنتاج |
+
+> ⚠️ **مهم:** استخدم **pnpm فقط** — لا `npm install` ولا `yarn` (مُقفَل في `engines`)
+
+---
+
+## 🎮 نظام اللعب
+
+```
+splash → game-mode → difficulty / rounds-config
+                   ↓
+            card-selection → battle → battle-results
+                   ↓
+            multiplayer-lobby → multiplayer-waiting
+                              → multiplayer-battle → multiplayer-results
+```
+
+---
+
+## ⚡ نظام القدرات
+
+| المستوى | اللون | الوصف |
+|---|---|---|
+| **Common** | 🟢 | قدرات أساسية شائعة |
+| **Rare** | 🔵 | قدرات متوسطة نادرة |
+| **Epic** | 🟣 | قدرات قوية ونادرة |
+| **Legendary** | 🟡 | قدرات استثنائية وحاسمة |
+
+القدرات المعطّلة تُحفظ في `AsyncStorage` وتُستثنى تلقائياً من كل جلسة لعب.
+
+---
+
+## 🧪 الاختبارات
 
 ```bash
-# iOS
-npx expo run:ios
-
-# Android
-npx expo run:android
+pnpm test
 ```
 
----
-
-## 📜 أوامر مفيدة
-
-```bash
-# مسح الكاش وإعادة التشغيل
-npx expo start --clear
-
-# تحديث قاعدة البيانات (Drizzle migrations)
-npx drizzle-kit generate
-npx drizzle-kit migrate
-
-# فحص الأخطاء
-npx eslint .
-
-# بناء للإنتاج
-npx expo build
-```
+الاختبارات في `lib/game/__tests__/`:
+- `game-logic.test.ts` — منطق المعركة الأساسي
+- `bot-ai.test.ts` — قرارات الذكاء الاصطناعي
 
 ---
 
-## 🗺️ خارطة الطريق (Roadmap)
+## 📌 قواعد المشروع
 
-- [ ] **Multiplayer** — لعب أونلاين بين لاعبين (التصميم موجود في `MULTIPLAYER_DESIGN.md`)
-- [ ] **Battle Pass** — نظام مكافآت موسمي
-- [ ] **تخصيص البطاقات** — ترقية وتطوير البطاقات
-- [ ] **أوضاع لعب إضافية** — تورنامنت، تحديات يومية
-- [ ] **دعم صوتي** — مؤثرات صوتية وموسيقى خلفية
-
----
-
-## 👨‍💻 المطوّر
-
-تم تطوير هذا المشروع بـ ❤️ بواسطة **[@3thelast-glitch](https://github.com/3thelast-glitch)**
+- **pnpm فقط** — لا npm ولا yarn
+- منطق اللعبة في `lib/game/` فقط — لا في المكونات
+- المكونات UI خالصة — لا business logic
+- كود الـ server في `server/` فقط — لا يُستورد من Client
 
 ---
 
 <div align="center">
-  <sub>مبني بـ React Native · Expo · TypeScript · Drizzle ORM</sub>
+  <sub>مبني بـ React Native · Expo · TypeScript · tRPC · Drizzle ORM · WebSocket</sub>
 </div>
 
 </div>
