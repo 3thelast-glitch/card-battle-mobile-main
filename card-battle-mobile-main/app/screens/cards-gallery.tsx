@@ -18,7 +18,23 @@ import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────────────
+// ─── Deduplicate ALL_CARDS by id (keep last occurrence) ────────────────────────
+const UNIQUE_CARDS: Card[] = Object.values(
+  ALL_CARDS.reduce<Record<string, Card>>((acc, card) => {
+    acc[card.id] = card;
+    return acc;
+  }, {})
+);
+
+// ─── Rarity sort order ─────────────────────────────────────────────────────────
+const RARITY_ORDER: Record<string, number> = {
+  legendary: 0,
+  epic:      1,
+  rare:      2,
+  common:    3,
+};
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 type CardEdits = {
   stars: number;
   hasAbility: boolean;
@@ -39,7 +55,7 @@ function toEdits(card: Card): CardEdits {
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-// ─── Stars Picker ───────────────────────────────────────────────────────────────────────────
+// ─── Stars Picker ───────────────────────────────────────────────────────────────
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <View style={ep.starRow}>
@@ -59,7 +75,7 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
   );
 }
 
-// ─── Stat Stepper ───────────────────────────────────────────────────────────────────────────
+// ─── Stat Stepper ───────────────────────────────────────────────────────────────
 function StatStepper({ icon, label, value, color, onChange }: {
   icon: string; label: string; value: number; color: string;
   onChange: (v: number) => void;
@@ -86,11 +102,11 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────────────────
+// ─── Main Screen ────────────────────────────────────────────────────────────────
 export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Partial<Card>>>({});
-  const [cards, setCards] = useState<Card[]>(ALL_CARDS);
+  const [cards, setCards] = useState<Card[]>(UNIQUE_CARDS);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<Card | null>(null);
@@ -109,7 +125,7 @@ export default function CardsGalleryScreen() {
       try {
         const map: Record<string, Partial<Card>> = JSON.parse(raw);
         setSavedMap(map);
-        setCards(ALL_CARDS.map((c: Card) => map[c.id] ? { ...c, ...map[c.id] } : c));
+        setCards(UNIQUE_CARDS.map((c: Card) => map[c.id] ? { ...c, ...map[c.id] } : c));
       } catch {}
     });
   }, []);
@@ -155,17 +171,25 @@ export default function CardsGalleryScreen() {
 
   if (!isLandscape) return <RotateHintScreen />;
 
+  // ─── Filter ──────────────────────────────────────────────────────────────────
   const filteredCards = cards.filter(card => {
     if (activeFilter === 'All') return true;
-    const map: Record<string, string> = { common: 'Common', rare: 'Rare', epic: 'ملحمية', legendary: 'أسطورية' };
-    const id = (card.rarity ?? 'common').toLowerCase();
-    return id === activeFilter.toLowerCase() || map[id] === activeFilter;
+    const rarity = (card.rarity ?? 'common').toLowerCase();
+    const filterMap: Record<string, string> = {
+      'Common':   'common',
+      'Rare':     'rare',
+      'ملحمية':  'epic',
+      'أسطورية': 'legendary',
+    };
+    return rarity === (filterMap[activeFilter] ?? activeFilter.toLowerCase());
   });
 
+  // ─── Sort: legendary → epic → rare → common, then by name ────────────────────
   const sortedCards = [...filteredCards].sort((a, b) => {
-    const o = { legendary: 0, epic: 1, rare: 2, common: 3 };
-    const ra = o[a.rarity ?? 'common'], rb = o[b.rarity ?? 'common'];
-    return ra !== rb ? ra - rb : a.race.localeCompare(b.race);
+    const ra = RARITY_ORDER[a.rarity ?? 'common'] ?? 4;
+    const rb = RARITY_ORDER[b.rarity ?? 'common'] ?? 4;
+    if (ra !== rb) return ra - rb;
+    return (a.nameAr || a.name).localeCompare(b.nameAr || b.name, 'ar');
   });
 
   const FILTER_TABS = [
@@ -196,7 +220,7 @@ export default function CardsGalleryScreen() {
       <View style={styles.container} className="pt-4 pb-2">
         <View className="mb-2 mt-4 items-center">
           <Text style={styles.title}>Card Collection</Text>
-          <Text style={styles.subtitle}>{filteredCards.length} cards</Text>
+          <Text style={styles.subtitle}>{sortedCards.length} cards</Text>
         </View>
 
         <View className="flex-row flex-wrap justify-center gap-2 mb-4 px-4 mt-2">
