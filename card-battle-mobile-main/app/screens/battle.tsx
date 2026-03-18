@@ -11,6 +11,7 @@
  *  - Added choice modals for: Recall, Revive, Arise, Disaster, Merge
  *  - Direct execution for: CancelAbility, Trap, DoubleOrNothing, Sacrifice, Pool, Skip
  *  - Effect chips now show descriptive Arabic labels
+ *  - Bot AI wired: decideBotAbility + buildBotAbilityData + updateBotMemory
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -47,6 +48,10 @@ import {
   getUpcomingPredictionRounds, isPredictionComplete,
 } from '@/lib/game/ui-helpers';
 import { COLOR, SPACE, RADIUS, FONT, GLASS_PANEL, SHADOW } from '@/components/ui/design-tokens';
+import {
+  decideBotAbility, updateBotMemory, resetBotMemory,
+} from '@/lib/game/bot-ai';
+import type { DifficultyLevel } from '@/app/screens/difficulty';
 
 type BattlePhase = 'selection' | 'action' | 'combat' | 'result' | 'waiting';
 
@@ -463,6 +468,11 @@ export default function BattleScreen() {
   const updateElement = (id: string, d: any) => setElements(p => ({ ...p, [id]: { ...p[id as keyof typeof p], ...d } }));
   const resetLayout = async () => { setElements(DEFAULT_LAYOUT); try { await AsyncStorage.removeItem('battleLayout'); } catch { } };
 
+  // إعادة تعيين ذاكرة البوت عند بداية كل لعبة جديدة
+  useEffect(() => {
+    resetBotMemory();
+  }, []);
+
   useEffect(() => {
     if (state.currentRound < state.totalRounds && !currentPlayerCard && !currentBotCard)
       startBattle(state.playerDeck);
@@ -479,14 +489,37 @@ export default function BattleScreen() {
     }
   }, [currentPlayerCard, currentBotCard, phase, state.currentRound, editMode]);
 
+  // ── Bot AI: يقرر ويستخدم قدرته قبل الهجوم ──────────────────────────────
+  const runBotAbility = useCallback(() => {
+    if (!currentPlayerCard) return;
+    // نتجاهل المستويات 1-2 — بدون قدرات
+    const difficulty = (state.difficulty ?? 3) as DifficultyLevel;
+    if (difficulty <= 2) return;
+
+    const decision = decideBotAbility(
+      state.botAbilities,
+      currentPlayerCard,
+      state,
+      difficulty,
+    );
+
+    if (decision.useAbility && decision.abilityType) {
+      useAbility(decision.abilityType, decision.abilityData ?? {}, false);
+    }
+  }, [currentPlayerCard, state, useAbility]);
+
   const handleExecuteAttack = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     flashAnim.value = withSequence(withTiming(0.35, { duration: 60 }), withTiming(0, { duration: 300 }));
     setPhase('combat'); setShowPlayerEffect(true); setShowBotEffect(true);
+
+    // البوت يستخدم قدرته أولاً إن أراد
+    runBotAbility();
+
     playRound();
     setPredictionSelections({}); setShowPredictionModal(false);
     setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, 1000);
-  }, [playRound]);
+  }, [playRound, runBotAbility]);
 
   useEffect(() => { if (editMode) setShowSidebar(true); else setShowSidebar(false); }, [editMode]);
 
@@ -529,31 +562,26 @@ export default function BattleScreen() {
 
     // ── قدرات جديدة ──
     } else if (abilityType === 'Recall') {
-      // كرت سابق للاعب بدون خاصية → يعود للميدان
       const myPast = state.roundResults.map((r, i) => ({ value: String(i), label: `جولة ${r.round}: ${r.playerCard.nameAr ?? r.playerCard.name} (هج ${r.playerCard.attack} / دف ${r.playerCard.defense})` }));
       if (!myPast.length) { Alert.alert('لا يوجد كروت سابقة لك بعد'); return; }
       setChoiceModal({ visible: true, title: '🔄 استدعاء — اختر كرتك السابق', options: myPast, abilityType });
 
     } else if (abilityType === 'Revive') {
-      // كرت سابق يعود بنصف طاقاته
       const myPast = state.roundResults.map((r, i) => ({ value: String(i), label: `جولة ${r.round}: ${r.playerCard.nameAr ?? r.playerCard.name} (هج ${Math.ceil(r.playerCard.attack / 2)} / دف ${Math.ceil(r.playerCard.defense / 2)})` }));
       if (!myPast.length) { Alert.alert('لا يوجد كروت سابقة لك بعد'); return; }
       setChoiceModal({ visible: true, title: '💖 إنعاش — اختر كرتك (بنصف طاقاته)', options: myPast, abilityType });
 
     } else if (abilityType === 'Arise') {
-      // كرت من كروت الخصم السابقة يصير كرتك
       const botPast = state.roundResults.map((r, i) => ({ value: String(i), label: `جولة ${r.round}: ${r.botCard.nameAr ?? r.botCard.name} (هج ${r.botCard.attack} / دف ${r.botCard.defense})` }));
       if (!botPast.length) { Alert.alert('لا يوجد كروت سابقة للخصم بعد'); return; }
       setChoiceModal({ visible: true, title: '👻 أرايز — اختر كرت الخصم السابق يصير كرتك', options: botPast, abilityType });
 
     } else if (abilityType === 'Disaster') {
-      // بدّل كرت الخصم بكرت سابق له
       const botPast = state.roundResults.map((r, i) => ({ value: String(i), label: `جولة ${r.round}: ${r.botCard.nameAr ?? r.botCard.name} (هج ${r.botCard.attack} / دف ${r.botCard.defense})` }));
       if (!botPast.length) { Alert.alert('لا يوجد كروت سابقة للخصم بعد'); return; }
       setChoiceModal({ visible: true, title: '💣 النكبة — اختر كرت سابق للخصم', options: botPast, abilityType });
 
     } else if (abilityType === 'Merge') {
-      // دمج كرتك مع كرتك السابق
       const myPast = state.roundResults.map((r, i) => ({ value: String(i), label: `جولة ${r.round}: ${r.playerCard.nameAr ?? r.playerCard.name} (+${r.playerCard.attack} هج / +${r.playerCard.defense} دف)` }));
       if (!myPast.length) { Alert.alert('لا يوجد كروت سابقة لك بعد'); return; }
       setChoiceModal({ visible: true, title: '🔗 الدمج — اختر الكرت السابق تضيف طاقاته لكرتك', options: myPast, abilityType });
@@ -564,12 +592,10 @@ export default function BattleScreen() {
     const { abilityType } = choiceModal;
     setChoiceModal(p => ({ ...p, visible: false }));
 
-    // قدرات تحتاج roundIndex
     const roundIndexAbilities = ['Dilemma', 'Disaster', 'Recall', 'Revive', 'Arise', 'Merge'];
     if (roundIndexAbilities.includes(abilityType)) {
       useAbility(abilityType as any, { roundIndex: Number(value) });
     } else if (abilityType === 'SwapClass') {
-      // SwapClass يحتاج myClass + oppClass — تفعيل مبسط
       useAbility(abilityType as any, { myClass: value, oppClass: value });
     } else {
       useAbility(abilityType as any, { selection: value, targetClass: value, element: value });
@@ -579,9 +605,13 @@ export default function BattleScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [choiceModal, useAbility]);
 
-  // Round result effect
+  // ── تحديث ذاكرة البوت بعد كل جولة ──────────────────────────────────────
   useEffect(() => {
     if (phase !== 'result' || !lastRoundResult || editMode) return;
+
+    // سجّل نتيجة الجولة في ذاكرة البوت
+    updateBotMemory(lastRoundResult);
+
     setRoundHistory(prev => {
       if (prev.some(h => h.round === lastRoundResult.round)) return prev;
       return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
@@ -617,9 +647,7 @@ export default function BattleScreen() {
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
   const maxScore = state.totalRounds;
 
-  // قدرات تحتاج نافذة اختيار من القائمة
   const CHOICE_ABILITIES = ['Propaganda', 'AddElement', 'SwapClass', 'Dilemma', 'Recall', 'Revive', 'Arise', 'Disaster', 'Merge'];
-  // قدرات تُنفَّذ مباشرة بدون اختيار (كانت فارغة سابقاً)
   const DIRECT_ABILITIES = ['CancelAbility', 'Trap', 'DoubleOrNothing', 'Sacrifice', 'Pool', 'Skip'];
 
   if (!displayPlayerCard || !displayBotCard) {
@@ -841,25 +869,21 @@ export default function BattleScreen() {
                       onPress={() => {
                         if (!canUse) { if (isSealed) Alert.alert('القدرات مختومة', 'لا يمكنك تفعيل القدرات خلال مدة الختم.'); return; }
 
-                        // نوافذ التنبؤ
                         if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(ability.type)) {
                           if (!upcomingRounds.length) return;
                           setPredictionSelections({}); setPredictionAbilityType(ability.type as any);
                           setIsAbilitiesModalOpen(false); setShowPredictionModal(true); return;
                         }
-                        // نافذة الشعبية
                         if (['Popularity', 'Rescue', 'Penetration'].includes(ability.type)) {
                           if (!remainingRounds.length) return;
                           setSelectedPopularityRound(null); setPopularityAbilityType(ability.type as any);
                           setIsAbilitiesModalOpen(false); setShowPopularityModal(true); return;
                         }
-                        // نوافذ الاختيار (سابقة + جديدة)
                         if (CHOICE_ABILITIES.includes(ability.type)) {
                           setIsAbilitiesModalOpen(false);
                           openChoiceModal(ability.type);
                           return;
                         }
-                        // تنفيذ مباشر (بما فيها DIRECT_ABILITIES)
                         useAbility(ability.type); setIsAbilitiesModalOpen(false);
                         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
