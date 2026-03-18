@@ -228,6 +228,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             break;
           }
 
+          // ── HalvePoints: يخفض هجوم الخصم بنصف قيمته الأصلية ──
+          case 'halvePoints': {
+            const d = effect.data as { multiplier?: number } | undefined;
+            const multiplier = d?.multiplier ?? 0.5;
+            // نطبق الخصم على كرت الخصم في نتيجة الجولة الحالية
+            if (effect.targetSide === 'bot') {
+              const reduction = Math.floor(botCard.attack * multiplier);
+              botScoreDelta = result.winner === 'bot' && reduction >= botCard.attack ? 0 : botScoreDelta;
+            } else if (effect.targetSide === 'player') {
+              const reduction = Math.floor(playerCard.attack * multiplier);
+              playerScoreDelta = result.winner === 'player' && reduction >= playerCard.attack ? 0 : playerScoreDelta;
+            }
+            effectsToRemove.add(effect.id);
+            break;
+          }
+
+          // ── StarSuperiority: يضمن فوز صاحبه في هذه الجولة ──
+          case 'starAdvantage': {
+            const d = effect.data as { appliesToRound?: number } | undefined;
+            if (d?.appliesToRound !== undefined && d.appliesToRound !== roundNumber) break;
+            if (effect.targetSide === 'player') {
+              playerScoreDelta = Math.max(playerScoreDelta, 1);
+              botScoreDelta = 0;
+            } else if (effect.targetSide === 'bot') {
+              botScoreDelta = Math.max(botScoreDelta, 1);
+              playerScoreDelta = 0;
+            }
+            effectsToRemove.add(effect.id);
+            break;
+          }
+
           // ── Reinforcement: فوز → +1 دفاع ──
           case 'fortify': {
             if (result.winner === effect.sourceSide) {
@@ -676,7 +707,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             kind: 'halvePoints', sourceSide: side, targetSide: opponentSide,
             createdAtRound: roundNumber, expiresAtRound: roundNumber,
             charges: 1, priority: EFFECT_PRIORITY.statModifiers,
-            data: { multiplier: 0.5, stats: ['attack', 'defense'] },
+            data: { multiplier: 0.5 },
           }];
           break;
         }
@@ -709,6 +740,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             kind: 'starAdvantage', sourceSide: side, targetSide: side,
             createdAtRound: roundNumber, expiresAtRound: roundNumber,
             charges: 1, priority: EFFECT_PRIORITY.starAdvantage,
+            data: { appliesToRound: roundNumber },
           }];
           break;
         }
@@ -1058,20 +1090,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
 
+        // ✅ إصلاح #2: Subhan يخمّن هجوم كرت الخصم في الجولة القادمة (currentRound + 1)
         case 'Subhan': {
           const guessedAttack = Number(data?.guessedAttack);
+          const nextOppIdx = state.currentRound + 1;
           const nextOppCard = side === 'player'
-            ? state.botDeck[state.currentRound]
-            : state.playerDeck[state.currentRound];
-          if (nextOppCard && !Number.isNaN(guessedAttack)) {
+            ? state.botDeck[nextOppIdx]
+            : state.playerDeck[nextOppIdx];
+          if (nextOppCard && !Number.isNaN(guessedAttack) && nextOppIdx < state.totalRounds) {
             const diff = Math.abs(nextOppCard.attack - guessedAttack);
             if (diff <= 3) {
+              // الفوز يُطبق على الجولة القادمة
               nextEffects = [...nextEffects, {
                 id: makeEffectId('Subhan', side, roundNumber),
                 kind: 'forcedOutcome', sourceSide: side, targetSide: side,
-                createdAtRound: roundNumber, expiresAtRound: roundNumber,
+                createdAtRound: roundNumber, expiresAtRound: roundNumber + 1,
                 charges: 1, priority: EFFECT_PRIORITY.forcedOutcome,
-                data: { appliesToRound: roundNumber },
+                data: { appliesToRound: roundNumber + 1 },
               }];
             }
           }
@@ -1312,7 +1347,6 @@ interface GameContextType {
   nextRound: () => void;
   addEffect: (effect: Effect) => void;
   removeEffects: (targetSide?: Side | 'all', sourceSide?: Side | 'all') => void;
-  // ✅ إصلاح #1: إضافة isPlayer كـ parameter اختياري (default = true للاعب)
   useAbility: (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer?: boolean) => void;
   resetGame: () => void;
   setDifficulty: (level: DifficultyLevel) => void;
@@ -1341,7 +1375,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const removeEffects = (targetSide?: Side | 'all', sourceSide?: Side | 'all') =>
     dispatch({ type: 'REMOVE_EFFECTS', payload: { targetSide, sourceSide } });
 
-  // ✅ إصلاح #1: isPlayer = true بشكل افتراضي للاعب، false للبوت
   const useAbility = (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer: boolean = true) =>
     dispatch({ type: 'USE_ABILITY', payload: { abilityType, isPlayer, data } });
 

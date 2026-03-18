@@ -6,8 +6,8 @@
  *  1  سهل      — عشوائي تماماً، لا قدرات
  *  2  متوسط    — أفضل نصف الكروت، قدرات عشوائية خفيفة
  *  3  صعب      — نفس الكروت لكن يحسب التوقيت + threshold أعلى + noise أقل
- *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5٩)
- *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٩)
+ *  4  خيالي    — Utility AI كامل + ذاكرة عناصر + عشوائية كروت خفيفة (5٪)
+ *  5  أسطوري   — كل ما سبق + ذاكرة شاملة + mode أسرع + يحتفظ بأقوى قدرة للنهاية + عشوائية كروت (3٪)
  */
 
 import { Card, GameState, AbilityType, AbilityState, RoundResult, Element, CardClass } from './types';
@@ -65,7 +65,6 @@ let _memory: BotMemory = {
 
 export function getBotMemory(): Readonly<BotMemory> { return { ..._memory }; }
 
-// ✅ إصلاح #2أ: تحديث strongestBotAbility بأقوى قدرة متاحة للبوت
 export function updateBotMemory(
   result: RoundResult,
   playerUsedAbility?: AbilityType,
@@ -83,7 +82,6 @@ export function updateBotMemory(
   _memory.playerFavoredElements[el] = (_memory.playerFavoredElements[el] ?? 0) + 1;
   if (playerUsedAbility) _memory.playerUsedAbilities.push(playerUsedAbility);
 
-  // ✅ تحديث strongestBotAbility: القدرة الأخيرة غير المستخدمة في قائمة البوت
   if (botAbilities) {
     const ABILITY_PRIORITY: Partial<Record<AbilityType, number>> = {
       Eclipse: 10, Penetration: 10, Popularity: 9, Sniping: 9,
@@ -237,10 +235,6 @@ function abilityNoise(difficulty: DifficultyLevel): number {
 }
 
 // ──────────────────────────────── buildBotAbilityData ────────────────────────────────
-/**
- * يبني الـ data المطلوبة لكل قدرة يستخدمها البوت.
- * يُستدعى بعد اتخاذ القرار مباشرةً قبل تمرير القدرة لـ useAbility.
- */
 export function buildBotAbilityData(
   abilityType: AbilityType,
   gameState: GameState,
@@ -248,8 +242,6 @@ export function buildBotAbilityData(
 ): Record<string, unknown> {
   const { roundResults, botDeck, currentRound, totalRounds } = gameState;
 
-  // ── قدرات تحتاج roundIndex من جولات البوت السابقة ──
-  // الهدف: أقوى كرت خسره البوت (نُعيد أقوى ما فقدناه)
   if (abilityType === 'Recall' || abilityType === 'Revive' || abilityType === 'Merge') {
     if (!roundResults.length) return {};
     const botBestIdx = roundResults.reduce((best, r, i) =>
@@ -257,7 +249,6 @@ export function buildBotAbilityData(
     return { roundIndex: botBestIdx };
   }
 
-  // ── Arise: يأخذ كرت الخصم (أضعف كرت للاعب سبق) ──
   if (abilityType === 'Arise') {
     if (!roundResults.length) return {};
     const weakestPlayerIdx = roundResults.reduce((best, r, i) =>
@@ -265,7 +256,6 @@ export function buildBotAbilityData(
     return { roundIndex: weakestPlayerIdx };
   }
 
-  // ── Disaster: بدّل كرت اللاعب الحالي بأضعف كرت له سابق ──
   if (abilityType === 'Disaster') {
     if (!roundResults.length) return {};
     const weakestPlayerIdx = roundResults.reduce((best, r, i) =>
@@ -273,8 +263,6 @@ export function buildBotAbilityData(
     return { roundIndex: weakestPlayerIdx };
   }
 
-  // ── ✅ إصلاح #2ب: Dilemma يضع أضعف كرت للبوت في دك اللاعب (weakestBotIdx) ──
-  // منطق Dilemma: يستبدل كرت الخصم بكرت أضعف لك = تضع في دك اللاعب أضعف كرتك السابق
   if (abilityType === 'Dilemma') {
     if (!roundResults.length) return {};
     const weakestBotIdx = roundResults.reduce((best, r, i) =>
@@ -282,7 +270,6 @@ export function buildBotAbilityData(
     return { roundIndex: weakestBotIdx };
   }
 
-  // ── Propaganda: استهدف الـ class الأكثر شيوعاً عند اللاعب ──
   if (abilityType === 'Propaganda') {
     const classCounts: Record<string, number> = {};
     for (const r of roundResults) {
@@ -294,7 +281,6 @@ export function buildBotAbilityData(
     return { selection: topClass, targetClass: topClass };
   }
 
-  // ── AddElement: اختر العنصر الأقوى ضد كرت اللاعب الحالي ──
   if (abilityType === 'AddElement') {
     const allElements: Element[] = ['fire', 'ice', 'water', 'earth', 'lightning', 'wind'];
     const strongEl = allElements.find(
@@ -303,21 +289,25 @@ export function buildBotAbilityData(
     return { element: strongEl };
   }
 
-  // ── SwapClass: اختر class عشوائي من أحسن الخيارات ──
   if (abilityType === 'SwapClass') {
     const classes: CardClass[] = ['warrior', 'knight', 'mage', 'archer', 'berserker', 'paladin'];
     const pick = classes[Math.floor(Math.random() * classes.length)];
     return { myClass: pick, oppClass: playerCard.cardClass };
   }
 
-  // ── Popularity / Rescue / Penetration: اختر أقرب جولة قادمة ──
+  // ✅ إصلاح #3: Sniping يرسل الجولة القادمة كـ round
+  if (abilityType === 'Sniping') {
+    const nextRound = currentRound + 2; // currentRound هو index (0-based)، roundNumber = currentRound + 1
+    if (nextRound <= totalRounds) return { round: nextRound };
+    return { round: currentRound + 1 }; // fallback للجولة الحالية إن لم توجد قادمة
+  }
+
   if (['Popularity', 'Rescue', 'Penetration'].includes(abilityType)) {
     const nextRound = currentRound + 1;
     if (nextRound < totalRounds) return { round: nextRound };
     return { round: currentRound };
   }
 
-  // ── قدرات التنبؤ: توقعات عشوائية للجولات القادمة ──
   if (['LogicalEncounter', 'Eclipse', 'Trap', 'Pool'].includes(abilityType)) {
     const predictions: Record<number, 'win' | 'loss'> = {};
     const upcomingCount = Math.min(3, totalRounds - currentRound - 1);
@@ -327,7 +317,15 @@ export function buildBotAbilityData(
     return { predictions };
   }
 
-  // ── قدرات مباشرة لا تحتاج data ──
+  // ── Subhan: البوت يخمّن هجوم كرت اللاعب القادم ──
+  if (abilityType === 'Subhan') {
+    const nextPlayerCard = gameState.playerDeck[currentRound + 1];
+    if (!nextPlayerCard) return {};
+    // البوت يخمّن بذكاء: القيمة الفعلية ± 2 عشوائياً
+    const noise = Math.floor(Math.random() * 5) - 2; // -2 إلى +2
+    return { guessedAttack: nextPlayerCard.attack + noise };
+  }
+
   return {};
 }
 
