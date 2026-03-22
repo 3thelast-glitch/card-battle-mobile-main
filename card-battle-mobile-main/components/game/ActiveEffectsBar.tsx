@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { Effect, EffectKind } from '@/lib/game/types';
 
-// ─── KIND_INFO — جميع EffectKind موجودة ─────────────────────────────────────
+// ─── KIND_INFO — جميع EffectKind موجودة ────────────────────────────────────
 const KIND_INFO: Record<EffectKind, { label: string; emoji: string; color: string }> = {
   // ─ موجودة مسبقاً ─
   prediction: { label: 'توقع', emoji: '\u{1F52E}', color: '#a78bfa' },
