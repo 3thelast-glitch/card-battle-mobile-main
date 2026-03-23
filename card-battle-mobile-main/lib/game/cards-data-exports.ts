@@ -7,7 +7,12 @@
  *   - determineRoundWinner ← game-context.tsx
  */
 
-import { CARDS_BATCH_1 } from './cards-data';
+import { CARDS_BATCH_1 } from './cards-batch-1-fixed';
+import { CARDS_BATCH_2 } from './cards-batch-2-fixed';
+import { CARDS_BATCH_3 } from './cards-batch-3-fixed';
+import { CARDS_BATCH_4 } from './cards-batch-4-fixed';
+import { CARDS_BATCH_5 } from './cards-batch-5-fixed';
+import { CARDS_BATCH_6 } from './cards-batch-6-fixed';
 import { ANIME_CARDS } from './anime-cards-data';
 import {
   Card,
@@ -20,7 +25,15 @@ import {
 } from './types';
 
 // ─── ALL_CARDS ────────────────────────────────────────────────────────────────
-export const ALL_CARDS: Card[] = [...CARDS_BATCH_1, ...ANIME_CARDS];
+export const ALL_CARDS: Card[] = [
+  ...CARDS_BATCH_1,
+  ...CARDS_BATCH_2,
+  ...CARDS_BATCH_3,
+  ...CARDS_BATCH_4,
+  ...CARDS_BATCH_5,
+  ...CARDS_BATCH_6,
+  ...ANIME_CARDS,
+];
 
 // ─── getElementAdvantage ─────────────────────────────────────────────────────
 export function getElementAdvantage(
@@ -55,7 +68,6 @@ export function determineRoundWinner(
   const playerAdv = getElementAdvantage(playerCard.element, botCard.element);
   const botAdv = getElementAdvantage(botCard.element, playerCard.element);
 
-  // تطبيق stat modifiers من التأثيرات
   let playerAtk = playerCard.attack;
   let playerDef = playerCard.defense;
   let botAtk = botCard.attack;
