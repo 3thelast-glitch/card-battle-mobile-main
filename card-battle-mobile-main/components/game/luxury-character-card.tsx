@@ -12,6 +12,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ImageBackground, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, CardRarity } from '@/lib/game/types';
+import { getCardImage } from '@/lib/game/get-card-image';
 
 interface LuxuryCharacterCardProps {
     card: Card;
@@ -91,7 +92,7 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
         }]}>
             {/* Card Background Image */}
             <ImageBackground
-                source={card.finalImage}
+                source={getCardImage(card)}
                 style={styles.cardBackground}
                 imageStyle={{ borderRadius: 12 }}
             >

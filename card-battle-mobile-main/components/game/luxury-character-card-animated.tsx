@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Svg, Circle, Line, Polygon, Ellipse, Path } from 'react-native-svg';
 import { Card, CardRarity } from '@/lib/game/types';
+import { getCardImage } from '@/lib/game/get-card-image';
 
 const BASE_W = 220;
 const BASE_H = 320;
