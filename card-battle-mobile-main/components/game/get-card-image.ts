@@ -1,9 +1,9 @@
-import { COMMON_IMAGES } from '@/assets/cards/common';
-import { RARE_IMAGES } from '@/assets/cards/rare';
-import { EPIC_IMAGES } from '@/assets/cards/epic';
-import { LEGENDARY_IMAGES } from '@/assets/cards/legendary';
-import type { ImageSourcePropType } from 'react-native';
-import type { Card } from '@/lib/game/types';
+// ✅ صح
+import { COMMON_IMAGES }    from '@/assets/characters/common';
+import { RARE_IMAGES }      from '@/assets/characters/rare';
+import { EPIC_IMAGES }      from '@/assets/characters/epic';
+import { LEGENDARY_IMAGES } from '@/assets/characters/legendary';
+
 
 const FALLBACK = require('@/assets/cards/final/human-warrior.png');
 
