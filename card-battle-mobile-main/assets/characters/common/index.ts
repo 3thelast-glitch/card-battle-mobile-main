@@ -1,0 +1,14 @@
+export const COMMON_IMAGES: Record<string, any> = {
+    yosaku: require('./yosaku.png'),
+    johnny: require('./johnny.png'),
+    nami: require('./nami.png'),
+    ebisu: require('./ebisu.png'),
+    konohamaru: require('./konohamaru.png'),
+    bulma: require('./bulma.png'),
+    hitch_dreyse: require('./hitch_dreyse.png'),
+    misa_amane: require('./misa_amane.png'),
+    king: require('./king.png'),
+    happy: require('./happy.png'),
+    mineta: require('./mineta.png'),
+    the_plain_doll: require('./the_plain_doll.png'),
+};
