@@ -1,31 +1,18 @@
-// utils/cardImages.ts
-import { ImageSourcePropType } from 'react-native';
-import { CardRarity } from '../lib/game/types';
-import CARD_IMAGE_REGISTRY from './cardImageRegistry';
+import { cardImageRegistry } from './cardImageRegistry';
 
-export function getCardImage(
-  id: string,
-  race?: string,
-  cardClass?: string,
-  imageUrl?: string,
-  rarity?: CardRarity,
-): ImageSourcePropType | string | undefined {
+export const getCardImage = (cardId: string, fallbackUrl?: string) => {
+  // 1. البحث عن الصورة محلياً في ملف الريجستري
+  const localImage = cardImageRegistry[cardId];
 
-  // 1. صورة خاصة بالـ id (للمستقبل لما تضيف صور فردية)
-  if (CARD_IMAGE_REGISTRY[id]) {
-    return CARD_IMAGE_REGISTRY[id];
+  if (localImage) {
+    return localImage; // إرجاع الصورة المحلية إذا وجدت
   }
 
-  // 2. القالب بناءً على race + class
-  const templateKey = `${race}-${cardClass}`;
-  if (CARD_IMAGE_REGISTRY[templateKey]) {
-    return CARD_IMAGE_REGISTRY[templateKey];
+  // 2. إذا لم توجد صورة محلية، استخدم الرابط الخارجي
+  if (fallbackUrl) {
+    return { uri: fallbackUrl };
   }
 
-  // 3. fallback → URL خارجي (anime-cards-data)
-  if (imageUrl) {
-    return imageUrl;
-  }
-
-  return undefined;
-}
+  // 3. في حال عدم وجود أي صورة (احتياطي)
+  return null;
+};
