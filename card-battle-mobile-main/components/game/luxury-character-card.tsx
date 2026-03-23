@@ -12,7 +12,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ImageBackground, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, CardRarity } from '@/lib/game/types';
-import { getCardImage } from '@/lib/game/get-card-image';
+import { getCardImage } from '../../lib/game/get-card-image';
 
 interface LuxuryCharacterCardProps {
     card: Card;
