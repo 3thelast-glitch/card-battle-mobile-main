@@ -5,42 +5,11 @@
  * │ 5 ANIMATED VISUAL LAYERS (applied conditionally by rarity):          │
  * │                                                                      │
  * │ LAYER 1 → Holo-Foil Sweep          (Epic + Legendary)                │
- * │   - Animated diagonal LinearGradient sweep across card surface       │
- * │   - Creates iridescent shimmer / rainbow-foil effect                 │
- * │   - Duration: Epic 7 000 ms · Legendary 3 500 ms                    │
- * │   - Opacity:  Epic 0.40  · Legendary 0.65                           │
- * │                                                                      │
  * │ LAYER 2 → Rotating Magic Circles behind stat orbs                    │
- * │           (Epic + Legendary)                                         │
- * │   - Concentric dashed rings + spoke lines + gem diamonds             │
- * │   - Two counter-rotating rings per stat orb                          │
- * │   - Speed: Epic 8 000 ms · Legendary 5 000 ms                       │
- * │   - SVG-based for crisp rendering at all DPIs                        │
- * │                                                                      │
  * │ LAYER 3 → Breathing Aura / Pulsing Border  (Legendary ONLY)         │
- * │   - Animated borderColor oscillation (#7C5B1A ↔ #FFE087)            │
- * │   - Shadow opacity + radius breathe (0.3→0.85 / 8→28)              │
- * │   - Subtle scale pulse (0.995 → 1.008)                              │
- * │                                                                      │
  * │ LAYER 4 → Static SVG Filigree Corners                                │
- * │           (Rare + Epic + Legendary)                                  │
- * │   - Ornate corner branches with decorative leaves                    │
- * │   - Corner rose ornament with spoke lines + gem highlight            │
- * │   - Chain-link details along arms                                    │
- * │   - 4 corners for Legendary, 2 (top) for Rare/Epic                  │
- * │                                                                      │
  * │ LAYER 5 → Premium Stat Orbs         (Epic + Legendary)               │
- * │   - Circular glass-like orbs replacing flat stat badges              │
- * │   - Magic Circle rings rotate behind each orb                        │
- * │   - Rarity-colored border + glow shadow                              │
- * │   - Center name block with decorative star row                       │
  * └──────────────────────────────────────────────────────────────────────┘
- *
- * CORE ANIMATIONS (60 fps · Reanimated v3/v4):
- *   - Tap     → scale(1.06) + rotate(2°) + 150 ms spring
- *   - Summon  → slide-up + scale(1.25→1) spring entrance
- *   - Selected → scale(1.05) hover
- *   - 3D shadow: shadowRadius 8–24 scaled by rarity
  */
 
 import React, { JSX, useEffect } from 'react';
@@ -93,8 +62,17 @@ import {
     useGlowPulse,
 } from '@/hooks/useCardAnimations';
 import { FireParticles } from '@/lib/particles';
+import { getCardImage } from '../../lib/game/get-card-image';
 
-// ─── Rarity Configuration ────────────────────────────────────────────────────
+// ─── Placeholder colors per rarity ───────────────────────────────────────────
+const PLACEHOLDER_COLORS: Record<CardRarityName, readonly [string, string, string]> = {
+    common:    ['#1a1a2e', '#2d2d44', '#1a1a2e'],
+    rare:      ['#1a1200', '#2d2000', '#1a1200'],
+    epic:      ['#1a0030', '#2d0050', '#1a0030'],
+    legendary: ['#1a1400', '#2d2400', '#1a1400'],
+};
+
+// ─── Rarity Configuration ─────────────────────────────────────────────────────────
 
 const ELVEN = {
     bg: '#06150A',
@@ -110,7 +88,6 @@ const ELVEN = {
     mist: 'rgba(0,140,60,0.4)',
 } as const;
 
-// gradient colors بديل لـ CARD_GRADIENTS عند theme=elven
 const ELVEN_GRADIENTS: Record<CardRarityName, string[]> = {
     common: [ELVEN.bg, ELVEN.bgMid],
     rare: [ELVEN.bgMid, '#071A0C', ELVEN.forest],
@@ -188,8 +165,7 @@ const RARITY_CONFIG = {
 } as const;
 
 
-// ─── Rarity Glow Ring ────────────────────────────────────────────────────────
-
+// ─── Rarity Glow Ring ─────────────────────────────────────────────────────────────
 function GlowRing({
     color,
     borderRadius,
@@ -210,7 +186,7 @@ function GlowRing({
     );
 }
 
-// ─── Effect Icons ────────────────────────────────────────────────────────────
+// ─── Effect Icons ─────────────────────────────────────────────────────────────────
 
 const EFFECT_ICON: Record<CardEffectType, string> = {
     taunt: '🛡️',
@@ -222,7 +198,7 @@ const EFFECT_ICON: Record<CardEffectType, string> = {
     windfury: '💨',
 };
 
-// ─── Size Presets ────────────────────────────────────────────────────────────
+// ─── Size Presets ─────────────────────────────────────────────────────────────────
 
 const SIZES = {
     small: { w: 90, h: 135, name: 8, stat: 8, badge: 6 },
@@ -231,13 +207,13 @@ const SIZES = {
     landscape: { w: 220, h: 310, name: 14, stat: 13, badge: 10 },
 } as const;
 
-// ─── Props ───────────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────────
 
 export interface RarityCardProps {
     card: Card;
     rarity?: CardRarityName;
     size?: keyof typeof SIZES;
-    theme?: 'default' | 'elven';   // ← أضف هذا فقط
+    theme?: 'default' | 'elven';
     isSelected?: boolean;
     showStats?: boolean;
     playEntrance?: boolean;
@@ -380,7 +356,7 @@ function MagicCircleRing({
     );
 }
 
-// ─── SUB-COMPONENT C: Premium Stat Orb (Epic + Legendary) ───────────────────
+// ─── SUB-COMPONENT C: Premium Stat Orb (Epic + Legendary) ─────────────────
 
 function PremiumStatOrb({
     icon,
@@ -549,7 +525,7 @@ function BreathingBorder({
     );
 }
 
-// ─── StatBadge ───────────────────────────────────────────────────────────────
+// ─── StatBadge ─────────────────────────────────────────────────────────────────────
 
 function StatBadge({ icon, value, fs }: { icon: string; value: number; fs: number }): JSX.Element {
     return (
@@ -560,7 +536,7 @@ function StatBadge({ icon, value, fs }: { icon: string; value: number; fs: numbe
     );
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export function RarityCard({
     card,
@@ -583,12 +559,10 @@ export function RarityCard({
     const dim = SIZES[size];
     const config = RARITY_CONFIG[rarity];
 
-    // Theme-based overrides
     const isElven = theme === 'elven';
     const baseBorderColor = isElven ? ELVEN_BORDERS[rarity] : config.borderColor;
     const baseGlowColor = isElven ? ELVEN_GLOW[rarity] : CARD_GLOWS[rarity];
 
-    // Gradient mapping to 3-layer system
     const gradient = isElven
         ? {
             base: ELVEN_GRADIENTS[rarity].length >= 3
@@ -609,6 +583,11 @@ export function RarityCard({
     const tap = useCardTapAnimation();
     const summon = useCardSummonAnimation(entranceDelay);
     const hover = useCardHoverScale(isSelected);
+
+    // ── Resolve card image ─────────────────────────────────────────────
+    const cardImage = getCardImage(card);
+    const hasImage = !!cardImage;
+    const placeholderColors = PLACEHOLDER_COLORS[rarity];
 
     useEffect(() => {
         if (playEntrance) {
@@ -644,7 +623,7 @@ export function RarityCard({
                 style,
             ]}
         >
-            {/* LAYER 4 – Filigree Corners (outside card to avoid clipping) */}
+            {/* LAYER 4 – Filigree Corners */}
             {config.filigree && rarity !== 'common' && (
                 <>
                     <FiligreeSVGCorner position="top-left" rarity={rarity} />
@@ -699,7 +678,6 @@ export function RarityCard({
                         style={styles.bgTop}
                     />
 
-                    {/* Diagonal shimmer stripe for Rare+ */}
                     {rarity !== 'common' && <View style={styles.shimmer} />}
 
                     {/* LAYER 1 – Holo Foil Sweep (Epic + Legendary) */}
@@ -713,14 +691,29 @@ export function RarityCard({
                     )}
 
                     {/* ── Card Art ── */}
-                    {/* REVERTED: source back to card.finalImage (local require format) */}
-                    <Image
-                        source={card.finalImage}
-                        style={styles.art}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                        transition={200}
-                    />
+                    {hasImage ? (
+                        <Image
+                            source={cardImage}
+                            style={styles.art}
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                            transition={200}
+                        />
+                    ) : (
+                        <>
+                            {/* Placeholder gradient */}
+                            <LinearGradient
+                                colors={placeholderColors}
+                                style={styles.artPlaceholder}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            />
+                            <View style={styles.noImageBadge} pointerEvents="none">
+                                <Text style={styles.noImageIcon}>🖼️</Text>
+                                <Text style={styles.noImageText}>لا توجد صورة</Text>
+                            </View>
+                        </>
+                    )}
 
                     {/* ── Top badges ── */}
                     <View style={styles.topRow}>
@@ -749,7 +742,6 @@ export function RarityCard({
                     </View>
 
                     {/* ── Stats strip (bottom) ── */}
-                    {/* REVERTED: stats back to card.attack, card.defense, card.hp */}
                     {showStats && (
                         <View style={styles.statsStrip}>
                             {config.magicCircles ? (
@@ -829,11 +821,11 @@ export function RarityCard({
     );
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────────────────────────
 
 const BORDER_R = 14;
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     outerWrapper: {
@@ -882,6 +874,29 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
     },
+    artPlaceholder: {
+        width: '100%',
+        height: '76%',
+        position: 'absolute',
+        top: 0,
+    },
+    noImageBadge: {
+        position: 'absolute',
+        top: '18%',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 4,
+    },
+    noImageIcon: {
+        fontSize: 28,
+        opacity: 0.35,
+    },
+    noImageText: {
+        fontSize: 8,
+        color: 'rgba(255,255,255,0.25)',
+        marginTop: 3,
+    },
     topRow: {
         position: 'absolute',
         top: 6, left: 6, right: 6,
@@ -925,7 +940,7 @@ const styles = StyleSheet.create({
         bottom: 0, left: 0, right: 0,
         paddingHorizontal: 8,
         paddingVertical: 6,
-        backgroundColor: 'rgba(0,0,0,0.82)', // أغمق من 0.68
+        backgroundColor: 'rgba(0,0,0,0.82)',
         borderBottomLeftRadius: BORDER_R - 1,
         borderBottomRightRadius: BORDER_R - 1,
         gap: 2,
@@ -966,10 +981,7 @@ const styles = StyleSheet.create({
     },
     glowRing: {
         position: 'absolute',
-        top: -4,
-        left: -4,
-        right: -4,
-        bottom: -4,
+        top: -4, left: -4, right: -4, bottom: -4,
         borderWidth: 2,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.9,
@@ -1038,7 +1050,6 @@ const styles = StyleSheet.create({
     },
 });
 
-// ─── Exports ───────────────────────────────────────────────────────────────
-
+// ─── Exports ───────────────────────────────────────────────────────────────────
 
 export default RarityCard;
