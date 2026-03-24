@@ -8,7 +8,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'shoto_todoroki',
     name: 'Shoto Todoroki',
     nameAr: 'شوتو تودوروكي',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 12, defense: 12,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -19,7 +18,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'endeavor',
     name: 'Endeavor',
     nameAr: 'إنديفر',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 14, defense: 11,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -30,7 +28,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'katsuki_bakugo',
     name: 'Katsuki Bakugo',
     nameAr: 'كاتسوكي باكوغو',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 15, defense: 11,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -41,7 +38,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'izuku_midoriya',
     name: 'Izuku Midoriya',
     nameAr: 'إيزوكو ميدوريا',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 14, defense: 15,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -52,7 +48,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'tomura_shigaraki',
     name: 'Tomura Shigaraki',
     nameAr: 'توموروا شيغاراكي',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 14, defense: 15,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -63,7 +58,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'all_might',
     name: 'All Might',
     nameAr: 'أول مايت',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 18, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword", "crown"],
@@ -74,7 +68,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'king',
     name: 'King',
     nameAr: 'كينغ',
-    finalImage: require('../../assets/cards/final/human-warrior.png'),
     attack: 1, defense: 0,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -85,7 +78,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'genos',
     name: 'Genos',
     nameAr: 'جينوس',
-    finalImage: require('../../assets/cards/final/human-mage.png'), // TODO: missing image
     attack: 12, defense: 11,
     race: 'human', cardClass: 'mage', element: 'lightning',
     tags: ["magic"],
@@ -96,7 +88,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'bang',
     name: 'Bang',
     nameAr: 'بانغ',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 15, defense: 12,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -107,7 +98,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'garou',
     name: 'Garou',
     nameAr: 'غارو',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 18, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword", "crown"],
@@ -118,7 +108,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'tatsumaki',
     name: 'Tatsumaki',
     nameAr: 'تاتسوماكي',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 16, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword", "crown"],
@@ -129,7 +118,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'saitama',
     name: 'Saitama',
     nameAr: 'سايتاما',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 17, defense: 17,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword", "crown"],
@@ -140,7 +128,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'the_plain_doll',
     name: 'The Plain Doll',
     nameAr: 'الدمية',
-    finalImage: require('../../assets/cards/final/human-mage.png'),
     attack: 3, defense: 0,
     race: 'human', cardClass: 'mage', element: 'water',
     tags: ["magic"],
@@ -151,7 +138,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'suspicious_beggar',
     name: 'Suspicious Beggar',
     nameAr: 'المتسول المشبوه',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 9, defense: 7,
     race: 'orc', cardClass: 'warrior', element: 'earth',
     tags: ["sword"],
@@ -162,7 +148,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'eileen_the_crow',
     name: 'Eileen the Crow',
     nameAr: 'إيلين الغراب',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 12, defense: 11,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -173,7 +158,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'queen_annalise',
     name: 'Queen Annalise',
     nameAr: 'الملكة أناليس',
-    finalImage: require('../../assets/cards/final/human-knight.png'), // TODO: missing image
     attack: 14, defense: 11,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -184,7 +168,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'father_gascoigne',
     name: 'Father Gascoigne',
     nameAr: 'الأب غاسكوين',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 14, defense: 11,
     race: 'orc', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -195,7 +178,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'the_hunter',
     name: 'The Hunter',
     nameAr: 'الصياد',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 18, defense: 16,
     race: 'human', cardClass: 'archer', element: 'ice',
     tags: ["bow", "crown"],
@@ -207,7 +189,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'lady_maria',
     name: 'Lady Maria',
     nameAr: 'الليدي ماريا',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -218,7 +199,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'laurence',
     name: 'Laurence',
     nameAr: 'لورانس',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'orc', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -229,7 +209,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'gehrman',
     name: 'Gehrman',
     nameAr: 'جيرمان',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 18, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -240,7 +219,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'ludwig',
     name: 'Ludwig',
     nameAr: 'لودفيغ',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'orc', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -251,7 +229,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'emlyn_white',
     name: 'Emlyn White',
     nameAr: 'إيميلين وايت',
-    finalImage: require('../../assets/cards/final/human-knight.png'), // TODO: missing image
     attack: 8, defense: 7,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -262,7 +239,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'alger_wilson',
     name: 'Alger Wilson',
     nameAr: 'ألغر ويلسون',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 13, defense: 12,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -273,7 +249,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'audrey_hall',
     name: 'Audrey Hall',
     nameAr: 'أودري هول',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 15, defense: 12,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
@@ -284,7 +259,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'cattleya',
     name: 'Cattleya',
     nameAr: 'كاتليا',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -295,7 +269,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'roselle_gustav',
     name: 'Roselle Gustav',
     nameAr: 'روزيل غوستاف',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -306,7 +279,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'azik_eggers',
     name: 'Azik Eggers',
     nameAr: 'أزيك إيغرز',
-    finalImage: require('../../assets/cards/final/human-knight.png'), // TODO: missing image
     attack: 16, defense: 16,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -318,7 +290,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'klein_moretti',
     name: 'Klein Moretti',
     nameAr: 'كلاين موريتي',
-    finalImage: require('../../assets/cards/final/human-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -329,7 +300,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'feanor',
     name: 'Feanor',
     nameAr: 'فيانور',
-    finalImage: require('../../assets/cards/final/elf-knight.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'elf', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -340,7 +310,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'amon',
     name: 'Amon',
     nameAr: 'أمون',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 17, defense: 18,
     race: 'orc', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
@@ -351,7 +320,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'rin_okumura',
     name: 'Rin Okumura',
     nameAr: 'رين أوكومورا',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 15, defense: 11,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -363,7 +331,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'amaimon',
     name: 'Amaimon',
     nameAr: 'عمايمون',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 13, defense: 14,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -375,7 +342,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'satan',
     name: 'Satan',
     nameAr: 'ساتان',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 19, defense: 16,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
@@ -387,7 +353,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'lilith',
     name: 'Lilith',
     nameAr: 'ليليث',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 16, defense: 17,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
@@ -399,7 +364,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'diablo',
     name: 'Diablo',
     nameAr: 'ديابلو',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 19, defense: 16,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
@@ -411,7 +375,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'lucifer',
     name: 'Lucifer',
     nameAr: 'لوسيفر',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 18, defense: 16,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
@@ -423,7 +386,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'power',
     name: 'Power',
     nameAr: 'باور',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 12, defense: 12,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -435,7 +397,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'denji',
     name: 'Denji',
     nameAr: 'دينجي',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 15, defense: 11,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -447,7 +408,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'makima',
     name: 'Makima',
     nameAr: 'ماكيما',
-    finalImage: require('../../assets/cards/final/demon-warrior.png'), // TODO: missing image
     attack: 17, defense: 16,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
@@ -459,7 +419,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'ram',
     name: 'Ram',
     nameAr: 'رام',
-    finalImage: require('../../assets/cards/final/elf-knight.png'), // TODO: missing image
     attack: 8, defense: 8,
     race: 'elf', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -470,7 +429,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'rem',
     name: 'Rem',
     nameAr: 'ريم',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'), // TODO: missing image
     attack: 14, defense: 15,
     race: 'orc', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -481,7 +439,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'emilia',
     name: 'Emilia',
     nameAr: 'إيميليا',
-    finalImage: require('../../assets/cards/final/elf-knight.png'), // TODO: missing image
     attack: 11, defense: 11,
     race: 'elf', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -492,7 +449,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'puck',
     name: 'Puck',
     nameAr: 'باك',
-    finalImage: require('../../assets/cards/final/elf-knight.png'), // TODO: missing image
     attack: 12, defense: 12,
     race: 'elf', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -503,7 +459,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'petelgeuse',
     name: 'Petelgeuse',
     nameAr: 'بيتلغيوز',
-    finalImage: require('../../assets/cards/final/human-knight.png'), // TODO: missing image
     attack: 13, defense: 11,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -514,7 +469,6 @@ export const CARDS_BATCH_4: Card[] = [
     id: 'beatrice',
     name: 'Beatrice',
     nameAr: 'بياتريس',
-    finalImage: require('../../assets/cards/final/elf-knight.png'), // TODO: missing image
     attack: 14, defense: 11,
     race: 'elf', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
