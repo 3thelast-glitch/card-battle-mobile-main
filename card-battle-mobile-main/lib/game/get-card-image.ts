@@ -5,9 +5,7 @@ import { RARE_IMAGES } from '@/assets/characters/rare';
 import { EPIC_IMAGES } from '@/assets/characters/epic';
 import { LEGENDARY_IMAGES } from '@/assets/characters/legendary';
 
-const FALLBACK = require('@/assets/cards/final/human-warrior.png');
-
-export function getCardImage(card: Card): ImageSourcePropType {
+export function getCardImage(card: Card): ImageSourcePropType | null {
     const maps: Record<string, Record<string, any>> = {
         common: COMMON_IMAGES,
         rare: RARE_IMAGES,
@@ -19,5 +17,5 @@ export function getCardImage(card: Card): ImageSourcePropType {
     if (local) return local;
     if (card.imageUrl) return { uri: card.imageUrl };
     if (card.finalImage) return card.finalImage;
-    return FALLBACK;
+    return null;
 }
