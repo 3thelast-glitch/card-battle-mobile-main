@@ -115,7 +115,7 @@ function ImagePickerSection({ value, rarityColor, onChange }: {
     <View style={ep.imgSection}>
       {value ? (
         <View style={ep.imgPreviewWrap}>
-          <Image source={{ uri: value }} style={ep.imgPreview} resizeMode="cover" />
+          <Image source={{ uri: value }} style={ep.imgPreview} resizeMode="contain" />
           <TouchableOpacity style={ep.imgRemoveBtn} onPress={() => onChange(undefined)} activeOpacity={0.8}>
             <X size={12} color="#fff" />
           </TouchableOpacity>
@@ -136,34 +136,19 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
   const STEP = 10;
   return (
     <View style={ep.offsetRow}>
-      <TouchableOpacity
-        style={[ep.offsetBtn, { borderColor: rarityColor + '55' }]}
-        onPress={() => onChange(value - STEP)}
-        activeOpacity={0.7}
-      >
+      <TouchableOpacity style={[ep.offsetBtn, { borderColor: rarityColor + '55' }]} onPress={() => onChange(value - STEP)} activeOpacity={0.7}>
         <ChevronUp size={14} color={rarityColor} />
         <RNText style={[ep.offsetBtnTxt, { color: rarityColor }]}>لأعلى</RNText>
       </TouchableOpacity>
-
       <View style={ep.offsetValueBox}>
         <RNText style={[ep.offsetValue, { color: rarityColor }]}>{value > 0 ? `+${value}` : value}</RNText>
         <RNText style={ep.offsetHint}>px</RNText>
       </View>
-
-      <TouchableOpacity
-        style={[ep.offsetBtn, { borderColor: rarityColor + '55' }]}
-        onPress={() => onChange(value + STEP)}
-        activeOpacity={0.7}
-      >
+      <TouchableOpacity style={[ep.offsetBtn, { borderColor: rarityColor + '55' }]} onPress={() => onChange(value + STEP)} activeOpacity={0.7}>
         <ChevronDown size={14} color={rarityColor} />
         <RNText style={[ep.offsetBtnTxt, { color: rarityColor }]}>لأسفل</RNText>
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[ep.offsetResetBtn, { borderColor: '#44444466' }]}
-        onPress={() => onChange(0)}
-        activeOpacity={0.7}
-      >
+      <TouchableOpacity style={[ep.offsetResetBtn, { borderColor: '#44444466' }]} onPress={() => onChange(0)} activeOpacity={0.7}>
         <RNText style={ep.offsetResetTxt}>إعادة</RNText>
       </TouchableOpacity>
     </View>
@@ -366,11 +351,7 @@ export default function CardsGalleryScreen() {
                     <>
                       <View style={ep.divider} />
                       <RNText style={ep.label}>🔄 موضع الصورة عمودياً</RNText>
-                      <ImageOffsetAdjuster
-                        value={edits.imageOffsetY}
-                        rarityColor={rarityColor}
-                        onChange={v => patch({ imageOffsetY: v })}
-                      />
+                      <ImageOffsetAdjuster value={edits.imageOffsetY} rarityColor={rarityColor} onChange={v => patch({ imageOffsetY: v })} />
                     </>
                   )}
                   <View style={ep.divider} />
@@ -419,8 +400,15 @@ const ep = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 2 },
   actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)' },
   imgSection:     { gap: 8 },
-  imgPreviewWrap: { position: 'relative', alignSelf: 'center' },
-  imgPreview:     { width: 72, height: 96, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  imgPreviewWrap: {
+    position: 'relative', alignSelf: 'center',
+    width: 110, height: 140,
+    borderRadius: 10, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
+  },
+  imgPreview:     { width: '100%', height: '100%' },
   imgRemoveBtn:   { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#f87171', alignItems: 'center', justifyContent: 'center' },
   imgPickBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
   imgPickTxt:     { fontSize: 12, fontWeight: '700' },
