@@ -1,3 +1,16 @@
 export const RARE_IMAGES: Record<string, any> = {
-    // No images available yet — add entries here once PNG files are placed in this folder
+    barry_the_chopper: require('./barry_the_chopper.png'),
+    coby: require('./coby.png'),
+    dende: require('./dende.png'),
+    dr_cossack: require('./dr_cossack.png'),
+    emlyn_white: require('./emlyn_white.png'),
+    falco_grice: require('./falco_grice.png'),
+    rundelhaus: require('./rundelhaus.jpg'),
+    sasha_braus: require('./sasha_braus.png'),
+    silica: require('./silica.png'),
+    suspicious_beggar: require('./suspicious_beggar.png'),
+    tien_shinhan: require('./tien_shinhan.png'),
+    tony_tony_chopper: require('./tony_tony_chopper.png'),
+    usopp: require('./usopp.png'),
+    yamcha: require('./yamcha.png'),
 };
