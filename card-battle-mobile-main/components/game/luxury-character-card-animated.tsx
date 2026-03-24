@@ -20,7 +20,7 @@ interface Props { card: Card; style?: ViewStyle; }
 
 const RARITY_THEMES = {
     common: {
-        label: 'عادي', color: '#9CA3AF', borderColor: '#6B7280', borderWidth: 1,
+        label: '\u0639\u0627\u062f\u064a', color: '#9CA3AF', borderColor: '#6B7280', borderWidth: 1,
         shadowColor: '#6B7280', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4,
         hasFoil: false, hasRunicRing: false, hasFiligree: false, hasPulse: false,
         hasEdgeChain: false, hasParticles: false, hasSideVines: false,
@@ -33,7 +33,7 @@ const RARITY_THEMES = {
         placeholderColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
     },
     rare: {
-        label: 'نادر', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
+        label: '\u0646\u0627\u062f\u0631', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
         shadowColor: '#CD7F32', shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
         hasFoil: false, hasRunicRing: false, hasFiligree: true, hasPulse: false,
         hasEdgeChain: false, hasParticles: false, hasSideVines: false,
@@ -46,7 +46,7 @@ const RARITY_THEMES = {
         placeholderColors: ['#1a1200', '#2d2000', '#1a1200'] as any,
     },
     epic: {
-        label: 'ملحمي', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
+        label: '\u0645\u0644\u062d\u0645\u064a', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
         shadowColor: '#A855F7', shadowOpacity: 0.65, shadowRadius: 18, elevation: 9,
         hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: false,
         hasEdgeChain: false, hasParticles: false, hasSideVines: true,
@@ -59,7 +59,7 @@ const RARITY_THEMES = {
         placeholderColors: ['#1a0030', '#2d0050', '#1a0030'] as any,
     },
     legendary: {
-        label: 'أسطوري', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
+        label: '\u0623\u0633\u0637\u0648\u0631\u064a', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
         shadowColor: '#FFD700', shadowOpacity: 0.9, shadowRadius: 26, elevation: 12,
         hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: true,
         hasEdgeChain: true, hasParticles: true, hasSideVines: false,
@@ -73,7 +73,7 @@ const RARITY_THEMES = {
     },
 } as const;
 
-// ─── Runic Ring ────────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Runic Ring \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const RunicRing = ({ color, size = 64, reverse = false, speed = 10000 }: { color: string; size?: number; reverse?: boolean; speed?: number }) => {
     const rotation = useSharedValue(0);
     useEffect(() => {
@@ -102,7 +102,7 @@ const RunicRing = ({ color, size = 64, reverse = false, speed = 10000 }: { color
     );
 };
 
-// ─── Rich Elven Corner ─────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Rich Elven Corner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const ElvenCorner = ({ position, color, rich = false, scale = 1 }: { position: 'tl' | 'tr' | 'bl' | 'br'; color: string; rich?: boolean; scale?: number }) => {
     const rot = position === 'tl' ? 0 : position === 'tr' ? 90 : position === 'bl' ? -90 : 180;
     const posStyle: ViewStyle =
@@ -137,7 +137,7 @@ const ElvenCorner = ({ position, color, rich = false, scale = 1 }: { position: '
     );
 };
 
-// ─── Edge Chain (Legendary) ────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Edge Chain (Legendary) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const EdgeChain = ({ color }: { color: string }) => (
     <View style={styles.edgeChainWrapper} pointerEvents="none">
         <Svg style={styles.edgeTop} width="100%" height={10} viewBox="0 0 220 10" preserveAspectRatio="none">
@@ -175,7 +175,7 @@ const EdgeChain = ({ color }: { color: string }) => (
     </View>
 );
 
-// ─── Side Vines (Epic) ─────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Side Vines (Epic) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const SideVines = ({ color }: { color: string }) => (
     <View style={styles.sideVinesWrapper} pointerEvents="none">
         <Svg style={styles.vineLeft} width={14} height="60%" viewBox="0 0 14 180">
@@ -193,7 +193,7 @@ const SideVines = ({ color }: { color: string }) => (
     </View>
 );
 
-// ─── Floating Particles (Legendary) ───────────────────────────────────────────
+// \u2500\u2500\u2500 Floating Particles (Legendary) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const FloatingParticles = ({ color }: { color: string }) => (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg width="100%" height="100%" viewBox="0 0 220 320">
@@ -210,7 +210,7 @@ const FloatingParticles = ({ color }: { color: string }) => (
     </View>
 );
 
-// ─── Breathing Border (Legendary) ─────────────────────────────────────────────
+// \u2500\u2500\u2500 Breathing Border (Legendary) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const BreathingBorder = () => {
     const pulse = useSharedValue(0);
     useEffect(() => {
@@ -225,7 +225,7 @@ const BreathingBorder = () => {
     return <Animated.View style={[styles.breathingBorder, animStyle]} pointerEvents="none" />;
 };
 
-// ─── Glow Ring ─────────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Glow Ring \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const GlowRing = ({ color }: { color: string }) => {
     const opacity = useSharedValue(0.4);
     useEffect(() => {
@@ -235,16 +235,16 @@ const GlowRing = ({ color }: { color: string }) => {
     return <Animated.View style={[styles.glowRing, { borderColor: color, shadowColor: color }, animStyle]} pointerEvents="none" />;
 };
 
-// ─── Stars Row ─────────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Stars Row \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const StarsRow = ({ count, color, emptyColor, sc }: { count: number; color: string; emptyColor: string; sc: number }) => (
     <View style={styles.starsRow}>
         {Array.from({ length: 5 }).map((_, i) => (
-            <Text key={i} style={[styles.star, { color: i < count ? color : emptyColor, fontSize: Math.max(7, 11 * sc), lineHeight: Math.max(10, 14 * sc) }]}>★</Text>
+            <Text key={i} style={[styles.star, { color: i < count ? color : emptyColor, fontSize: Math.max(7, 11 * sc), lineHeight: Math.max(10, 14 * sc) }]}>\u2605</Text>
         ))}
     </View>
 );
 
-// ─── Special Ability Banner ────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Special Ability Banner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const AbilityBanner = ({
     text, rarity, theme, sc,
 }: { text: string; rarity: CardRarity; theme: typeof RARITY_THEMES['legendary']; sc: number }) => {
@@ -258,7 +258,7 @@ const AbilityBanner = ({
             <View style={styles.abilityWrapperLegendary}>
                 <View style={styles.legendaryDivider}>
                     <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
-                    <Text style={[styles.dividerGem, { color: theme.color, fontSize: Math.max(7, 10 * sc) }]}>✦</Text>
+                    <Text style={[styles.dividerGem, { color: theme.color, fontSize: Math.max(7, 10 * sc) }]}>\u2726</Text>
                     <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
                 </View>
                 <LinearGradient
@@ -266,7 +266,7 @@ const AbilityBanner = ({
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}
                 >
-                    <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>⚜️</Text>
+                    <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>\u269c\ufe0f</Text>
                     <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
                 </LinearGradient>
             </View>
@@ -280,7 +280,7 @@ const AbilityBanner = ({
                     colors={theme.abilityBg}
                     style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1, borderLeftWidth: 0, paddingHorizontal: padH, paddingVertical: padV }]}
                 >
-                    <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>✦</Text>
+                    <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>\u2726</Text>
                     <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
                 </LinearGradient>
             </View>
@@ -291,13 +291,13 @@ const AbilityBanner = ({
             colors={theme.abilityBg}
             style={[styles.abilityBannerSimple, { borderColor: theme.abilityBorder, paddingHorizontal: padH, paddingVertical: padV - 1 }]}
         >
-            <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>◆</Text>
+            <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>\u25c6</Text>
             <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
         </LinearGradient>
     );
 };
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Main Component \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
@@ -325,7 +325,6 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     }, [rarity, cardW]);
     const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: foilPos.value }] }));
 
-    // ── Use getCardImage instead of finalImage directly ──────────────────────
     const cardImage = getCardImage(card);
     const hasImage = !!cardImage;
 
@@ -352,6 +351,12 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const badgeTop = Math.max(4, 9 * scH);
     const badgeLeft = Math.max(4, 9 * scW);
 
+    // How much vertical space the bottom UI takes (stats + ability + name)
+    // Reserve this area clear of the character
+    const bottomUIHeight = nameBottom + Math.round(28 * scH);
+    // Image fills top portion only, pushed slightly up so feet show
+    const imageAreaHeight = cardH - bottomUIHeight + Math.round(30 * scH);
+
     return (
         <Animated.View style={[
             styles.cardContainer,
@@ -369,22 +374,32 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
 
-                {/* Placeholder gradient when no image */}
-                {!hasImage && (
+                {/* Background: placeholder or solid dark */}
+                {!hasImage ? (
                     <LinearGradient
                         colors={theme.placeholderColors}
                         style={StyleSheet.absoluteFill}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     />
+                ) : (
+                    // Dark background behind contain-mode image
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a10' }]} />
                 )}
 
-                {/* Card image */}
+                {/* Card image — contain so full character is always visible */}
                 {hasImage && (
                     <Image
                         source={cardImage!}
-                        style={styles.bgImage}
-                        resizeMode="cover"
+                        style={[
+                            styles.bgImage,
+                            {
+                                height: imageAreaHeight,
+                                top: 0,
+                                bottom: undefined,
+                            },
+                        ]}
+                        resizeMode="contain"
                     />
                 )}
 
@@ -399,20 +414,19 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
                     <View style={[styles.innerBorder, { borderColor: theme.borderColor + '55', borderRadius: Math.round(9 * sc) }]} pointerEvents="none" />
 
-                    {/* Gradient overlay only when image exists */}
+                    {/* Gradient overlay at bottom for text readability */}
                     {hasImage && (
                         <LinearGradient
-                            colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']}
+                            colors={['transparent', 'transparent', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0.92)']}
                             style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                             pointerEvents="none"
                         />
                     )}
 
-                    {/* No-image indicator */}
                     {!hasImage && (
                         <View style={styles.noImageBadge} pointerEvents="none">
-                            <Text style={styles.noImageIcon}>🖼️</Text>
-                            <Text style={styles.noImageText}>لا توجد صورة</Text>
+                            <Text style={styles.noImageIcon}>\ud83d\uddbc\ufe0f</Text>
+                            <Text style={styles.noImageText}>\u0644\u0627 \u062a\u0648\u062c\u062f \u0635\u0648\u0631\u0629</Text>
                         </View>
                     )}
 
@@ -442,7 +456,7 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
                         backgroundColor: rarity === 'legendary' ? 'rgba(30,20,0,0.75)' : rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)',
                     }]}>
                         <Text style={[styles.rarityBadgeText, { color: theme.color, fontSize: badgeFontSize }]}>
-                            {rarity === 'legendary' ? '✧ ' : '✦ '}{theme.label}{rarity === 'legendary' ? ' ✧' : ' ✦'}
+                            {rarity === 'legendary' ? '\u2747 ' : '\u2726 '}{theme.label}{rarity === 'legendary' ? ' \u2747' : ' \u2726'}
                         </Text>
                     </View>
 
@@ -472,8 +486,8 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
                     {/* Stats Row */}
                     <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 12 * scW) }]}>
-                        {[{ icon: '⚔️', value: card.attack, col: theme.atkColor, rev: false },
-                        { icon: '🛡️', value: card.defense, col: theme.defColor, rev: true }]
+                        {[{ icon: '\u2694\ufe0f', value: card.attack, col: theme.atkColor, rev: false },
+                        { icon: '\ud83d\udee1\ufe0f', value: card.defense, col: theme.defColor, rev: true }]
                             .map(({ icon, value, col, rev }) => (
                                 <View key={icon} style={styles.statWrapper}>
                                     {theme.hasRunicRing && (
@@ -522,7 +536,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 },
     },
     cardInner: { flex: 1, overflow: 'hidden' },
-    bgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+    bgImage: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        width: '100%',
+    },
     contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: {
         position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
