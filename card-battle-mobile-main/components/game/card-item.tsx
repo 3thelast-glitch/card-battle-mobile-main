@@ -28,6 +28,7 @@ import { CARD_DIMENSIONS, CARD_SHADOW } from '@/constants/game-config';
 import { useCardTapAnimation, useCardSummonAnimation } from '@/lib/animations';
 import { RarityGlow } from './rarity-glow';
 import { FireParticles } from '@/lib/particles';
+import { getCardImage } from '@/lib/game/get-card-image';
 
 // ─── Size Presets ─────────────────────────────────────────────────────────────
 
@@ -181,7 +182,7 @@ export function CardItem({
 
           {/* Card Art Image */}
           <Image
-            source={card.finalImage}
+            source={getCardImage(card)}
             style={styles.image}
             contentFit="contain"
             cachePolicy="memory-disk"
