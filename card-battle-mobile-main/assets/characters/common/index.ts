@@ -6,7 +6,6 @@ export const COMMON_IMAGES: Record<string, any> = {
     konohamaru: require('./konohamaru.png'),
     bulma: require('./bulma.png'),
     hitch_dreyse: require('./hitch_dreyse.png'),
-    misa_amane: require('./misa_amane.png'),
     leorio: require('./leorio.png'),
     king: require('./king.png'),
     the_plain_doll: require('./the_plain_doll.png'),
