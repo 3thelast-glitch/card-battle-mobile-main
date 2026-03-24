@@ -10,6 +10,7 @@
  *  - Summon entrance: slide-up + peak scale
  *  - Stats overlay: attack, defense, hp
  *  - Rarity badge pill (top-right)
+ *  - Gradient placeholder when no image available
  */
 
 import React, { useEffect } from 'react';
@@ -22,6 +23,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { CARD_DIMENSIONS, CARD_SHADOW } from '@/constants/game-config';
@@ -29,8 +31,17 @@ import { useCardTapAnimation, useCardSummonAnimation } from '@/lib/animations';
 import { RarityGlow } from './rarity-glow';
 import { FireParticles } from '@/lib/particles';
 import { getCardImage } from '@/lib/game/get-card-image';
+import type { CardRarity } from '@/lib/game/types';
 
-// ─── Size Presets ─────────────────────────────────────────────────────────────
+// ─── Placeholder colors per rarity ─────────────────────────────────────────
+const PLACEHOLDER_COLORS: Record<string, readonly [string, string, string]> = {
+  common:    ['#1a1a2e', '#2d2d44', '#1a1a2e'],
+  rare:      ['#1a1200', '#2d2000', '#1a1200'],
+  epic:      ['#1a0030', '#2d0050', '#1a0030'],
+  legendary: ['#1a1400', '#2d2400', '#1a1400'],
+};
+
+// ─── Size Presets ─────────────────────────────────────────────────────────────────
 
 const SIZE_PRESETS = {
   small: {
@@ -56,7 +67,7 @@ const SIZE_PRESETS = {
   },
 } as const;
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────────
 
 interface CardItemProps {
   card: Card;
@@ -78,7 +89,7 @@ interface CardItemProps {
   customHeight?: number;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────────────────────────
 
 export function CardItem({
   card,
@@ -94,11 +105,16 @@ export function CardItem({
   customHeight,
 }: CardItemProps) {
   const preset = SIZE_PRESETS[size];
-  const rarity = card.rarity ?? 'common';
+  const rarity = (card.rarity ?? 'common') as string;
   const rarityCfg = getRarityConfig(rarity);
 
   const width = customWidth ?? preset.width;
   const height = customHeight ?? preset.height;
+
+  // ── Resolve image ────────────────────────────────────────────────
+  const cardImage = getCardImage(card);
+  const hasImage = !!cardImage;
+  const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS.common;
 
   // ── Animations ──
   const tap = useCardTapAnimation();
@@ -164,30 +180,39 @@ export function CardItem({
           <View
             style={[
               styles.gradientMid,
-              {
-                backgroundColor: rarityCfg.gradient[1],
-                opacity: 0.75,
-              },
+              { backgroundColor: rarityCfg.gradient[1], opacity: 0.75 },
             ]}
           />
           <View
             style={[
               styles.gradientTop,
-              {
-                backgroundColor: rarityCfg.gradient[2],
-                opacity: 0.4,
-              },
+              { backgroundColor: rarityCfg.gradient[2], opacity: 0.4 },
             ]}
           />
 
-          {/* Card Art Image */}
-          <Image
-            source={getCardImage(card)}
-            style={styles.image}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            transition={200}
-          />
+          {/* Card Art — Image or Placeholder */}
+          {hasImage ? (
+            <Image
+              source={cardImage}
+              style={styles.image}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          ) : (
+            <>
+              <LinearGradient
+                colors={placeholderColors}
+                style={styles.imagePlaceholder}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <View style={styles.noImageBadge} pointerEvents="none">
+                <Text style={styles.noImageIcon}>🖼️</Text>
+                <Text style={styles.noImageText}>لا توجد صورة</Text>
+              </View>
+            </>
+          )}
 
           {/* Tap animated layer */}
           <Animated.View
@@ -202,7 +227,6 @@ export function CardItem({
                 <StatBadge icon="⚔️" value={card.attack} size={preset.statFontSize} />
                 <StatBadge icon="🛡️" value={card.defense} size={preset.statFontSize} />
               </View>
-
               <Text
                 style={[styles.cardName, { fontSize: preset.nameFontSize }]}
                 numberOfLines={1}
@@ -242,7 +266,7 @@ export function CardItem({
         </Animated.View>
       </Pressable>
 
-      {/* Fire particles for Legendary (outside Pressable, absolute) */}
+      {/* Fire particles for Legendary */}
       {rarityCfg.hasParticles && !disabled && (
         <View
           style={[
@@ -258,7 +282,7 @@ export function CardItem({
   );
 }
 
-// ─── StatBadge ────────────────────────────────────────────────────────────────
+// ─── StatBadge ─────────────────────────────────────────────────────────────────────
 
 function StatBadge({ icon, value, size }: { icon: string; value: number; size: number }) {
   return (
@@ -269,7 +293,7 @@ function StatBadge({ icon, value, size }: { icon: string; value: number; size: n
   );
 }
 
-// ─── Effect icon map ──────────────────────────────────────────────────────────
+// ─── Effect icon map ────────────────────────────────────────────────────────────
 
 const EFFECT_ICONS: Record<string, string> = {
   taunt: '🛡️',
@@ -279,7 +303,7 @@ const EFFECT_ICONS: Record<string, string> = {
   charge: '⚡',
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   outerWrapper: {
@@ -304,15 +328,11 @@ const styles = StyleSheet.create({
   gradientMid: {
     position: 'absolute',
     top: '30%',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 0, right: 0, bottom: 0,
   },
   gradientTop: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 0, left: 0, right: 0,
     height: '50%',
   },
   image: {
@@ -321,11 +341,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
   },
+  imagePlaceholder: {
+    width: '100%',
+    height: '75%',
+    position: 'absolute',
+    top: 0,
+  },
+  noImageBadge: {
+    position: 'absolute',
+    top: '18%',
+    left: 0, right: 0,
+    alignItems: 'center',
+    zIndex: 4,
+  },
+  noImageIcon: {
+    fontSize: 22,
+    opacity: 0.35,
+  },
+  noImageText: {
+    fontSize: 7,
+    color: 'rgba(255,255,255,0.25)',
+    marginTop: 2,
+  },
   statsOverlay: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 0, left: 0, right: 0,
     paddingHorizontal: 6,
     paddingVertical: 5,
     backgroundColor: 'rgba(0,0,0,0.65)',
@@ -358,8 +398,7 @@ const styles = StyleSheet.create({
   },
   elementBadge: {
     position: 'absolute',
-    top: 5,
-    left: 5,
+    top: 5, left: 5,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 10,
     paddingHorizontal: 4,
@@ -370,10 +409,8 @@ const styles = StyleSheet.create({
   },
   rarityBadge: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 18,
-    height: 18,
+    top: 5, right: 5,
+    width: 18, height: 18,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
@@ -385,8 +422,7 @@ const styles = StyleSheet.create({
   },
   effectsRow: {
     position: 'absolute',
-    bottom: 52,
-    right: 4,
+    bottom: 52, right: 4,
     gap: 2,
     alignItems: 'center',
   },
