@@ -2,7 +2,7 @@
  * LuxuryCharacterCard — Premium card with dynamic rarity theming
  * Features:
  * - Dynamic rarity colors (Legendary: Gold, Epic: Silver/Purple, Rare: Bronze, Common: Dark/Grey)
- * - ImageBackground with gradient overlay
+ * - ImageBackground with gradient overlay (or gradient placeholder if no image)
  * - Top-left badge with rarity name
  * - Centered titles (Arabic + English)
  * - Frosted glass description box
@@ -34,6 +34,7 @@ const RARITY_THEMES = {
         elevation: 4,
         hasShine: false,
         titleGlowRadius: 4,
+        placeholderColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as const,
     },
     rare: {
         label: 'نادر',
@@ -48,6 +49,7 @@ const RARITY_THEMES = {
         elevation: 6,
         hasShine: false,
         titleGlowRadius: 6,
+        placeholderColors: ['#1a1200', '#2d2000', '#1a1200'] as const,
     },
     epic: {
         label: 'ملحمي',
@@ -62,6 +64,7 @@ const RARITY_THEMES = {
         elevation: 8,
         hasShine: true,
         titleGlowRadius: 8,
+        placeholderColors: ['#1a0030', '#2d0050', '#1a0030'] as const,
     },
     legendary: {
         label: 'أسطوري',
@@ -76,12 +79,123 @@ const RARITY_THEMES = {
         elevation: 10,
         hasShine: true,
         titleGlowRadius: 10,
+        placeholderColors: ['#1a1400', '#2d2400', '#1a1400'] as const,
     },
 };
 
 export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
+    const cardImage = getCardImage(card);
+
+    const cardContent = (
+        <>
+            {/* Placeholder gradient background when no image */}
+            {!cardImage && (
+                <LinearGradient
+                    colors={theme.placeholderColors}
+                    style={StyleSheet.absoluteFillObject}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+            )}
+
+            {/* Glass Shine Overlay - Epic & Legendary only */}
+            {theme.hasShine && (
+                <LinearGradient
+                    colors={['rgba(255,255,255, 0.0)', 'rgba(255,255,255, 0.15)', 'rgba(255,255,255, 0.0)']}
+                    style={styles.shineOverlay}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+            )}
+
+            {/* Elegant Thin Border */}
+            <View style={[styles.innerBorder, { borderColor: theme.borderColor }]} />
+
+            {/* Gradient Overlay for Text Readability — only when image exists */}
+            {cardImage && (
+                <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+                    style={styles.gradientOverlay}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                />
+            )}
+
+            {/* No-image icon indicator */}
+            {!cardImage && (
+                <View style={styles.noImageBadge}>
+                    <Text style={styles.noImageIcon}>🖼️</Text>
+                    <Text style={styles.noImageText}>لا توجد صورة</Text>
+                </View>
+            )}
+
+            {/* Top-Left Sleek Badge */}
+            <View style={[styles.rarityBadge, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}>
+                <Text style={[styles.rarityBadgeText, { color: theme.badgeText }]}>
+                    {theme.label} ✦
+                </Text>
+            </View>
+
+            {/* Center Typography - Lower Half */}
+            <View style={styles.titlesContainer}>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                    {card.nameAr}
+                </Text>
+                <Text style={[styles.title, {
+                    textShadowColor: theme.color,
+                    textShadowRadius: theme.titleGlowRadius,
+                }]} numberOfLines={2}>
+                    {card.nameEn || card.name}
+                </Text>
+            </View>
+
+            {/* Frosted Glass Description Box */}
+            <View style={styles.descriptionBox}>
+                <Text style={styles.descriptionText} numberOfLines={3}>
+                    {card.nameAr} - {card.race} {card.cardClass}
+                </Text>
+            </View>
+
+            {/* Bottom Stat Orbs - Embedded in Corners */}
+            <View style={styles.statsContainer}>
+                {/* Left Orb - Defense */}
+                <View style={[styles.statOrb, styles.defenseOrb, {
+                    borderColor: theme.borderColor,
+                    shadowColor: theme.color,
+                    shadowOpacity: theme.shadowOpacity * 0.6,
+                }]}>
+                    <LinearGradient
+                        colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
+                        style={styles.orbGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Text style={styles.statOrbIcon}>🛡️</Text>
+                        <Text style={styles.statOrbValue}>{card.defense}</Text>
+                    </LinearGradient>
+                </View>
+
+                {/* Right Orb - Attack */}
+                <View style={[styles.statOrb, styles.attackOrb, {
+                    borderColor: theme.borderColor,
+                    shadowColor: theme.color,
+                    shadowOpacity: theme.shadowOpacity * 0.6,
+                }]}>
+                    <LinearGradient
+                        colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
+                        style={styles.orbGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Text style={styles.statOrbIcon}>⚔️</Text>
+                        <Text style={[styles.statOrbValue, styles.attackValue]}>{card.attack}</Text>
+                    </LinearGradient>
+                </View>
+            </View>
+        </>
+    );
 
     return (
         <View style={[styles.cardContainer, style, {
@@ -90,97 +204,19 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
             shadowRadius: theme.shadowRadius,
             elevation: theme.elevation,
         }]}>
-            {/* Card Background Image */}
-            <ImageBackground
-                source={getCardImage(card)}
-                style={styles.cardBackground}
-                imageStyle={{ borderRadius: 12 }}
-            >
-                {/* Glass Shine Overlay - Epic & Legendary only */}
-                {theme.hasShine && (
-                    <LinearGradient
-                        colors={['rgba(255,255,255, 0.0)', 'rgba(255,255,255, 0.15)', 'rgba(255,255,255, 0.0)']}
-                        style={styles.shineOverlay}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    />
-                )}
-
-                {/* Elegant Thin Border */}
-                <View style={[styles.innerBorder, { borderColor: theme.borderColor }]} />
-
-                {/* Gradient Overlay for Text Readability */}
-                <LinearGradient
-                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
-                    style={styles.gradientOverlay}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                />
-
-                {/* Top-Left Sleek Badge */}
-                <View style={[styles.rarityBadge, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}>
-                    <Text style={[styles.rarityBadgeText, { color: theme.badgeText }]}>
-                        {theme.label} ✦
-                    </Text>
+            {cardImage ? (
+                <ImageBackground
+                    source={cardImage}
+                    style={styles.cardBackground}
+                    imageStyle={{ borderRadius: 12 }}
+                >
+                    {cardContent}
+                </ImageBackground>
+            ) : (
+                <View style={[styles.cardBackground, { borderRadius: 12, overflow: 'hidden' }]}>
+                    {cardContent}
                 </View>
-
-                {/* Center Typography - Lower Half */}
-                <View style={styles.titlesContainer}>
-                    <Text style={styles.subtitle} numberOfLines={1}>
-                        {card.nameAr}
-                    </Text>
-                    <Text style={[styles.title, {
-                        textShadowColor: theme.color,
-                        textShadowRadius: theme.titleGlowRadius,
-                    }]} numberOfLines={2}>
-                        {card.nameEn || card.name}
-                    </Text>
-                </View>
-
-                {/* Frosted Glass Description Box */}
-                <View style={styles.descriptionBox}>
-                    <Text style={styles.descriptionText} numberOfLines={3}>
-                        {card.nameAr} - {card.race} {card.cardClass}
-                    </Text>
-                </View>
-
-                {/* Bottom Stat Orbs - Embedded in Corners */}
-                <View style={styles.statsContainer}>
-                    {/* Left Orb - Defense */}
-                    <View style={[styles.statOrb, styles.defenseOrb, {
-                        borderColor: theme.borderColor,
-                        shadowColor: theme.color,
-                        shadowOpacity: theme.shadowOpacity * 0.6,
-                    }]}>
-                        <LinearGradient
-                            colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
-                            style={styles.orbGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                        >
-                            <Text style={styles.statOrbIcon}>🛡️</Text>
-                            <Text style={styles.statOrbValue}>{card.defense}</Text>
-                        </LinearGradient>
-                    </View>
-
-                    {/* Right Orb - Attack */}
-                    <View style={[styles.statOrb, styles.attackOrb, {
-                        borderColor: theme.borderColor,
-                        shadowColor: theme.color,
-                        shadowOpacity: theme.shadowOpacity * 0.6,
-                    }]}>
-                        <LinearGradient
-                            colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
-                            style={styles.orbGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                        >
-                            <Text style={styles.statOrbIcon}>⚔️</Text>
-                            <Text style={[styles.statOrbValue, styles.attackValue]}>{card.attack}</Text>
-                        </LinearGradient>
-                    </View>
-                </View>
-            </ImageBackground>
+            )}
         </View>
     );
 }
@@ -221,6 +257,23 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         zIndex: 2,
+    },
+    noImageBadge: {
+        position: 'absolute',
+        top: '25%',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 4,
+    },
+    noImageIcon: {
+        fontSize: 36,
+        opacity: 0.4,
+    },
+    noImageText: {
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.3)',
+        marginTop: 4,
     },
     rarityBadge: {
         position: 'absolute',
