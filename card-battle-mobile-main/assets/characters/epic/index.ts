@@ -1,2 +1,2 @@
 // أضف هنا لما ترفع الصور
-export const RARE_IMAGES: Record<string, any> = {};
+export const EPIC_IMAGES: Record<string, any> = {};
