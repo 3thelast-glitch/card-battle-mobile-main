@@ -30,6 +30,7 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(10,10,14,0.88)', 'rgba(20,20,28,0.92)'] as any,
         abilityBorder: '#6B728066', abilityTextColor: '#d1d5db',
         abilityIconColor: '#9CA3AF',
+        placeholderColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
     },
     rare: {
         label: 'نادر', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
@@ -42,6 +43,7 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(15,10,5,0.9)', 'rgba(30,18,8,0.95)'] as any,
         abilityBorder: '#CD7F3266', abilityTextColor: '#fcd9a0',
         abilityIconColor: '#CD7F32',
+        placeholderColors: ['#1a1200', '#2d2000', '#1a1200'] as any,
     },
     epic: {
         label: 'ملحمي', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
@@ -54,6 +56,7 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(30,5,55,0.92)', 'rgba(50,10,80,0.96)'] as any,
         abilityBorder: '#A855F7AA', abilityTextColor: '#e9d5ff',
         abilityIconColor: '#d8b4fe',
+        placeholderColors: ['#1a0030', '#2d0050', '#1a0030'] as any,
     },
     legendary: {
         label: 'أسطوري', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
@@ -66,6 +69,7 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(30,22,0,0.93)', 'rgba(50,36,0,0.97)'] as any,
         abilityBorder: '#FFD700CC', abilityTextColor: '#fef3c7',
         abilityIconColor: '#FFD700',
+        placeholderColors: ['#1a1400', '#2d2400', '#1a1400'] as any,
     },
 } as const;
 
@@ -293,14 +297,6 @@ const AbilityBanner = ({
     );
 };
 
-function resolveSource(src: any) {
-    if (!src) return null;
-    if (typeof src === 'string') return { uri: src };
-    if (typeof src === 'number') return src;
-    if (typeof src === 'object' && src.uri) return src;
-    return src;
-}
-
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
@@ -308,19 +304,16 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
 
-    // ── Resolve actual card dimensions ──────────────────────────────────────
     const { width: screenW } = useWindowDimensions();
     const styleW = (style as any)?.width;
     const styleH = (style as any)?.height;
     const cardW: number = typeof styleW === 'number' ? styleW : BASE_W;
     const cardH: number = typeof styleH === 'number' ? styleH : BASE_H;
 
-    // scale factor relative to the BASE design (220×320)
-    const scW = cardW / BASE_W;   // width scale
-    const scH = cardH / BASE_H;   // height scale
-    const sc = Math.min(scW, scH); // uniform scale for fonts/icons
+    const scW = cardW / BASE_W;
+    const scH = cardH / BASE_H;
+    const sc = Math.min(scW, scH);
 
-    // ── Animated foil ───────────────────────────────────────────────────────
     const foilPos = useSharedValue(-cardW * 0.55);
     useEffect(() => {
         if (theme.hasFoil) {
@@ -331,16 +324,17 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
         }
     }, [rarity, cardW]);
     const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: foilPos.value }] }));
-    const imgSource = resolveSource(card.finalImage);
 
-    // ── Scaled layout values ─────────────────────────────────────────────────
+    // ── Use getCardImage instead of finalImage directly ──────────────────────
+    const cardImage = getCardImage(card);
+    const hasImage = !!cardImage;
+
     const statBadgeSize = Math.round(46 * sc);
     const ringSize = Math.round(64 * sc);
     const innerRingSize = Math.round(48 * sc);
     const innerRing2Size = Math.round(32 * sc);
     const foilStripW = Math.round(90 * scW);
 
-    // vertical stack from bottom
     const statsBottom = Math.round(6 * scH);
     const STAT_AREA_H = Math.round(62 * scH);
     const ABILITY_H = hasAbility ? Math.round((rarity === 'legendary' ? 50 : 42) * scH) : 0;
@@ -348,13 +342,11 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
     const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
     const nameBottom = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4 * scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
 
-    // font sizes
     const nameFontSize = Math.max(10, (rarity === 'legendary' ? 18 : 17) * sc);
     const badgeFontSize = Math.max(7, 10 * sc);
     const statIconSize = Math.max(8, 12 * sc);
     const statValueSize = Math.max(9, 13 * sc);
 
-    // badge padding
     const badgePadH = Math.max(5, 10 * sc);
     const badgePadV = Math.max(2, 3 * sc);
     const badgeTop = Math.max(4, 9 * scH);
@@ -376,7 +368,25 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
             {(rarity === 'epic' || rarity === 'legendary') && <GlowRing color={theme.color} />}
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
-                {imgSource && <Image source={imgSource} style={styles.bgImage} resizeMode="cover" />}
+
+                {/* Placeholder gradient when no image */}
+                {!hasImage && (
+                    <LinearGradient
+                        colors={theme.placeholderColors}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    />
+                )}
+
+                {/* Card image */}
+                {hasImage && (
+                    <Image
+                        source={cardImage!}
+                        style={styles.bgImage}
+                        resizeMode="cover"
+                    />
+                )}
 
                 <View style={styles.contentLayer}>
                     {theme.hasFoil && (
@@ -389,11 +399,22 @@ export function LuxuryCharacterCardAnimated({ card, style }: Props) {
 
                     <View style={[styles.innerBorder, { borderColor: theme.borderColor + '55', borderRadius: Math.round(9 * sc) }]} pointerEvents="none" />
 
-                    <LinearGradient
-                        colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']}
-                        style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                        pointerEvents="none"
-                    />
+                    {/* Gradient overlay only when image exists */}
+                    {hasImage && (
+                        <LinearGradient
+                            colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']}
+                            style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                            pointerEvents="none"
+                        />
+                    )}
+
+                    {/* No-image indicator */}
+                    {!hasImage && (
+                        <View style={styles.noImageBadge} pointerEvents="none">
+                            <Text style={styles.noImageIcon}>🖼️</Text>
+                            <Text style={styles.noImageText}>لا توجد صورة</Text>
+                        </View>
+                    )}
 
                     {theme.hasEdgeChain && <EdgeChain color={theme.color} />}
                     {theme.hasParticles && <FloatingParticles color={theme.color} />}
@@ -529,6 +550,12 @@ const styles = StyleSheet.create({
     sideVinesWrapper: { position: 'absolute', top: '20%', left: 0, right: 0, bottom: '15%', zIndex: 3 },
     vineLeft: { position: 'absolute', left: 2 },
     vineRight: { position: 'absolute', right: 2 },
+    noImageBadge: {
+        position: 'absolute', top: '25%', left: 0, right: 0,
+        alignItems: 'center', zIndex: 4,
+    },
+    noImageIcon: { fontSize: 36, opacity: 0.4 },
+    noImageText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4 },
     rarityBadge: {
         position: 'absolute', borderWidth: 1, zIndex: 10,
     },
