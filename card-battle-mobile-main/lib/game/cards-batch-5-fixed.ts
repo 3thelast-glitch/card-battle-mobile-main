@@ -229,7 +229,6 @@ export const CARDS_BATCH_5: Card[] = [
     id: 'happy',
     name: 'Happy',
     nameAr: 'هابي',
-    finalImage: require('../../assets/cards/final/orc-warrior.png'),
     attack: 4, defense: 2,
     race: 'orc', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
