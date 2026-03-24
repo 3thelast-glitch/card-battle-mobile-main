@@ -1,6 +1,7 @@
 /**
  * LuxuryCharacterCardAnimated — Fully Responsive
  * Supports imageOffsetY prop to shift the card image vertically.
+ * Always renders rarity background gradient, even when image is present.
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle, useWindowDimensions } from 'react-native';
@@ -29,7 +30,7 @@ const RARITY_THEMES = {
         starColor: '#9CA3AF', starEmpty: '#3f3f46',
         abilityBg: ['rgba(10,10,14,0.88)', 'rgba(20,20,28,0.92)'] as any,
         abilityBorder: '#6B728066', abilityTextColor: '#d1d5db', abilityIconColor: '#9CA3AF',
-        placeholderColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
+        bgColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
     },
     rare: {
         label: '\u0646\u0627\u062f\u0631', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
@@ -41,7 +42,7 @@ const RARITY_THEMES = {
         starColor: '#CD7F32', starEmpty: '#3f2d1a',
         abilityBg: ['rgba(15,10,5,0.9)', 'rgba(30,18,8,0.95)'] as any,
         abilityBorder: '#CD7F3266', abilityTextColor: '#fcd9a0', abilityIconColor: '#CD7F32',
-        placeholderColors: ['#1a1200', '#2d2000', '#1a1200'] as any,
+        bgColors: ['#1a1200', '#2d2000', '#1a1200'] as any,
     },
     epic: {
         label: '\u0645\u0644\u062d\u0645\u064a', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
@@ -53,7 +54,7 @@ const RARITY_THEMES = {
         starColor: '#A855F7', starEmpty: '#2d1a3f',
         abilityBg: ['rgba(30,5,55,0.92)', 'rgba(50,10,80,0.96)'] as any,
         abilityBorder: '#A855F7AA', abilityTextColor: '#e9d5ff', abilityIconColor: '#d8b4fe',
-        placeholderColors: ['#1a0030', '#2d0050', '#1a0030'] as any,
+        bgColors: ['#1a0030', '#2d0050', '#1a0030'] as any,
     },
     legendary: {
         label: '\u0623\u0633\u0637\u0648\u0631\u064a', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
@@ -65,7 +66,7 @@ const RARITY_THEMES = {
         starColor: '#FFD700', starEmpty: '#3a2d00',
         abilityBg: ['rgba(30,22,0,0.93)', 'rgba(50,36,0,0.97)'] as any,
         abilityBorder: '#FFD700CC', abilityTextColor: '#fef3c7', abilityIconColor: '#FFD700',
-        placeholderColors: ['#1a1400', '#2d2400', '#1a1400'] as any,
+        bgColors: ['#1a1400', '#2d2400', '#1a1400'] as any,
     },
 } as const;
 
@@ -242,7 +243,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
 
-    const { width: screenW } = useWindowDimensions();
     const styleW = (style as any)?.width;
     const styleH = (style as any)?.height;
     const cardW: number = typeof styleW === 'number' ? styleW : BASE_W;
@@ -265,6 +265,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
 
     const cardImage = getCardImage(card);
     const hasImage = !!cardImage;
+    const isCustomImage = !!(card as any).customImage;
 
     const statBadgeSize = Math.round(46 * sc);
     const ringSize = Math.round(64 * sc);
@@ -298,16 +299,25 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
             {(rarity === 'epic' || rarity === 'legendary') && <GlowRing color={theme.color} />}
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
-                {!hasImage && (
-                    <LinearGradient colors={theme.placeholderColors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                )}
 
-                {/* Card image with vertical offset support */}
+                {/* Rarity background — always visible behind image */}
+                <LinearGradient
+                    colors={theme.bgColors}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+
+                {/* Card image */}
                 {hasImage && (
                     <Image
                         source={cardImage!}
-                        style={[styles.bgImage, { top: imageOffsetY }]}
-                        resizeMode="cover"
+                        style={[
+                            styles.bgImage,
+                            { top: imageOffsetY },
+                            isCustomImage && styles.bgImageContain,
+                        ]}
+                        resizeMode={isCustomImage ? 'contain' : 'cover'}
                     />
                 )}
 
@@ -418,6 +428,7 @@ const styles = StyleSheet.create({
     cardContainer: { backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 } },
     cardInner: { flex: 1, overflow: 'hidden' },
     bgImage: { position: 'absolute', left: 0, right: 0, width: '100%', height: '100%' },
+    bgImageContain: { top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
     contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: { position: 'absolute', top: -6, left: -6, right: -6, bottom: -6, borderRadius: 19, borderWidth: 2.5, borderColor: '#FFD700', shadowOffset: { width: 0, height: 0 }, zIndex: 20 },
     glowRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 16, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, zIndex: 19 },
