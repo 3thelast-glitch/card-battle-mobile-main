@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
   TextInput, Switch, Text as RNText, Image, Platform,
@@ -37,9 +37,10 @@ type CardEdits = {
   defense: number;
   customImage?: string;
   imageOffsetY: number;
+  fitInsideBorder: boolean;
 };
 
-function toEdits(card: Card & { customImage?: string; imageOffsetY?: number }): CardEdits {
+function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }): CardEdits {
   return {
     stars: card.stars ?? 0,
     hasAbility: !!card.specialAbility,
@@ -48,6 +49,7 @@ function toEdits(card: Card & { customImage?: string; imageOffsetY?: number }): 
     defense: card.defense,
     customImage: card.customImage,
     imageOffsetY: card.imageOffsetY ?? 0,
+    fitInsideBorder: card.fitInsideBorder ?? false,
   };
 }
 
@@ -129,7 +131,6 @@ function ImagePickerSection({ value, rarityColor, onChange }: {
   );
 }
 
-// ─── Image Position Adjuster ─────────────────────────────────────────────────
 function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
   value: number; rarityColor: string; onChange: (v: number) => void;
 }) {
@@ -157,11 +158,11 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
 
 export default function CardsGalleryScreen() {
   const router = useRouter();
-  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card & { customImage?: string; imageOffsetY?: number }>>>({});
-  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number })[]>(UNIQUE_CARDS);
-  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number }) | null>(null);
+  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }>>>({});
+  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean })[]>(UNIQUE_CARDS);
+  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
-  const [previewCard, setPreviewCard] = useState<(Card & { customImage?: string; imageOffsetY?: number }) | null>(null);
+  const [previewCard, setPreviewCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
@@ -191,11 +192,12 @@ export default function CardsGalleryScreen() {
       defense: edits.defense,
       customImage: edits.customImage,
       imageOffsetY: edits.imageOffsetY,
+      fitInsideBorder: edits.fitInsideBorder,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     });
   }, [edits, selectedCard]);
 
-  const handleCardPress = (card: Card & { customImage?: string; imageOffsetY?: number }) => {
+  const handleCardPress = (card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) => {
     setSelectedCard(card);
     setEdits(toEdits(card));
   };
@@ -209,6 +211,7 @@ export default function CardsGalleryScreen() {
       defense: edits.defense,
       customImage: edits.customImage,
       imageOffsetY: edits.imageOffsetY,
+      fitInsideBorder: edits.fitInsideBorder,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
     const newMap = { ...savedMap, [selectedCard.id]: overrides };
@@ -284,6 +287,7 @@ export default function CardsGalleryScreen() {
                 <LuxuryCharacterCardAnimated
                   card={card}
                   imageOffsetY={card.imageOffsetY ?? 0}
+                  fitInsideBorder={card.fitInsideBorder ?? false}
                   style={{ width: galleryCardW, height: galleryCardH }}
                 />
               </TouchableOpacity>
@@ -300,6 +304,7 @@ export default function CardsGalleryScreen() {
                 <LuxuryCharacterCardAnimated
                   card={previewCard}
                   imageOffsetY={edits.imageOffsetY}
+                  fitInsideBorder={edits.fitInsideBorder}
                   style={{ width: modalCardW, height: modalCardH }}
                 />
               </View>
@@ -345,10 +350,23 @@ export default function CardsGalleryScreen() {
                   <View style={ep.divider} />
 
                   <RNText style={ep.label}>🖼️ صورة الكرت</RNText>
-                  <ImagePickerSection value={edits.customImage} rarityColor={rarityColor} onChange={uri => patch({ customImage: uri, imageOffsetY: 0 })} />
+                  <ImagePickerSection value={edits.customImage} rarityColor={rarityColor} onChange={uri => patch({ customImage: uri, imageOffsetY: 0, fitInsideBorder: false })} />
 
                   {edits.customImage && (
                     <>
+                      <View style={ep.divider} />
+
+                      {/* fit inside border toggle */}
+                      <View style={ep.switchRow}>
+                        <RNText style={ep.label}>📄 احتواء داخل الحدود</RNText>
+                        <Switch
+                          value={edits.fitInsideBorder}
+                          onValueChange={v => patch({ fitInsideBorder: v })}
+                          trackColor={{ false: '#1e1e1e', true: rarityColor + '66' }}
+                          thumbColor={edits.fitInsideBorder ? rarityColor : '#555'}
+                        />
+                      </View>
+
                       <View style={ep.divider} />
                       <RNText style={ep.label}>🔄 موضع الصورة عمودياً</RNText>
                       <ImageOffsetAdjuster value={edits.imageOffsetY} rarityColor={rarityColor} onChange={v => patch({ imageOffsetY: v })} />

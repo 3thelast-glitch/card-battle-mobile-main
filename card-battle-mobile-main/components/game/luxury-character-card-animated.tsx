@@ -1,10 +1,9 @@
 /**
  * LuxuryCharacterCardAnimated — Fully Responsive
- * Supports imageOffsetY prop to shift the card image vertically.
- * Always renders rarity background gradient, even when image is present.
+ * fitInsideBorder: custom image is clipped to the inner border area (inset 5px)
  */
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ViewStyle, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
@@ -17,7 +16,12 @@ import { getCardImage } from '../../lib/game/get-card-image';
 const BASE_W = 220;
 const BASE_H = 320;
 
-interface Props { card: Card; style?: ViewStyle; imageOffsetY?: number; }
+interface Props {
+    card: Card;
+    style?: ViewStyle;
+    imageOffsetY?: number;
+    fitInsideBorder?: boolean;
+}
 
 const RARITY_THEMES = {
     common: {
@@ -237,7 +241,7 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
     );
 };
 
-export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: Props) {
+export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
     const hasAbility = !!card.specialAbility;
@@ -251,6 +255,9 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
     const scW = cardW / BASE_W;
     const scH = cardH / BASE_H;
     const sc = Math.min(scW, scH);
+
+    // inner border inset (matches innerBorder style: top/left/right/bottom = 5)
+    const INSET = Math.round(5 * sc);
 
     const foilPos = useSharedValue(-cardW * 0.55);
     useEffect(() => {
@@ -289,6 +296,11 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
     const badgeTop = Math.max(4, 9 * scH);
     const badgeLeft = Math.max(4, 9 * scW);
 
+    // Image positioning: if fitInsideBorder, inset by INSET on all sides
+    const imgStyle = isCustomImage && fitInsideBorder
+        ? { position: 'absolute' as const, top: INSET + imageOffsetY, left: INSET, right: INSET, bottom: INSET, width: undefined, height: undefined }
+        : { position: 'absolute' as const, top: imageOffsetY, left: 0, right: 0, width: '100%' as const, height: '100%' as const };
+
     return (
         <Animated.View style={[
             styles.cardContainer,
@@ -300,7 +312,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
 
-                {/* Rarity background — always visible behind image */}
+                {/* Rarity background always visible */}
                 <LinearGradient
                     colors={theme.bgColors}
                     style={StyleSheet.absoluteFill}
@@ -312,11 +324,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
                 {hasImage && (
                     <Image
                         source={cardImage!}
-                        style={[
-                            styles.bgImage,
-                            { top: imageOffsetY },
-                            isCustomImage && styles.bgImageContain,
-                        ]}
+                        style={imgStyle}
                         resizeMode={isCustomImage ? 'contain' : 'cover'}
                     />
                 )}
@@ -427,8 +435,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0 }: P
 const styles = StyleSheet.create({
     cardContainer: { backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 } },
     cardInner: { flex: 1, overflow: 'hidden' },
-    bgImage: { position: 'absolute', left: 0, right: 0, width: '100%', height: '100%' },
-    bgImageContain: { top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
     contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: { position: 'absolute', top: -6, left: -6, right: -6, bottom: -6, borderRadius: 19, borderWidth: 2.5, borderColor: '#FFD700', shadowOffset: { width: 0, height: 0 }, zIndex: 20 },
     glowRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 16, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, zIndex: 19 },
