@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
-  TextInput, Switch, Text as RNText,
+  TextInput, Switch, Text as RNText, Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -14,7 +15,7 @@ import { ALL_CARDS } from '@/lib/game/cards-data-exports';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
-import { ArrowLeft, Minus, Plus } from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus, Image as ImageIcon, X } from 'lucide-react-native';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
@@ -41,15 +42,17 @@ type CardEdits = {
   specialAbility: string;
   attack: number;
   defense: number;
+  customImage?: string; // local URI
 };
 
-function toEdits(card: Card): CardEdits {
+function toEdits(card: Card & { customImage?: string }): CardEdits {
   return {
     stars: card.stars ?? 0,
     hasAbility: !!card.specialAbility,
     specialAbility: card.specialAbility ?? '',
     attack: card.attack,
     defense: card.defense,
+    customImage: card.customImage,
   };
 }
 
@@ -102,14 +105,62 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
+// ─── Image Picker Section ───────────────────────────────────────────────────────
+function ImagePickerSection({ value, rarityColor, onChange }: {
+  value?: string;
+  rarityColor: string;
+  onChange: (uri: string | undefined) => void;
+}) {
+  const pick = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      onChange(result.assets[0].uri);
+    }
+  };
+
+  return (
+    <View style={ep.imgSection}>
+      {value ? (
+        <View style={ep.imgPreviewWrap}>
+          <Image source={{ uri: value }} style={ep.imgPreview} resizeMode="cover" />
+          <TouchableOpacity
+            style={ep.imgRemoveBtn}
+            onPress={() => onChange(undefined)}
+            activeOpacity={0.8}
+          >
+            <X size={12} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+      <TouchableOpacity
+        style={[ep.imgPickBtn, { borderColor: rarityColor + '66' }]}
+        onPress={pick}
+        activeOpacity={0.8}
+      >
+        <ImageIcon size={14} color={rarityColor} />
+        <RNText style={[ep.imgPickTxt, { color: rarityColor }]}>
+          {value ? 'تغيير الصورة' : 'اختر صورة من الجهاز'}
+        </RNText>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Main Screen ────────────────────────────────────────────────────────────────
 export default function CardsGalleryScreen() {
   const router = useRouter();
-  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card>>>({});
-  const [cards, setCards] = useState<Card[]>(UNIQUE_CARDS);
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card & { customImage?: string }>>>({});
+  const [cards, setCards] = useState<(Card & { customImage?: string })[]>(UNIQUE_CARDS);
+  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
-  const [previewCard, setPreviewCard] = useState<Card | null>(null);
+  const [previewCard, setPreviewCard] = useState<(Card & { customImage?: string }) | null>(null);
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
@@ -123,7 +174,7 @@ export default function CardsGalleryScreen() {
     AsyncStorage.getItem(CARD_EDITS_KEY).then(raw => {
       if (!raw) return;
       try {
-        const map: Record<string, Partial<Card>> = JSON.parse(raw);
+        const map: Record<string, Partial<Card & { customImage?: string }>> = JSON.parse(raw);
         setSavedMap(map);
         setCards(UNIQUE_CARDS.map((c: Card) => map[c.id] ? { ...c, ...map[c.id] } : c));
       } catch {}
@@ -138,21 +189,26 @@ export default function CardsGalleryScreen() {
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
+      customImage: edits.customImage,
+      // If customImage is set, pass it as finalImage so the card component renders it
+      ...(edits.customImage ? { finalImage: { uri: edits.customImage } } : {}),
     });
   }, [edits, selectedCard]);
 
-  const handleCardPress = (card: Card) => {
+  const handleCardPress = (card: Card & { customImage?: string }) => {
     setSelectedCard(card);
     setEdits(toEdits(card));
   };
 
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
-    const overrides: Partial<Card> = {
+    const overrides: Partial<Card & { customImage?: string }> = {
       stars: edits.stars,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
+      customImage: edits.customImage,
+      ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
     const newMap = { ...savedMap, [selectedCard.id]: overrides };
     setSavedMap(newMap);
@@ -313,6 +369,14 @@ export default function CardsGalleryScreen() {
                   </View>
                   <View style={ep.divider} />
 
+                  <RNText style={ep.label}>🖼️ صورة الكرت</RNText>
+                  <ImagePickerSection
+                    value={edits.customImage}
+                    rarityColor={rarityColor}
+                    onChange={uri => patch({ customImage: uri })}
+                  />
+                  <View style={ep.divider} />
+
                   <View style={ep.actionRow}>
                     <TouchableOpacity style={[ep.actionBtn, { borderColor: '#444' }]} onPress={handleClose} activeOpacity={0.8}>
                       <RNText style={{ color: '#888', fontWeight: '700', fontSize: 13 }}>إلغاء</RNText>
@@ -384,6 +448,25 @@ const ep = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
+  // ─── Image Picker styles ──────────────────────────────────────────────────────
+  imgSection:     { gap: 8 },
+  imgPreviewWrap: { position: 'relative', alignSelf: 'center' },
+  imgPreview: {
+    width: 72, height: 96, borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  imgRemoveBtn: {
+    position: 'absolute', top: -6, right: -6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#f87171',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  imgPickBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  imgPickTxt: { fontSize: 12, fontWeight: '700' },
 });
 
 const styles = StyleSheet.create({
