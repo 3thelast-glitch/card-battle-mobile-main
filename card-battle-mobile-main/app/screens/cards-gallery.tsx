@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
-  TextInput, Switch, Text as RNText, Image,
+  TextInput, Switch, Text as RNText, Image, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -19,7 +18,7 @@ import { ArrowLeft, Minus, Plus, Image as ImageIcon, X } from 'lucide-react-nati
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
-// ─── Deduplicate ALL_CARDS by id (keep last occurrence) ────────────────────────
+// ─── Deduplicate ALL_CARDS by id ───────────────────────────────────────────────────────
 const UNIQUE_CARDS: Card[] = Object.values(
   ALL_CARDS.reduce<Record<string, Card>>((acc, card) => {
     acc[card.id] = card;
@@ -42,7 +41,7 @@ type CardEdits = {
   specialAbility: string;
   attack: number;
   defense: number;
-  customImage?: string; // local URI
+  customImage?: string;
 };
 
 function toEdits(card: Card & { customImage?: string }): CardEdits {
@@ -105,23 +104,32 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-// ─── Image Picker Section ───────────────────────────────────────────────────────
+// ─── Image Picker (web file input) ──────────────────────────────────────────────
 function ImagePickerSection({ value, rarityColor, onChange }: {
   value?: string;
   rarityColor: string;
   onChange: (uri: string | undefined) => void;
 }) {
-  const pick = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.85,
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      onChange(result.assets[0].uri);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePick = () => {
+    if (Platform.OS === 'web') {
+      // Create hidden file input and trigger it
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: Event) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            onChange(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
     }
   };
 
@@ -141,7 +149,7 @@ function ImagePickerSection({ value, rarityColor, onChange }: {
       ) : null}
       <TouchableOpacity
         style={[ep.imgPickBtn, { borderColor: rarityColor + '66' }]}
-        onPress={pick}
+        onPress={handlePick}
         activeOpacity={0.8}
       >
         <ImageIcon size={14} color={rarityColor} />
@@ -190,8 +198,7 @@ export default function CardsGalleryScreen() {
       attack: edits.attack,
       defense: edits.defense,
       customImage: edits.customImage,
-      // If customImage is set, pass it as finalImage so the card component renders it
-      ...(edits.customImage ? { finalImage: { uri: edits.customImage } } : {}),
+      ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     });
   }, [edits, selectedCard]);
 
@@ -240,7 +247,7 @@ export default function CardsGalleryScreen() {
     return rarity === (filterMap[activeFilter] ?? activeFilter.toLowerCase());
   });
 
-  // ─── Sort: legendary → epic → rare → common, then by name ────────────────────
+  // ─── Sort ─────────────────────────────────────────────────────────────────────────────
   const sortedCards = [...filteredCards].sort((a, b) => {
     const ra = RARITY_ORDER[a.rarity ?? 'common'] ?? 4;
     const rb = RARITY_ORDER[b.rarity ?? 'common'] ?? 4;
@@ -448,7 +455,6 @@ const ep = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  // ─── Image Picker styles ──────────────────────────────────────────────────────
   imgSection:     { gap: 8 },
   imgPreviewWrap: { position: 'relative', alignSelf: 'center' },
   imgPreview: {
