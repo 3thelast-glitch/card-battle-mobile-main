@@ -263,7 +263,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'barry_the_chopper',
     name: 'Barry the Chopper',
-    nameAr: 'باري الجزار',
+    nameAr: 'باري ذا تشوبر',
     attack: 8, defense: 9,
     race: 'human', cardClass: 'mage', element: 'fire',
     tags: ["magic"],
@@ -283,7 +283,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'envy',
     name: 'Envy',
-    nameAr: 'الحسد',
+    nameAr: 'إنفي',
     attack: 12, defense: 11,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -304,7 +304,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'greed',
     name: 'Greed',
-    nameAr: 'الجشع',
+    nameAr: 'غريد',
     attack: 13, defense: 11,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword"],
@@ -345,7 +345,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'pride',
     name: 'Pride',
-    nameAr: 'الكبرياء',
+    nameAr: 'برايد',
     attack: 18, defense: 16,
     race: 'demon', cardClass: 'warrior', element: 'fire',
     tags: ["sword", "crown"],
