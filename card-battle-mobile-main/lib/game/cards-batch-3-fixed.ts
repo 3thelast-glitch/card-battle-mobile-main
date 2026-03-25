@@ -232,7 +232,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'sosuke_aizen',
     name: 'Sosuke Aizen',
-    nameAr: 'سوسيكي آيزن',
+    nameAr: 'سوسيكي أيزن',
     attack: 18, defense: 17,
     race: 'demon', cardClass: 'warrior', element: 'ice',
     tags: ["sword", "crown"],
