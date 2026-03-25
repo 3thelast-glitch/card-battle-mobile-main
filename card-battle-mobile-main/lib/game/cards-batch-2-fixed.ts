@@ -34,16 +34,6 @@ export const CARDS_BATCH_2: Card[] = [
     animationPreset: 'fire',
   },
   {
-    id: 'nail',
-    name: 'Nail',
-    nameAr: 'نيل',
-    attack: 14, defense: 14,
-    race: 'elf', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
-  {
     id: 'master_roshi',
     name: 'Master Roshi',
     nameAr: 'الماستر روشي',
@@ -53,7 +43,6 @@ export const CARDS_BATCH_2: Card[] = [
     rarity: 'epic', stars: 4,
     animationPreset: 'fire',
   },
-  // lord_slug, rage_shenron, nuova_shenron, porunga, eis_shenron, shenron — removed (no local image)
   {
     id: 'piccolo',
     name: 'Piccolo',
@@ -195,16 +184,6 @@ export const CARDS_BATCH_2: Card[] = [
     animationPreset: 'default',
   },
   {
-    id: 'pieck_finger',
-    name: 'Pieck Finger',
-    nameAr: 'بيك فينغر',
-    attack: 11, defense: 12,
-    race: 'orc', cardClass: 'warrior', element: 'earth',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'default',
-  },
-  {
     id: 'bertholdt_hoover',
     name: 'Bertholdt Hoover',
     nameAr: 'بيرتولدت هوفر',
@@ -220,16 +199,6 @@ export const CARDS_BATCH_2: Card[] = [
     nameAr: 'بوركو غاليارد',
     attack: 14, defense: 11,
     race: 'orc', cardClass: 'warrior', element: 'earth',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'default',
-  },
-  {
-    id: 'kenny_ackerman',
-    name: 'Kenny Ackerman',
-    nameAr: 'كيني أكرمان',
-    attack: 13, defense: 12,
-    race: 'human', cardClass: 'warrior', element: 'earth',
     tags: ["sword"],
     rarity: 'epic', stars: 4,
     animationPreset: 'default',
