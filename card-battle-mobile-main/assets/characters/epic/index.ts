@@ -59,7 +59,6 @@ export const EPIC_IMAGES: Record<string, any> = {
     orochimaru: require('./orochimaru.png'),
     pandoras_actor: require('./pandoras_actor.png'),
     petelgeuse: require('./petelgeuse.png'),
-    pieck_finger: require('./pieck_finger.png'),
     porco_galliard: require('./porco_galliard.png'),
     power: require('./power.png'),
     regis: require('./regis.png'),
