@@ -31,18 +31,20 @@ const RARITY_ORDER: Record<string, number> = {
 };
 
 type CardEdits = {
+  nameAr: string;
   stars: number;
   hasAbility: boolean;
   specialAbility: string;
   attack: number;
   defense: number;
-  customImage?: string;      // held in memory only (base64)
+  customImage?: string;
   imageOffsetY: number;
   fitInsideBorder: boolean;
 };
 
 function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }): CardEdits {
   return {
+    nameAr: card.nameAr ?? '',
     stars: card.stars ?? 0,
     hasAbility: !!card.specialAbility,
     specialAbility: card.specialAbility ?? '',
@@ -172,13 +174,11 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // Load saved edits + images from IndexedDB
   useEffect(() => {
     AsyncStorage.getItem(CARD_EDITS_KEY).then(async raw => {
       if (!raw) return;
       try {
         const map: Record<string, any> = JSON.parse(raw);
-        // Load each card's image from IndexedDB
         const entries = await Promise.all(
           Object.entries(map).map(async ([id, edits]) => {
             if (edits.hasCustomImage) {
@@ -199,6 +199,7 @@ export default function CardsGalleryScreen() {
     if (!selectedCard || !edits) { setPreviewCard(null); return; }
     setPreviewCard({
       ...selectedCard,
+      nameAr: edits.nameAr || selectedCard.nameAr,
       stars: edits.stars,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
@@ -218,27 +219,25 @@ export default function CardsGalleryScreen() {
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
 
-    // Save image separately in IndexedDB — NOT in AsyncStorage
     if (edits.customImage) {
       await saveImage(`card_img_${selectedCard.id}`, edits.customImage);
     } else {
       await deleteImage(`card_img_${selectedCard.id}`);
     }
 
-    // Save everything except the base64 image in AsyncStorage
     const overrides = {
+      nameAr: edits.nameAr || selectedCard.nameAr,
       stars: edits.stars,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
-      hasCustomImage: !!edits.customImage,   // only a flag, not the image
-      customImage: edits.customImage,        // keep in memory state only
+      hasCustomImage: !!edits.customImage,
+      customImage: edits.customImage,
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
 
-    // Strip base64 before saving to AsyncStorage
     const { customImage: _drop, finalImage: _drop2, ...storeSafe } = overrides as any;
     const newMap = { ...savedMap, [selectedCard.id]: { ...storeSafe, customImage: undefined } };
 
@@ -338,8 +337,21 @@ export default function CardsGalleryScreen() {
 
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  <RNText style={[ep.title, { color: rarityColor }]}>{selectedCard.nameAr || selectedCard.name}</RNText>
+                  <RNText style={[ep.title, { color: rarityColor }]}>{edits.nameAr || selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
+                  <View style={ep.divider} />
+
+                  {/* حقل تعديل الاسم العربي */}
+                  <RNText style={ep.label}>✏️ الاسم العربي</RNText>
+                  <TextInput
+                    style={[ep.nameArInput, { borderColor: rarityColor + '55', color: rarityColor }]}
+                    value={edits.nameAr}
+                    onChangeText={t => patch({ nameAr: t })}
+                    placeholder="الاسم بالعربي..."
+                    placeholderTextColor="#444"
+                    textAlign="right"
+                    writingDirection="rtl"
+                  />
                   <View style={ep.divider} />
 
                   <RNText style={ep.label}>⭐ عدد النجوم</RNText>
@@ -417,12 +429,24 @@ export default function CardsGalleryScreen() {
 }
 
 const ep = StyleSheet.create({
-  panel: { backgroundColor: 'rgba(10,10,16,0.97)', padding: 18, borderRadius: 20, borderWidth: 1.5, width: 290, maxHeight: 500 },
+  panel: { backgroundColor: 'rgba(10,10,16,0.97)', padding: 18, borderRadius: 20, borderWidth: 1.5, width: 290, maxHeight: 520 },
   title:   { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 2 },
   sub:     { fontSize: 11, color: '#555', textAlign: 'center', marginBottom: 2 },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
   label:   { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
   hint:    { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
+  nameArInput: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginBottom: 2,
+  },
   starRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginBottom: 2 },
   starBtn: { padding: 3 },
   starIcon: { fontSize: 26 },
