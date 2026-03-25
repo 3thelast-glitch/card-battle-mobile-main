@@ -1,7 +1,6 @@
 import { Card, Element, ElementAdvantage, Effect, ELEMENT_ADVANTAGES, ELEMENT_WEAKNESSES, ELEMENT_MULTIPLIER } from './types';
 
-// Batch 2/6 — Cards 47 to 92
-// Universes: Dragon Ball, AoT, Death Note, Demon Slayer
+// Batch 2/6 — Dragon Ball, AoT, Death Note, Demon Slayer
 
 export const CARDS_BATCH_2: Card[] = [
   {
@@ -54,67 +53,7 @@ export const CARDS_BATCH_2: Card[] = [
     rarity: 'epic', stars: 4,
     animationPreset: 'fire',
   },
-  {
-    id: 'lord_slug',
-    name: 'Lord Slug',
-    nameAr: 'اللورد سلوغ',
-    attack: 14, defense: 11,
-    race: 'elf', cardClass: 'knight', element: 'fire',
-    tags: ["sword", "shield"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-    cardEffects: ['divine_shield'],
-  },
-  {
-    id: 'rage_shenron',
-    name: 'Rage Shenron',
-    nameAr: 'راج شينرون',
-    attack: 14, defense: 11,
-    race: 'dragon', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
-  {
-    id: 'nuova_shenron',
-    name: 'Nuova Shenron',
-    nameAr: 'نوفا شينرون',
-    attack: 13, defense: 14,
-    race: 'dragon', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
-  {
-    id: 'porunga',
-    name: 'Porunga',
-    nameAr: 'بورونغا',
-    attack: 13, defense: 12,
-    race: 'dragon', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
-  {
-    id: 'eis_shenron',
-    name: 'Eis Shenron',
-    nameAr: 'إيس شينرون',
-    attack: 15, defense: 11,
-    race: 'dragon', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
-  {
-    id: 'shenron',
-    name: 'Shenron',
-    nameAr: 'شينرون',
-    attack: 15, defense: 11,
-    race: 'dragon', cardClass: 'warrior', element: 'fire',
-    tags: ["sword"],
-    rarity: 'epic', stars: 4,
-    animationPreset: 'fire',
-  },
+  // lord_slug, rage_shenron, nuova_shenron, porunga, eis_shenron, shenron — removed (no local image)
   {
     id: 'piccolo',
     name: 'Piccolo',
