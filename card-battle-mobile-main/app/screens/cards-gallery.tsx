@@ -15,6 +15,7 @@ import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus, Image as ImageIcon, X, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { saveImage, loadImage, deleteImage } from '@/lib/game/image-storage';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
@@ -35,7 +36,7 @@ type CardEdits = {
   specialAbility: string;
   attack: number;
   defense: number;
-  customImage?: string;
+  customImage?: string;      // held in memory only (base64)
   imageOffsetY: number;
   fitInsideBorder: boolean;
 };
@@ -171,13 +172,25 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
+  // Load saved edits + images from IndexedDB
   useEffect(() => {
-    AsyncStorage.getItem(CARD_EDITS_KEY).then(raw => {
+    AsyncStorage.getItem(CARD_EDITS_KEY).then(async raw => {
       if (!raw) return;
       try {
-        const map = JSON.parse(raw);
-        setSavedMap(map);
-        setCards(UNIQUE_CARDS.map((c: Card) => map[c.id] ? { ...c, ...map[c.id] } : c));
+        const map: Record<string, any> = JSON.parse(raw);
+        // Load each card's image from IndexedDB
+        const entries = await Promise.all(
+          Object.entries(map).map(async ([id, edits]) => {
+            if (edits.hasCustomImage) {
+              const img = await loadImage(`card_img_${id}`);
+              if (img) edits.customImage = img;
+            }
+            return [id, edits] as [string, any];
+          })
+        );
+        const fullMap = Object.fromEntries(entries);
+        setSavedMap(fullMap);
+        setCards(UNIQUE_CARDS.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
       } catch {}
     });
   }, []);
@@ -204,18 +217,32 @@ export default function CardsGalleryScreen() {
 
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
+
+    // Save image separately in IndexedDB — NOT in AsyncStorage
+    if (edits.customImage) {
+      await saveImage(`card_img_${selectedCard.id}`, edits.customImage);
+    } else {
+      await deleteImage(`card_img_${selectedCard.id}`);
+    }
+
+    // Save everything except the base64 image in AsyncStorage
     const overrides = {
       stars: edits.stars,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
-      customImage: edits.customImage,
+      hasCustomImage: !!edits.customImage,   // only a flag, not the image
+      customImage: edits.customImage,        // keep in memory state only
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
-    const newMap = { ...savedMap, [selectedCard.id]: overrides };
-    setSavedMap(newMap);
+
+    // Strip base64 before saving to AsyncStorage
+    const { customImage: _drop, finalImage: _drop2, ...storeSafe } = overrides as any;
+    const newMap = { ...savedMap, [selectedCard.id]: { ...storeSafe, customImage: undefined } };
+
+    setSavedMap({ ...savedMap, [selectedCard.id]: overrides });
     await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
     setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...overrides } : c));
     handleClose();
@@ -355,8 +382,6 @@ export default function CardsGalleryScreen() {
                   {edits.customImage && (
                     <>
                       <View style={ep.divider} />
-
-                      {/* fit inside border toggle */}
                       <View style={ep.switchRow}>
                         <RNText style={ep.label}>📄 احتواء داخل الحدود</RNText>
                         <Switch
@@ -366,7 +391,6 @@ export default function CardsGalleryScreen() {
                           thumbColor={edits.fitInsideBorder ? rarityColor : '#555'}
                         />
                       </View>
-
                       <View style={ep.divider} />
                       <RNText style={ep.label}>🔄 موضع الصورة عمودياً</RNText>
                       <ImageOffsetAdjuster value={edits.imageOffsetY} rarityColor={rarityColor} onChange={v => patch({ imageOffsetY: v })} />
