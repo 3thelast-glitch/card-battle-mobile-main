@@ -42,6 +42,12 @@ type CardEdits = {
   fitInsideBorder: boolean;
 };
 
+// Strip any base64/blob fields before persisting to AsyncStorage
+function toStoreSafe(obj: Record<string, any>): Record<string, any> {
+  const { customImage, finalImage, ...rest } = obj;
+  return rest;
+}
+
 function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }): CardEdits {
   return {
     nameAr: card.nameAr ?? '',
@@ -161,7 +167,8 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
 
 export default function CardsGalleryScreen() {
   const router = useRouter();
-  const [savedMap, setSavedMap] = useState<Record<string, Partial<Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }>>>({});
+  // savedMap holds ONLY store-safe data (no base64). Images live in IndexedDB.
+  const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
   const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean })[]>(UNIQUE_CARDS);
   const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
@@ -179,17 +186,20 @@ export default function CardsGalleryScreen() {
       if (!raw) return;
       try {
         const map: Record<string, any> = JSON.parse(raw);
+        // Load images from IndexedDB and merge into a separate in-memory map
         const entries = await Promise.all(
-          Object.entries(map).map(async ([id, edits]) => {
-            if (edits.hasCustomImage) {
+          Object.entries(map).map(async ([id, data]) => {
+            const safeCopy = toStoreSafe({ ...data }); // ensure no base64 leaked into saved state
+            if (data.hasCustomImage) {
               const img = await loadImage(`card_img_${id}`);
-              if (img) edits.customImage = img;
+              if (img) return [id, { ...safeCopy, customImage: img }] as [string, any];
             }
-            return [id, edits] as [string, any];
+            return [id, safeCopy] as [string, any];
           })
         );
         const fullMap = Object.fromEntries(entries);
-        setSavedMap(fullMap);
+        // savedMap stays base64-free
+        setSavedMap(Object.fromEntries(entries.map(([id, d]) => [id, toStoreSafe(d)])));
         setCards(UNIQUE_CARDS.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
       } catch {}
     });
@@ -219,31 +229,48 @@ export default function CardsGalleryScreen() {
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
 
+    // Persist image in IndexedDB (not AsyncStorage)
     if (edits.customImage) {
       await saveImage(`card_img_${selectedCard.id}`, edits.customImage);
     } else {
       await deleteImage(`card_img_${selectedCard.id}`);
     }
 
-    const overrides = {
+    // Build the store-safe record (absolutely NO base64)
+    const storeSafe: Record<string, any> = {
       nameAr: edits.nameAr || selectedCard.nameAr,
       stars: edits.stars,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
       hasCustomImage: !!edits.customImage,
-      customImage: edits.customImage,
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
+    };
+
+    // Build the full in-memory record (includes base64 for live rendering)
+    const memRecord: Record<string, any> = {
+      ...storeSafe,
+      customImage: edits.customImage,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
 
-    const { customImage: _drop, finalImage: _drop2, ...storeSafe } = overrides as any;
-    const newMap = { ...savedMap, [selectedCard.id]: { ...storeSafe, customImage: undefined } };
+    // Rebuild newMap from scratch using only store-safe entries
+    // (guarantee no previous base64 bleeds in from savedMap)
+    const newStoredMap: Record<string, Record<string, any>> = {};
+    for (const [id, data] of Object.entries(savedMap)) {
+      newStoredMap[id] = toStoreSafe(data);
+    }
+    newStoredMap[selectedCard.id] = storeSafe;
 
-    setSavedMap({ ...savedMap, [selectedCard.id]: overrides });
-    await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
-    setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...overrides } : c));
+    setSavedMap(newStoredMap);
+    try {
+      await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newStoredMap));
+    } catch (e) {
+      console.warn('AsyncStorage save failed:', e);
+    }
+
+    setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...memRecord } : c));
     handleClose();
   };
 
@@ -341,7 +368,6 @@ export default function CardsGalleryScreen() {
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
                   <View style={ep.divider} />
 
-                  {/* حقل تعديل الاسم العربي */}
                   <RNText style={ep.label}>✏️ الاسم العربي</RNText>
                   <TextInput
                     style={[ep.nameArInput, { borderColor: rarityColor + '55', color: rarityColor }]}
