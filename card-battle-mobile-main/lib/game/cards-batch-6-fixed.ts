@@ -17,7 +17,7 @@ export const CARDS_BATCH_6: Card[] = [
   {
     id: 'smough',
     name: 'Smough',
-    nameAr: 'سماو',
+    nameAr: 'سموغ',
     attack: 15, defense: 11,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
@@ -59,7 +59,7 @@ export const CARDS_BATCH_6: Card[] = [
   {
     id: 'lich_general',
     name: 'Lich (General)',
-    nameAr: 'ليتش العام',
+    nameAr: 'آينز أوال غاون',
     attack: 15, defense: 13,
     race: 'undead', cardClass: 'warrior', element: 'ice',
     tags: ["sword"],
