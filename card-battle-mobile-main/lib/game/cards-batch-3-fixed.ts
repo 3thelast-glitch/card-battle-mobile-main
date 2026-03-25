@@ -366,7 +366,7 @@ export const CARDS_BATCH_3: Card[] = [
   {
     id: 'nanami_kento',
     name: 'Nanami Kento',
-    nameAr: 'ناناميكينتو',
+    nameAr: 'نانامي كينتو',
     attack: 13, defense: 11,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ["sword"],
