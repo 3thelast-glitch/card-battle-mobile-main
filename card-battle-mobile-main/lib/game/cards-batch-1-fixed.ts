@@ -147,7 +147,7 @@ export const CARDS_BATCH_1: Card[] = [
   {
     id: 'black_maria',
     name: 'Black Maria',
-    nameAr: 'الحية السوداء',
+    nameAr: 'بلاك ماريا',
     attack: 13, defense: 12,
     race: 'human', cardClass: 'warrior', element: 'water',
     tags: ["sword"],
