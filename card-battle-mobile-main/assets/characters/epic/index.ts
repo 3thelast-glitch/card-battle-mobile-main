@@ -4,7 +4,6 @@ export const EPIC_IMAGES: Record<string, any> = {
     annie_leonhart: require('./annie_leonhart.png'),
     armin_arlert: require('./armin_arlert.png'),
     bertholdt_hoover: require('./bertholdt_hoover.png'),
-    brook: require('./brook.png'),
     crocodile: require('./crocodile.png'),
     donquixote_doflamingo: require('./donquixote_doflamingo.png'),
     eileen_the_crow: require('./eileen_the_crow.png'),
