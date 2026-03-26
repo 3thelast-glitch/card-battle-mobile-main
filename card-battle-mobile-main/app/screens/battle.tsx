@@ -14,6 +14,7 @@
  *  - Effect chips now show descriptive Arabic labels
  *  - Bot AI wired: decideBotAbility + buildBotAbilityData + updateBotMemory
  *  - ✅ Fix #3: pass botAbilities to updateBotMemory
+ *  - ✅ Step 1: import useSettings + BATTLE_TIMINGS
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -54,6 +55,8 @@ import {
   decideBotAbility, updateBotMemory, resetBotMemory,
 } from '@/lib/game/bot-ai';
 import type { DifficultyLevel } from '@/app/screens/difficulty';
+// ✅ Step 1: settings hook + timings
+import { useSettings, BATTLE_TIMINGS } from '@/lib/game/hooks/useSettings';
 
 type BattlePhase = 'selection' | 'action' | 'combat' | 'result' | 'waiting';
 
@@ -394,6 +397,9 @@ export default function BattleScreen() {
   const insets = useSafeAreaInsets();
   const { width, height, isLandscape, size } = useLandscapeLayout();
 
+  // ✅ Step 1: تهيئة الـ hook — جاهز للربط في الخطوات القادمة
+  const { settings } = useSettings();
+
   const maxH = height * 0.54;
   const cardWidth = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
   const cardHeight = cardWidth * 1.5;
@@ -584,7 +590,6 @@ export default function BattleScreen() {
       if (!myPast.length) { Alert.alert('لا يوجد كروت سابقة لك بعد'); return; }
       setChoiceModal({ visible: true, title: '🔗 الدمج — اختر الكرت السابق تضيف طاقاته لكرتك', options: myPast, abilityType });
 
-    // ✅ إصلاح #3ب: Sniping يختار جولة مستقبلية
     } else if (abilityType === 'Sniping') {
       const futureRounds = Array.from(
         { length: state.totalRounds - state.currentRound - 1 },
@@ -594,7 +599,6 @@ export default function BattleScreen() {
       const options = futureRounds.map(r => ({ value: String(r), label: `جولة ${r}` }));
       setChoiceModal({ visible: true, title: '🎯 القناص — اختر الجولة التي ستفوز فيها', options, abilityType });
 
-    // ✅ إصلاح #3ب: Subhan يدخل رقم هجوم
     } else if (abilityType === 'Subhan') {
       const currentBotAttack = state.botDeck[state.currentRound]?.attack ?? 0;
       const guessOptions = Array.from({ length: 15 }, (_, i) => currentBotAttack - 7 + i)
@@ -613,10 +617,8 @@ export default function BattleScreen() {
       useAbility(abilityType as any, { roundIndex: Number(value) });
     } else if (abilityType === 'SwapClass') {
       useAbility(abilityType as any, { myClass: value, oppClass: value });
-    // ✅ إصلاح #3ب: Sniping يمرر round
     } else if (abilityType === 'Sniping') {
       useAbility(abilityType as any, { round: Number(value) });
-    // ✅ إصلاح #3ب: Subhan يمرر guessedAttack
     } else if (abilityType === 'Subhan') {
       useAbility(abilityType as any, { guessedAttack: Number(value) });
     } else {
@@ -631,7 +633,6 @@ export default function BattleScreen() {
   useEffect(() => {
     if (phase !== 'result' || !lastRoundResult || editMode) return;
 
-    // ✅ إصلاح #3أ: تمرير botAbilities لتحديث strongestBotAbility
     updateBotMemory(lastRoundResult, undefined, state.botAbilities);
 
     setRoundHistory(prev => {
@@ -669,7 +670,6 @@ export default function BattleScreen() {
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
   const maxScore = state.totalRounds;
 
-  // ✅ إصلاح #3ب: إضافة Sniping و Subhan لقائمة CHOICE_ABILITIES
   const CHOICE_ABILITIES = ['Propaganda', 'AddElement', 'SwapClass', 'Dilemma', 'Recall', 'Revive', 'Arise', 'Disaster', 'Merge', 'Sniping', 'Subhan'];
   const DIRECT_ABILITIES = ['CancelAbility', 'Trap', 'DoubleOrNothing', 'Sacrifice', 'Pool', 'Skip'];
 
