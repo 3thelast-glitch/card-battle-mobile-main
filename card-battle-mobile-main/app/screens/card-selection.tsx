@@ -24,13 +24,6 @@ import {
 } from '@/utils/layout';
 
 // ── منطق الندرة ────────────────────────────────────────────────────────────────────
-/**
- * يسحب `count` كرت عشوائياً باحترام نسب الندرة.
- * الخوارزمية:
- * 1. لكل جولة اطرح رقماً عشوائياً [0–1) وحدد فئة الندرة بناءً على الأوزان التراكمية.
- * 2. اختر كرتاً عشوائياً من تلك الفئة.
- * 3. إذا لم توجد كروت بتلك الندرة انتقل للفئة التالية بالترتيب.
- */
 function sampleCardsByRarity(
   cards: Card[],
   count: number,
@@ -42,7 +35,6 @@ function sampleCardsByRarity(
   const total = Object.values(weights).reduce((a, b) => a + b, 0);
   const safeWeights = total > 0 ? weights : { common: 55, rare: 25, epic: 15, legendary: 5 };
 
-  // تجميع الكروت حسب الندرة
   const buckets: Record<RarityKey, Card[]> = {
     common:    cards.filter(c => (c.rarity ?? 'common') === 'common'),
     rare:      cards.filter(c => c.rarity === 'rare'),
@@ -50,15 +42,12 @@ function sampleCardsByRarity(
     legendary: cards.filter(c => c.rarity === 'legendary'),
   };
 
-  // خلط كل فئة
   (Object.keys(buckets) as RarityKey[]).forEach(k => {
     buckets[k] = [...buckets[k]].sort(() => Math.random() - 0.5);
   });
 
   const usedIndices: Record<RarityKey, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
   const result: Card[] = [];
-
-  // ترتيب الفئات للتراجع
   const rarityOrder: RarityKey[] = ['common', 'rare', 'epic', 'legendary'];
 
   for (let i = 0; i < count; i++) {
@@ -71,7 +60,6 @@ function sampleCardsByRarity(
       if (roll < cumulative) { chosen = key; break; }
     }
 
-    // إذا نفدت الفئة جرب التالية
     let picked: Card | undefined;
     for (const key of [chosen, ...rarityOrder.filter(k => k !== chosen)]) {
       if (usedIndices[key] < buckets[key].length) {
@@ -142,8 +130,6 @@ export default function CardSelectionScreen() {
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
 
       const safeAllCards = Array.isArray(allCards) ? allCards : [];
-
-      // ✔ استخدام نسب الندرة لاختيار الكروت
       const sampled = sampleCardsByRarity(safeAllCards, totalRounds, rarityWeights);
       setCardRounds(sampled.map(card => ({ card, round: null })));
       setAssignedAbilities(picked);
@@ -185,6 +171,7 @@ export default function CardSelectionScreen() {
 
   if (!isLandscape) return <RotateHintScreen />;
 
+  // ── FlatList: الكروت في الشبكة — صامتة دائماً ──────────────────────────────
   const renderCardItem = ({ item, index }: { item: CardRound; index: number }) => (
     <TouchableOpacity
       style={[styles.cardCell, { width: (width - padding * 2 - SPACE.md * (numColumns - 1)) / numColumns }]}
@@ -192,7 +179,11 @@ export default function CardSelectionScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.cardWrapper}>
-        <LuxuryCharacterCardAnimated card={item.card} style={{ width: gridCardW, height: gridCardH }} />
+        <LuxuryCharacterCardAnimated
+          card={item.card}
+          style={{ width: gridCardW, height: gridCardH }}
+          videoMuted={true}
+        />
         {item.round !== null ? (
           <View style={styles.roundOverlay}>
             <View style={styles.roundBadge}>
@@ -256,7 +247,7 @@ export default function CardSelectionScreen() {
         </View>
       </View>
 
-      {/* Modal: تحديد الجولة */}
+      {/* Modal: تحديد الجولة — الكرت يشتغل بصوت */}
       <Modal visible={focusedCardIndex !== null} transparent animationType="fade" onRequestClose={() => setFocusedCardIndex(null)}>
         <TouchableOpacity style={styles.focusModalOverlay} activeOpacity={1} onPress={() => setFocusedCardIndex(null)}>
           <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={styles.focusModalContentRow}>
@@ -272,9 +263,14 @@ export default function CardSelectionScreen() {
                 );
               })}
             </View>
+            {/* الكرت داخل المودال: videoMuted=false → صوت شغال */}
             {focusedCardIndex !== null && cardRounds[focusedCardIndex] && (
               <View style={styles.focusModalRightCol}>
-                <LuxuryCharacterCardAnimated card={cardRounds[focusedCardIndex].card} style={{ width: modalCardW, height: modalCardH }} />
+                <LuxuryCharacterCardAnimated
+                  card={cardRounds[focusedCardIndex].card}
+                  style={{ width: modalCardW, height: modalCardH }}
+                  videoMuted={false}
+                />
               </View>
             )}
           </TouchableOpacity>
