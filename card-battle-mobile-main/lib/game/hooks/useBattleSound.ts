@@ -6,6 +6,9 @@
  * - يحترم إعداد soundEnabled من GameSettings.
  * - يُنظّف (unload) الأصوات عند unmount تلقائياً.
  *
+ * ⚠️ PLACEHOLDER: الأصوات مؤقتة من CDN مجاني (Freesound / Pixabay).
+ *    استبدلها بملفات حقيقية في assets/sounds/ عند الجهوزية.
+ *
  * الاستخدام:
  *   const sound = useBattleSound(settings.soundEnabled);
  *   sound.playAttack();
@@ -13,24 +16,23 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 
-// ── مسارات ملفات الصوت ──────────────────────────────────────────────────────
-// غيّر هذه المسارات بعد إضافة ملفات .mp3 فعلية داخل assets/sounds/
-const SOUND_FILES = {
-  attack:    require('@/assets/sounds/attack.mp3'),
-  win:       require('@/assets/sounds/win.mp3'),
-  loss:      require('@/assets/sounds/loss.mp3'),
-  ability:   require('@/assets/sounds/ability.mp3'),
-  nextRound: require('@/assets/sounds/next_round.mp3'),
-  draw:      require('@/assets/sounds/draw.mp3'),
-} as const;
+// ── Placeholder: أصوات مجانية مؤقتة من CDN ─────────────────────────────────
+// عند توفر ملفات حقيقية: غيّر القيم إلى require('@/assets/sounds/xxx.mp3')
+const SOUND_URIS: Record<string, string> = {
+  attack:    'https://cdn.pixabay.com/download/audio/2022/03/10/audio_8cb749fb02.mp3',   // sword hit
+  win:       'https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3',   // victory fanfare
+  loss:      'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bab.mp3',   // defeat
+  ability:   'https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b55735bf2.mp3',   // magic spell
+  nextRound: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_dc80ad8b84.mp3',   // short chime
+  draw:      'https://cdn.pixabay.com/download/audio/2022/01/27/audio_d0ef1f0562.mp3',   // neutral tone
+};
 
-type SoundKey = keyof typeof SOUND_FILES;
+type SoundKey = keyof typeof SOUND_URIS;
 
 export function useBattleSound(enabled: boolean) {
   const sounds = useRef<Partial<Record<SoundKey, Audio.Sound>>>({});
   const loaded = useRef(false);
 
-  // تحميل مسبق لجميع الأصوات
   useEffect(() => {
     if (!enabled) return;
 
@@ -43,14 +45,16 @@ export function useBattleSound(enabled: boolean) {
           staysActiveInBackground: false,
         });
 
-        const entries = Object.entries(SOUND_FILES) as [SoundKey, any][];
-        for (const [key, file] of entries) {
+        for (const [key, uri] of Object.entries(SOUND_URIS)) {
           if (cancelled) break;
           try {
-            const { sound } = await Audio.Sound.createAsync(file, { shouldPlay: false, volume: 0.7 });
-            sounds.current[key] = sound;
+            const { sound } = await Audio.Sound.createAsync(
+              { uri },
+              { shouldPlay: false, volume: 0.7 }
+            );
+            sounds.current[key as SoundKey] = sound;
           } catch {
-            // تجاهل خطأ ملف مفقود بصمت
+            // تجاهل خطأ صامت لكل صوت
           }
         }
         if (!cancelled) loaded.current = true;
@@ -63,16 +67,12 @@ export function useBattleSound(enabled: boolean) {
 
     return () => {
       cancelled = true;
-      // تنظيف الأصوات عند unmount
-      Object.values(sounds.current).forEach(s => {
-        s?.unloadAsync().catch(() => {});
-      });
+      Object.values(sounds.current).forEach(s => s?.unloadAsync().catch(() => {}));
       sounds.current = {};
       loaded.current = false;
     };
   }, [enabled]);
 
-  // دالة تشغيل داخلية
   const play = useCallback(async (key: SoundKey) => {
     if (!enabled || !loaded.current) return;
     try {
