@@ -10,3 +10,5 @@ export type { UseBattleAbilitiesReturn } from './useBattleAbilities';
 
 export { useHistoryModal }    from './useHistoryModal';
 export type { UseHistoryModalReturn } from './useHistoryModal';
+
+export { useBattleSound }    from './useBattleSound';
