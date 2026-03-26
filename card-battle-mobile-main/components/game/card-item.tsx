@@ -11,9 +11,10 @@
  *  - Stats overlay: attack, defense, hp
  *  - Rarity badge pill (top-right)
  *  - Gradient placeholder when no image available
+ *  - Video support with sound (videoUrl)
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +24,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
@@ -111,10 +113,13 @@ export function CardItem({
   const width = customWidth ?? preset.width;
   const height = customHeight ?? preset.height;
 
-  // ── Resolve image ────────────────────────────────────────────────
+  // ── Resolve image / video ────────────────────────────────────────────────
   const cardImage = getCardImage(card);
-  const hasImage = !!cardImage;
+  const hasVideo = !!(card as any).videoUrl;
+  const hasImage = !hasVideo && !!cardImage;
   const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS.common;
+
+  const videoRef = useRef<Video>(null);
 
   // ── Animations ──
   const tap = useCardTapAnimation();
@@ -190,8 +195,19 @@ export function CardItem({
             ]}
           />
 
-          {/* Card Art — Image or Placeholder */}
-          {hasImage ? (
+          {/* Card Art — Video, Image, or Placeholder */}
+          {hasVideo ? (
+            <Video
+              ref={videoRef}
+              source={(card as any).videoUrl}
+              style={styles.image}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              isMuted={false}
+              useNativeControls={false}
+            />
+          ) : hasImage ? (
             <Image
               source={cardImage}
               style={styles.image}
