@@ -28,10 +28,10 @@ interface Props {
 }
 
 // ---------------------------------------------------------------
-// Helpers: detect media type from URI
+// Helpers: detect media type from URI string only
 // ---------------------------------------------------------------
 function isVideoUri(uri: string): boolean {
-    if (!uri) return false;
+    if (!uri || typeof uri !== 'string') return false;
     const lower = uri.toLowerCase();
     if (lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov')) return true;
     if (lower.startsWith('data:video/')) return true;
@@ -39,11 +39,16 @@ function isVideoUri(uri: string): boolean {
 }
 
 function isAnimatedUri(uri: string): boolean {
-    if (!uri) return false;
+    if (!uri || typeof uri !== 'string') return false;
     const lower = uri.toLowerCase();
     if (lower.includes('.gif') || lower.includes('.webp')) return true;
     if (lower.startsWith('data:image/gif') || lower.startsWith('data:image/webp')) return true;
     return false;
+}
+
+/** Returns true if the value is a local require() asset (number) */
+function isLocalAsset(value: any): value is number {
+    return typeof value === 'number';
 }
 
 const RARITY_THEMES = {
@@ -269,12 +274,30 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
 // ---------------------------------------------------------------
 interface CardMediaProps {
     cardImage: ReturnType<typeof getCardImage>;
-    customUri?: string;
+    videoAsset?: any;       // local require() asset
+    customUri?: string;     // remote URI string
     isCustomImage: boolean;
     imgStyle: object;
     muted?: boolean;
 }
-const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, muted = true }: CardMediaProps) => {
+
+const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, muted = true }: CardMediaProps) => {
+    // 1. Local require() video asset
+    if (videoAsset) {
+        return (
+            <Video
+                source={videoAsset}
+                style={imgStyle as any}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted={muted}
+                useNativeControls={false}
+            />
+        );
+    }
+
+    // 2. Remote URI video
     if (customUri && isVideoUri(customUri)) {
         return (
             <Video
@@ -289,6 +312,7 @@ const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, muted = true
         );
     }
 
+    // 3. Static image
     const uri: string | undefined =
         cardImage && typeof cardImage === 'object' && 'uri' in cardImage
             ? (cardImage as any).uri
@@ -334,12 +358,15 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 
     const cardImage = getCardImage(card);
 
-    // ✔ أولوية: videoUrl ثم customImage ثم imageUrl
-    const customUri: string | undefined =
-        card.videoUrl ||
-        (card as any).customImage ||
-        undefined;
+    // ── تمييز نوع videoUrl: local asset (number) vs remote URI (string) ──
+    const rawVideo = card.videoUrl;
+    const videoAsset: any = isLocalAsset(rawVideo) ? rawVideo : undefined;
+    const videoUri: string | undefined = typeof rawVideo === 'string' ? rawVideo : undefined;
 
+    // customImage (string URI فقط)
+    const customUri: string | undefined = videoUri || (card as any).customImage || undefined;
+
+    const hasVideo = !!videoAsset || !!(customUri && isVideoUri(customUri));
     const hasImage = !!cardImage || !!customUri;
     const isCustomImage = !!customUri;
 
@@ -386,10 +413,11 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                     end={{ x: 1, y: 1 }}
                 />
 
-                {/* Static image, animated GIF/WebP, or video */}
-                {hasImage && (
+                {/* Video or image */}
+                {(hasImage || hasVideo) && (
                     <CardMedia
                         cardImage={cardImage}
+                        videoAsset={videoAsset}
                         customUri={customUri}
                         isCustomImage={isCustomImage}
                         imgStyle={imgStyle}
@@ -408,7 +436,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 
                     <View style={[styles.innerBorder, { borderColor: theme.borderColor + '55', borderRadius: Math.round(9 * sc) }]} pointerEvents="none" />
 
-                    {hasImage && (
+                    {(hasImage || hasVideo) && (
                         <LinearGradient
                             colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']}
                             style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
@@ -416,7 +444,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                         />
                     )}
 
-                    {!hasImage && (
+                    {!hasImage && !hasVideo && (
                         <View style={styles.noImageBadge} pointerEvents="none">
                             <Text style={styles.noImageIcon}>\ud83d\uddbc\ufe0f</Text>
                             <Text style={styles.noImageText}>\u0644\u0627 \u062a\u0648\u062c\u062f \u0635\u0648\u0631\u0629</Text>
