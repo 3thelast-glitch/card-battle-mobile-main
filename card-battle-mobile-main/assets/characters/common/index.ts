@@ -12,3 +12,8 @@ export const COMMON_IMAGES: Record<string, any> = {
     happy: require('./happy.png'),
     mineta: require('./mineta.png'),
 };
+
+/** فيديوهات الكروت العادية — mp4 / webm */
+export const COMMON_VIDEOS: Record<string, any> = {
+    misa_amane: require('./Misa_Amane.mp4'),
+};

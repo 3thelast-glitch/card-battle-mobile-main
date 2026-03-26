@@ -995,6 +995,18 @@ export const ANIME_CARDS: Card[] = [
     rarity: 'legendary', stars: 5,
     animationPreset: 'ice',
   },
+  {
+    // ✅ بطاقة ميسا أمان — الفيديو مربوط تلقائياً عبر COMMON_VIDEOS
+    id: 'misa_amane',
+    name: 'Misa Amane',
+    nameAr: 'ميسا أمان',
+    attack: 7, defense: 5,
+    race: 'human', cardClass: 'mage', element: 'ice',
+    tags: ['magic'], emoji: '🖤',
+    rarity: 'common', stars: 2,
+    animationPreset: 'shadow',
+    specialAbility: 'عيون الموت — ترى رقم الجولة القادمة للخصم',
+  },
 
   // ════════════════════════════════════════════════════
   // Chainsaw Man
