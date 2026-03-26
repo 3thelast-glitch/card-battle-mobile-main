@@ -147,7 +147,7 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-// ── Media Picker: يدعم صورة + فيديو ──────────────────────────────
+// ── Media Picker: يدعم صورة + فيديو ───────────────────────────────────────
 function MediaPickerSection({ value, isVideo, rarityColor, onChange }: {
   value?: string;
   isVideo: boolean;
@@ -416,10 +416,12 @@ export default function CardsGalleryScreen() {
           <View style={[styles.grid, { gap: gridGap, paddingHorizontal: padding }]}>
             {sortedCards.map(card => (
               <TouchableOpacity key={card.id} onPress={() => handleCardPress(card)} activeOpacity={0.85}>
+                {/* في الغاليري: videoMuted=true (بدون صوت) */}
                 <LuxuryCharacterCardAnimated
                   card={card}
                   imageOffsetY={card.imageOffsetY ?? 0}
                   fitInsideBorder={card.fitInsideBorder ?? false}
+                  videoMuted={true}
                   style={{ width: galleryCardW, height: galleryCardH }}
                 />
               </TouchableOpacity>
@@ -433,10 +435,12 @@ export default function CardsGalleryScreen() {
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow}>
               <View pointerEvents="none">
+                {/* في المودال: videoMuted=false (مع صوت) */}
                 <LuxuryCharacterCardAnimated
                   card={previewCard}
                   imageOffsetY={edits.imageOffsetY}
                   fitInsideBorder={edits.fitInsideBorder}
+                  videoMuted={false}
                   style={{ width: modalCardW, height: modalCardH }}
                 />
               </View>
@@ -447,7 +451,7 @@ export default function CardsGalleryScreen() {
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
                   <View style={ep.divider} />
 
-                  <RNText style={ep.label}>✦ الندرة</RNText>
+                  <RNText style={ep.label}>❆ الندرة</RNText>
                   <RarityPicker value={edits.rarity} onChange={handleRarityChange} />
                   <View style={ep.divider} />
 
