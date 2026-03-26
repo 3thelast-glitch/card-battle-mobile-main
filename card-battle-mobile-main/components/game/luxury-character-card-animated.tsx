@@ -23,8 +23,8 @@ interface Props {
     style?: ViewStyle;
     imageOffsetY?: number;
     fitInsideBorder?: boolean;
-    /** إذا true يكون الفيديو بدون صوت (الافتراضي: true) */
-    videoMuted?: boolean;
+    /** When true the video plays muted (default: true) */
+    muted?: boolean;
 }
 
 // ---------------------------------------------------------------
@@ -272,9 +272,9 @@ interface CardMediaProps {
     customUri?: string;
     isCustomImage: boolean;
     imgStyle: object;
-    videoMuted: boolean;
+    muted?: boolean;
 }
-const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, videoMuted }: CardMediaProps) => {
+const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, muted = true }: CardMediaProps) => {
     if (customUri && isVideoUri(customUri)) {
         return (
             <Video
@@ -283,7 +283,7 @@ const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, videoMuted }
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
                 isLooping
-                isMuted={videoMuted}
+                isMuted={muted}
                 useNativeControls={false}
             />
         );
@@ -305,7 +305,7 @@ const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, videoMuted }
     );
 };
 
-export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false, videoMuted = true }: Props) {
+export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false, muted = true }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
     const hasAbility = !!card.specialAbility;
@@ -387,7 +387,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                         customUri={customUri}
                         isCustomImage={isCustomImage}
                         imgStyle={imgStyle}
-                        videoMuted={videoMuted}
+                        muted={muted}
                     />
                 )}
 
