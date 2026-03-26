@@ -333,7 +333,13 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: foilPos.value }] }));
 
     const cardImage = getCardImage(card);
-    const customUri: string | undefined = (card as any).customImage;
+
+    // ✔ أولوية: videoUrl ثم customImage ثم imageUrl
+    const customUri: string | undefined =
+        card.videoUrl ||
+        (card as any).customImage ||
+        undefined;
+
     const hasImage = !!cardImage || !!customUri;
     const isCustomImage = !!customUri;
 
