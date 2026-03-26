@@ -1,11 +1,12 @@
 /**
  * LuxuryCharacterCardAnimated — Fully Responsive
  * fitInsideBorder: custom image is clipped to the inner border area (inset 5px)
- * Animated images (GIF / WebP) are supported automatically.
+ * Animated images (GIF / WebP) and videos (MP4 / WebM) are supported automatically.
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode } from 'expo-av';
 import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
     withSequence, interpolate, Easing,
@@ -25,14 +26,20 @@ interface Props {
 }
 
 // ---------------------------------------------------------------
-// Helper: detect whether a URI points to / is an animated image
+// Helpers: detect media type from URI
 // ---------------------------------------------------------------
+function isVideoUri(uri: string): boolean {
+    if (!uri) return false;
+    const lower = uri.toLowerCase();
+    if (lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov')) return true;
+    if (lower.startsWith('data:video/')) return true;
+    return false;
+}
+
 function isAnimatedUri(uri: string): boolean {
     if (!uri) return false;
     const lower = uri.toLowerCase();
-    // file extension check
     if (lower.includes('.gif') || lower.includes('.webp')) return true;
-    // base64 header check
     if (lower.startsWith('data:image/gif') || lower.startsWith('data:image/webp')) return true;
     return false;
 }
@@ -256,33 +263,41 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
 };
 
 // ---------------------------------------------------------------
-// CardImage — renders static OR animated image automatically
+// CardMedia — renders static image, animated GIF/WebP, or video
 // ---------------------------------------------------------------
-interface CardImageProps {
+interface CardMediaProps {
     cardImage: ReturnType<typeof getCardImage>;
+    customUri?: string;
     isCustomImage: boolean;
     imgStyle: object;
 }
-const CardImage = ({ cardImage, isCustomImage, imgStyle }: CardImageProps) => {
-    // uri-based source (custom image stored as uri string)
+const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle }: CardMediaProps) => {
+    if (customUri && isVideoUri(customUri)) {
+        return (
+            <Video
+                source={{ uri: customUri }}
+                style={imgStyle as any}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+                useNativeControls={false}
+            />
+        );
+    }
+
     const uri: string | undefined =
         cardImage && typeof cardImage === 'object' && 'uri' in cardImage
             ? (cardImage as any).uri
             : undefined;
-
     const animated = uri ? isAnimatedUri(uri) : false;
-
-    // Animated images need { uri } source + no cache transformations on Android
-    const source = animated
-        ? { uri, headers: {} }   // explicit headers prevent Expo from stripping the frames
-        : (cardImage as any);
+    const source = animated ? { uri, headers: {} } : (cardImage as any);
 
     return (
         <Image
             source={source}
             style={imgStyle as any}
             resizeMode={isCustomImage ? 'contain' : 'cover'}
-            // React Native's Image component plays GIF/WebP automatically on both platforms
         />
     );
 };
@@ -301,7 +316,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const scW = cardW / BASE_W;
     const scH = cardH / BASE_H;
     const sc = Math.min(scW, scH);
-
     const INSET = Math.round(5 * sc);
 
     const foilPos = useSharedValue(-cardW * 0.55);
@@ -316,8 +330,9 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const foilStyle = useAnimatedStyle(() => ({ transform: [{ translateX: foilPos.value }] }));
 
     const cardImage = getCardImage(card);
-    const hasImage = !!cardImage;
-    const isCustomImage = !!(card as any).customImage;
+    const customUri: string | undefined = (card as any).customImage;
+    const hasImage = !!cardImage || !!customUri;
+    const isCustomImage = !!customUri;
 
     const statBadgeSize = Math.round(46 * sc);
     const ringSize = Math.round(64 * sc);
@@ -355,7 +370,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
             {(rarity === 'epic' || rarity === 'legendary') && <GlowRing color={theme.color} />}
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
-
                 <LinearGradient
                     colors={theme.bgColors}
                     style={StyleSheet.absoluteFill}
@@ -363,10 +377,11 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                     end={{ x: 1, y: 1 }}
                 />
 
-                {/* Static or animated card image */}
+                {/* Static image, animated GIF/WebP, or video */}
                 {hasImage && (
-                    <CardImage
+                    <CardMedia
                         cardImage={cardImage}
+                        customUri={customUri}
                         isCustomImage={isCustomImage}
                         imgStyle={imgStyle}
                     />

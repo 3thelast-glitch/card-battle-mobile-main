@@ -14,7 +14,7 @@ import { ALL_CARDS } from '@/lib/game/cards-data-exports';
 import { Card, CardRarity } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
-import { ArrowLeft, Minus, Plus, Image as ImageIcon, X, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { saveImage, loadImage, deleteImage } from '@/lib/game/image-storage';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
@@ -37,19 +37,26 @@ type CardEdits = {
   specialAbility: string;
   attack: number;
   defense: number;
-  customImage?: string;
+  customImage?: string;   // uri: base64 image OR base64 video OR data:video/...
   imageOffsetY: number;
   fitInsideBorder: boolean;
   rarity: CardRarity;
+  isVideo: boolean;       // true when customImage is a video
 };
 
-// Strip any base64/blob fields before persisting to AsyncStorage
+function isVideoUri(uri: string): boolean {
+  if (!uri) return false;
+  const lower = uri.toLowerCase();
+  return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov')
+      || lower.startsWith('data:video/');
+}
+
 function toStoreSafe(obj: Record<string, any>): Record<string, any> {
   const { customImage, finalImage, ...rest } = obj;
   return rest;
 }
 
-function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }): CardEdits {
+function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean }): CardEdits {
   return {
     nameAr: card.nameAr ?? '',
     stars: card.stars ?? 0,
@@ -61,6 +68,7 @@ function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fit
     imageOffsetY: card.imageOffsetY ?? 0,
     fitInsideBorder: card.fitInsideBorder ?? false,
     rarity: card.rarity ?? 'common',
+    isVideo: card.isVideo ?? (card.customImage ? isVideoUri(card.customImage) : false),
   };
 }
 
@@ -139,10 +147,14 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-function ImagePickerSection({ value, rarityColor, onChange }: {
-  value?: string; rarityColor: string; onChange: (uri: string | undefined) => void;
+// ── Media Picker: يدعم صورة + فيديو ──────────────────────────────
+function MediaPickerSection({ value, isVideo, rarityColor, onChange }: {
+  value?: string;
+  isVideo: boolean;
+  rarityColor: string;
+  onChange: (uri: string | undefined, isVid: boolean) => void;
 }) {
-  const handlePick = () => {
+  const handlePickImage = () => {
     if (Platform.OS === 'web') {
       const input = document.createElement('input');
       input.type = 'file';
@@ -151,26 +163,57 @@ function ImagePickerSection({ value, rarityColor, onChange }: {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => { if (typeof reader.result === 'string') onChange(reader.result); };
+        reader.onload = () => { if (typeof reader.result === 'string') onChange(reader.result, false); };
         reader.readAsDataURL(file);
       };
       input.click();
     }
   };
+
+  const handlePickVideo = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'video/mp4,video/webm,video/*';
+      input.onchange = (e: Event) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => { if (typeof reader.result === 'string') onChange(reader.result, true); };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
   return (
     <View style={ep.imgSection}>
       {value ? (
         <View style={ep.imgPreviewWrap}>
-          <Image source={{ uri: value }} style={ep.imgPreview} resizeMode="contain" />
-          <TouchableOpacity style={ep.imgRemoveBtn} onPress={() => onChange(undefined)} activeOpacity={0.8}>
+          {isVideo ? (
+            <View style={ep.videoThumb}>
+              <RNText style={ep.videoThumbIcon}>🎬</RNText>
+              <RNText style={ep.videoThumbTxt}>فيديو محفوظ</RNText>
+            </View>
+          ) : (
+            <Image source={{ uri: value }} style={ep.imgPreview} resizeMode="contain" />
+          )}
+          <TouchableOpacity style={ep.imgRemoveBtn} onPress={() => onChange(undefined, false)} activeOpacity={0.8}>
             <X size={12} color="#fff" />
           </TouchableOpacity>
         </View>
       ) : null}
-      <TouchableOpacity style={[ep.imgPickBtn, { borderColor: rarityColor + '66' }]} onPress={handlePick} activeOpacity={0.8}>
-        <ImageIcon size={14} color={rarityColor} />
-        <RNText style={[ep.imgPickTxt, { color: rarityColor }]}>{value ? 'تغيير الصورة' : 'اختر صورة من الجهاز'}</RNText>
-      </TouchableOpacity>
+
+      <View style={ep.mediaPickRow}>
+        <TouchableOpacity style={[ep.mediaPickBtn, { borderColor: rarityColor + '66', flex: 1 }]} onPress={handlePickImage} activeOpacity={0.8}>
+          <ImageIcon size={13} color={rarityColor} />
+          <RNText style={[ep.imgPickTxt, { color: rarityColor }]}>صورة</RNText>
+        </TouchableOpacity>
+        <TouchableOpacity style={[ep.mediaPickBtn, { borderColor: '#a78bfa66', flex: 1 }]} onPress={handlePickVideo} activeOpacity={0.8}>
+          <Film size={13} color="#a78bfa" />
+          <RNText style={[ep.imgPickTxt, { color: '#a78bfa' }]}>فيديو</RNText>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -203,10 +246,10 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
 export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
-  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean })[]>(UNIQUE_CARDS);
-  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
+  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean })[]>(UNIQUE_CARDS);
+  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
-  const [previewCard, setPreviewCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
+  const [previewCard, setPreviewCard] = useState<any | null>(null);
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
@@ -225,7 +268,7 @@ export default function CardsGalleryScreen() {
             const safeCopy = toStoreSafe({ ...data });
             if (data.hasCustomImage) {
               const img = await loadImage(`card_img_${id}`);
-              if (img) return [id, { ...safeCopy, customImage: img }] as [string, any];
+              if (img) return [id, { ...safeCopy, customImage: img, isVideo: data.isVideo ?? isVideoUri(img) }] as [string, any];
             }
             return [id, safeCopy] as [string, any];
           })
@@ -250,11 +293,11 @@ export default function CardsGalleryScreen() {
       customImage: edits.customImage,
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
-      ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
+      isVideo: edits.isVideo,
     });
   }, [edits, selectedCard]);
 
-  const handleCardPress = (card: Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) => {
+  const handleCardPress = (card: any) => {
     setSelectedCard(card);
     setEdits(toEdits(card));
   };
@@ -276,6 +319,7 @@ export default function CardsGalleryScreen() {
       attack: edits.attack,
       defense: edits.defense,
       hasCustomImage: !!edits.customImage,
+      isVideo: edits.isVideo,
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
     };
@@ -283,7 +327,6 @@ export default function CardsGalleryScreen() {
     const memRecord: Record<string, any> = {
       ...storeSafe,
       customImage: edits.customImage,
-      ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
 
     const newStoredMap: Record<string, Record<string, any>> = {};
@@ -306,7 +349,6 @@ export default function CardsGalleryScreen() {
   const handleClose = () => { setSelectedCard(null); setEdits(null); setPreviewCard(null); };
   const patch = (p: Partial<CardEdits>) => setEdits(prev => prev ? { ...prev, ...p } : prev);
 
-  // When rarity changes → auto-sync stars to match the rarity default
   const handleRarityChange = (r: CardRarity) => {
     const defaultStars = RARITY_OPTIONS.find(o => o.value === r)?.stars ?? 1;
     patch({ rarity: r, stars: defaultStars });
@@ -405,7 +447,6 @@ export default function CardsGalleryScreen() {
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
                   <View style={ep.divider} />
 
-                  {/* ── Rarity Picker ── */}
                   <RNText style={ep.label}>✦ الندرة</RNText>
                   <RarityPicker value={edits.rarity} onChange={handleRarityChange} />
                   <View style={ep.divider} />
@@ -456,10 +497,16 @@ export default function CardsGalleryScreen() {
                   </View>
                   <View style={ep.divider} />
 
-                  <RNText style={ep.label}>🖼️ صورة الكرت</RNText>
-                  <ImagePickerSection value={edits.customImage} rarityColor={rarityColor} onChange={uri => patch({ customImage: uri, imageOffsetY: 0, fitInsideBorder: false })} />
+                  {/* ── Media Picker: صورة أو فيديو ── */}
+                  <RNText style={ep.label}>🎬 صورة / فيديو الكرت</RNText>
+                  <MediaPickerSection
+                    value={edits.customImage}
+                    isVideo={edits.isVideo}
+                    rarityColor={rarityColor}
+                    onChange={(uri, isVid) => patch({ customImage: uri, isVideo: isVid, imageOffsetY: 0, fitInsideBorder: false })}
+                  />
 
-                  {edits.customImage && (
+                  {edits.customImage && !edits.isVideo && (
                     <>
                       <View style={ep.divider} />
                       <View style={ep.switchRow}>
@@ -539,27 +586,24 @@ const ep = StyleSheet.create({
   statLabel: { fontSize: 10, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 2 },
   actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)' },
-  imgSection:     { gap: 8 },
-  imgPreviewWrap: {
-    position: 'relative', alignSelf: 'center',
-    width: 110, height: 140,
-    borderRadius: 10, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    overflow: 'hidden',
-  },
-  imgPreview:     { width: '100%', height: '100%' },
-  imgRemoveBtn:   { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#f87171', alignItems: 'center', justifyContent: 'center' },
-  imgPickBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
-  imgPickTxt:     { fontSize: 12, fontWeight: '700' },
-  offsetRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  offsetBtn:      { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)', minWidth: 52 },
-  offsetBtnTxt:   { fontSize: 9, fontWeight: '700' },
-  offsetValueBox: { alignItems: 'center', minWidth: 44 },
-  offsetValue:    { fontSize: 16, fontWeight: '800' },
-  offsetHint:     { fontSize: 9, color: '#555' },
-  offsetResetBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
-  offsetResetTxt: { fontSize: 10, color: '#666', fontWeight: '600' },
+  imgSection:      { gap: 8 },
+  imgPreviewWrap:  { position: 'relative', alignSelf: 'center', width: 110, height: 140, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' },
+  imgPreview:      { width: '100%', height: '100%' },
+  imgRemoveBtn:    { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#f87171', alignItems: 'center', justifyContent: 'center' },
+  videoThumb:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  videoThumbIcon:  { fontSize: 32 },
+  videoThumbTxt:   { fontSize: 10, color: '#a78bfa', fontWeight: '700' },
+  mediaPickRow:    { flexDirection: 'row', gap: 8 },
+  mediaPickBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 8, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
+  imgPickTxt:      { fontSize: 12, fontWeight: '700' },
+  offsetRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  offsetBtn:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)', minWidth: 52 },
+  offsetBtnTxt:    { fontSize: 9, fontWeight: '700' },
+  offsetValueBox:  { alignItems: 'center', minWidth: 44 },
+  offsetValue:     { fontSize: 16, fontWeight: '800' },
+  offsetHint:      { fontSize: 9, color: '#555' },
+  offsetResetBtn:  { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
+  offsetResetTxt:  { fontSize: 10, color: '#666', fontWeight: '600' },
 });
 
 const styles = StyleSheet.create({
