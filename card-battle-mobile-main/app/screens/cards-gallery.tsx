@@ -11,7 +11,7 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data-exports';
-import { Card } from '@/lib/game/types';
+import { Card, CardRarity } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus, Image as ImageIcon, X, ChevronUp, ChevronDown } from 'lucide-react-native';
@@ -40,6 +40,7 @@ type CardEdits = {
   customImage?: string;
   imageOffsetY: number;
   fitInsideBorder: boolean;
+  rarity: CardRarity;
 };
 
 // Strip any base64/blob fields before persisting to AsyncStorage
@@ -59,10 +60,44 @@ function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fit
     customImage: card.customImage,
     imageOffsetY: card.imageOffsetY ?? 0,
     fitInsideBorder: card.fitInsideBorder ?? false,
+    rarity: card.rarity ?? 'common',
   };
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars: number }[] = [
+  { value: 'common',    labelAr: 'عادي',    color: '#6366f1', stars: 1 },
+  { value: 'rare',      labelAr: 'نادر',    color: '#f59e0b', stars: 3 },
+  { value: 'epic',      labelAr: 'ملحمي',   color: '#8b5cf6', stars: 4 },
+  { value: 'legendary', labelAr: 'أسطوري',  color: '#ef4444', stars: 5 },
+];
+
+function RarityPicker({ value, onChange }: { value: CardRarity; onChange: (r: CardRarity) => void }) {
+  return (
+    <View style={rp.row}>
+      {RARITY_OPTIONS.map(opt => {
+        const active = value === opt.value;
+        return (
+          <TouchableOpacity
+            key={opt.value}
+            onPress={() => onChange(opt.value)}
+            activeOpacity={0.75}
+            style={[
+              rp.btn,
+              { borderColor: active ? opt.color : opt.color + '33',
+                backgroundColor: active ? opt.color + '22' : 'rgba(255,255,255,0.03)' },
+            ]}
+          >
+            <RNText style={[rp.txt, { color: active ? opt.color : opt.color + '88' }]}>
+              {opt.labelAr}
+            </RNText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
 
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
@@ -167,7 +202,6 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
 
 export default function CardsGalleryScreen() {
   const router = useRouter();
-  // savedMap holds ONLY store-safe data (no base64). Images live in IndexedDB.
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
   const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean })[]>(UNIQUE_CARDS);
   const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean }) | null>(null);
@@ -186,10 +220,9 @@ export default function CardsGalleryScreen() {
       if (!raw) return;
       try {
         const map: Record<string, any> = JSON.parse(raw);
-        // Load images from IndexedDB and merge into a separate in-memory map
         const entries = await Promise.all(
           Object.entries(map).map(async ([id, data]) => {
-            const safeCopy = toStoreSafe({ ...data }); // ensure no base64 leaked into saved state
+            const safeCopy = toStoreSafe({ ...data });
             if (data.hasCustomImage) {
               const img = await loadImage(`card_img_${id}`);
               if (img) return [id, { ...safeCopy, customImage: img }] as [string, any];
@@ -198,7 +231,6 @@ export default function CardsGalleryScreen() {
           })
         );
         const fullMap = Object.fromEntries(entries);
-        // savedMap stays base64-free
         setSavedMap(Object.fromEntries(entries.map(([id, d]) => [id, toStoreSafe(d)])));
         setCards(UNIQUE_CARDS.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
       } catch {}
@@ -211,6 +243,7 @@ export default function CardsGalleryScreen() {
       ...selectedCard,
       nameAr: edits.nameAr || selectedCard.nameAr,
       stars: edits.stars,
+      rarity: edits.rarity,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
@@ -229,17 +262,16 @@ export default function CardsGalleryScreen() {
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
 
-    // Persist image in IndexedDB (not AsyncStorage)
     if (edits.customImage) {
       await saveImage(`card_img_${selectedCard.id}`, edits.customImage);
     } else {
       await deleteImage(`card_img_${selectedCard.id}`);
     }
 
-    // Build the store-safe record (absolutely NO base64)
     const storeSafe: Record<string, any> = {
       nameAr: edits.nameAr || selectedCard.nameAr,
       stars: edits.stars,
+      rarity: edits.rarity,
       specialAbility: edits.hasAbility ? (edits.specialAbility || undefined) : undefined,
       attack: edits.attack,
       defense: edits.defense,
@@ -248,15 +280,12 @@ export default function CardsGalleryScreen() {
       fitInsideBorder: edits.fitInsideBorder,
     };
 
-    // Build the full in-memory record (includes base64 for live rendering)
     const memRecord: Record<string, any> = {
       ...storeSafe,
       customImage: edits.customImage,
       ...(edits.customImage ? { finalImage: { uri: edits.customImage } as any } : {}),
     };
 
-    // Rebuild newMap from scratch using only store-safe entries
-    // (guarantee no previous base64 bleeds in from savedMap)
     const newStoredMap: Record<string, Record<string, any>> = {};
     for (const [id, data] of Object.entries(savedMap)) {
       newStoredMap[id] = toStoreSafe(data);
@@ -276,6 +305,12 @@ export default function CardsGalleryScreen() {
 
   const handleClose = () => { setSelectedCard(null); setEdits(null); setPreviewCard(null); };
   const patch = (p: Partial<CardEdits>) => setEdits(prev => prev ? { ...prev, ...p } : prev);
+
+  // When rarity changes → auto-sync stars to match the rarity default
+  const handleRarityChange = (r: CardRarity) => {
+    const defaultStars = RARITY_OPTIONS.find(o => o.value === r)?.stars ?? 1;
+    patch({ rarity: r, stars: defaultStars });
+  };
 
   if (!isLandscape) return <RotateHintScreen />;
 
@@ -301,7 +336,9 @@ export default function CardsGalleryScreen() {
     { label: 'أسطورية', cls: 'border-amber-500 text-amber-500 bg-amber-500/10' },
   ];
 
-  const rarityColor = selectedCard ? getRarityConfig(selectedCard.rarity).badgeColor : '#d4af37';
+  const rarityColor = edits
+    ? getRarityConfig(edits.rarity).badgeColor
+    : selectedCard ? getRarityConfig(selectedCard.rarity).badgeColor : '#d4af37';
 
   return (
     <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
@@ -366,6 +403,11 @@ export default function CardsGalleryScreen() {
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   <RNText style={[ep.title, { color: rarityColor }]}>{edits.nameAr || selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
+                  <View style={ep.divider} />
+
+                  {/* ── Rarity Picker ── */}
+                  <RNText style={ep.label}>✦ الندرة</RNText>
+                  <RarityPicker value={edits.rarity} onChange={handleRarityChange} />
                   <View style={ep.divider} />
 
                   <RNText style={ep.label}>✏️ الاسم العربي</RNText>
@@ -453,6 +495,12 @@ export default function CardsGalleryScreen() {
     </ScreenContainer>
   );
 }
+
+const rp = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 4, flexWrap: 'wrap' },
+  btn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
+  txt: { fontSize: 11, fontWeight: '800' },
+});
 
 const ep = StyleSheet.create({
   panel: { backgroundColor: 'rgba(10,10,16,0.97)', padding: 18, borderRadius: 20, borderWidth: 1.5, width: 290, maxHeight: 520 },
