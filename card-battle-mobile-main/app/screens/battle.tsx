@@ -15,6 +15,7 @@
  *  - Bot AI wired: decideBotAbility + buildBotAbilityData + updateBotMemory
  *  - ✅ Fix #3: pass botAbilities to updateBotMemory
  *  - ✅ Step 1: import useSettings + BATTLE_TIMINGS
+ *  - ✅ Step 2: wrap all Haptics calls with settings.vibration guard
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -400,6 +401,15 @@ export default function BattleScreen() {
   // ✅ Step 1: تهيئة الـ hook — جاهز للربط في الخطوات القادمة
   const { settings } = useSettings();
 
+  // ✅ Step 2: helper يحترم إعداد الاهتزاز
+  const hapticImpact = useCallback((style: Haptics.ImpactFeedbackStyle) => {
+    if (Platform.OS !== 'web' && settings.vibration) Haptics.impactAsync(style);
+  }, [settings.vibration]);
+
+  const hapticNotification = useCallback((type: Haptics.NotificationFeedbackType) => {
+    if (Platform.OS !== 'web' && settings.vibration) Haptics.notificationAsync(type);
+  }, [settings.vibration]);
+
   const maxH = height * 0.54;
   const cardWidth = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
   const cardHeight = cardWidth * 1.5;
@@ -516,7 +526,8 @@ export default function BattleScreen() {
   }, [currentPlayerCard, state, useAbility]);
 
   const handleExecuteAttack = useCallback(() => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
+    hapticImpact(Haptics.ImpactFeedbackStyle.Heavy);
     flashAnim.value = withSequence(withTiming(0.35, { duration: 60 }), withTiming(0, { duration: 300 }));
     setPhase('combat'); setShowPlayerEffect(true); setShowBotEffect(true);
 
@@ -525,28 +536,31 @@ export default function BattleScreen() {
     playRound();
     setPredictionSelections({}); setShowPredictionModal(false);
     setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, 1000);
-  }, [playRound, runBotAbility]);
+  }, [playRound, runBotAbility, hapticImpact]);
 
   useEffect(() => { if (editMode) setShowSidebar(true); else setShowSidebar(false); }, [editMode]);
 
   const handleNextRound = useCallback(() => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
+    hapticImpact(Haptics.ImpactFeedbackStyle.Light);
     if (isGameOver) router.push('/screens/battle-results' as any);
     else { setPhase('selection'); nextRound(); }
-  }, [isGameOver, router, nextRound]);
+  }, [isGameOver, router, nextRound, hapticImpact]);
 
   const handleConfirmPrediction = useCallback(() => {
     useAbility(predictionAbilityType, { predictions: predictionSelections });
     setShowPredictionModal(false); setPredictionSelections({});
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [predictionAbilityType, predictionSelections, useAbility]);
+    // ✅ Step 2
+    hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+  }, [predictionAbilityType, predictionSelections, useAbility, hapticImpact]);
 
   const handleConfirmPopularity = useCallback(() => {
     if (selectedPopularityRound === null) return;
     useAbility(popularityAbilityType, { round: selectedPopularityRound });
     setShowPopularityModal(false); setSelectedPopularityRound(null);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [popularityAbilityType, selectedPopularityRound, useAbility]);
+    // ✅ Step 2
+    hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+  }, [popularityAbilityType, selectedPopularityRound, useAbility, hapticImpact]);
 
   // ── Choice modal handlers ────────────────────────────────────────────────
   const openChoiceModal = useCallback((abilityType: string) => {
@@ -626,8 +640,9 @@ export default function BattleScreen() {
     }
 
     setIsAbilitiesModalOpen(false);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [choiceModal, useAbility]);
+    // ✅ Step 2
+    hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+  }, [choiceModal, useAbility, hapticImpact]);
 
   // ── تحديث ذاكرة البوت بعد كل جولة ──────────────────────────────────────
   useEffect(() => {
@@ -643,14 +658,14 @@ export default function BattleScreen() {
     if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
     if (isGameOver) {
       setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
-      if (Platform.OS !== 'web') {
-        if (lastRoundResult.winner === 'player') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        else if (lastRoundResult.winner === 'bot') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
+      // ✅ Step 2: استخدام hapticNotification
+      if (lastRoundResult.winner === 'player') hapticNotification(Haptics.NotificationFeedbackType.Success);
+      else if (lastRoundResult.winner === 'bot') hapticNotification(Haptics.NotificationFeedbackType.Error);
+      else hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
       setPhase('waiting');
     } else {
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // ✅ Step 2
+      hapticImpact(Haptics.ImpactFeedbackStyle.Light);
       setTimeout(() => { setPhase('selection'); nextRound(); }, 1200);
     }
   }, [phase, lastRoundResult, editMode, isGameOver]);
@@ -908,7 +923,8 @@ export default function BattleScreen() {
                           return;
                         }
                         useAbility(ability.type); setIsAbilitiesModalOpen(false);
-                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        // ✅ Step 2
+                        hapticImpact(Haptics.ImpactFeedbackStyle.Light);
                       }}
                       disabled={!canUse}
                       activeOpacity={0.85}
