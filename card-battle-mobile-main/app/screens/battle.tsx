@@ -16,6 +16,8 @@
  *  - ✅ Fix #3: pass botAbilities to updateBotMemory
  *  - ✅ Step 1: import useSettings + BATTLE_TIMINGS
  *  - ✅ Step 2: wrap all Haptics calls with settings.vibration guard
+ *  - ✅ Step 3: guard spawnDmg with settings.showDamageNumbers
+ *  - ✅ Step 4: replace hardcoded delays with BATTLE_TIMINGS
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -503,7 +505,8 @@ export default function BattleScreen() {
       playerAnim.value = withDelay(80, withTiming(1, { duration: 280 }));
       botAnim.value = withDelay(240, withTiming(1, { duration: 280 }));
       vsOpacity.value = withDelay(440, withTiming(1, { duration: 200 }));
-      setTimeout(() => setPhase('action'), 720);
+      // ✅ Step 4: استخدام BATTLE_TIMINGS بدل الرقم الثابت 720
+      setTimeout(() => setPhase('action'), BATTLE_TIMINGS.cardEntrance);
     }
   }, [currentPlayerCard, currentBotCard, phase, state.currentRound, editMode]);
 
@@ -535,7 +538,8 @@ export default function BattleScreen() {
 
     playRound();
     setPredictionSelections({}); setShowPredictionModal(false);
-    setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, 1000);
+    // ✅ Step 4: استخدام BATTLE_TIMINGS.combatDuration بدل 1000
+    setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, BATTLE_TIMINGS.combatDuration);
   }, [playRound, runBotAbility, hapticImpact]);
 
   useEffect(() => { if (editMode) setShowSidebar(true); else setShowSidebar(false); }, [editMode]);
@@ -654,8 +658,13 @@ export default function BattleScreen() {
       if (prev.some(h => h.round === lastRoundResult.round)) return prev;
       return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
     });
-    if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
-    if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
+
+    // ✅ Step 3: إظهار أرقام الضرر فقط إذا كان الإعداد مفعّلاً
+    if (settings.showDamageNumbers) {
+      if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
+      if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
+    }
+
     if (isGameOver) {
       setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
       // ✅ Step 2: استخدام hapticNotification
@@ -666,9 +675,10 @@ export default function BattleScreen() {
     } else {
       // ✅ Step 2
       hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-      setTimeout(() => { setPhase('selection'); nextRound(); }, 1200);
+      // ✅ Step 4: استخدام BATTLE_TIMINGS.autoNextRound بدل 1200
+      setTimeout(() => { setPhase('selection'); nextRound(); }, BATTLE_TIMINGS.autoNextRound);
     }
-  }, [phase, lastRoundResult, editMode, isGameOver]);
+  }, [phase, lastRoundResult, editMode, isGameOver, settings.showDamageNumbers]);
 
   const spawnDmg = useCallback((side: 'player' | 'bot', value: number, variant: DamageNumberVariant) => {
     const id = `${Date.now()}-${Math.random()}`;
