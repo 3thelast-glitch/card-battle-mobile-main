@@ -1,6 +1,7 @@
 /**
  * LuxuryCharacterCardAnimated — Fully Responsive
  * fitInsideBorder: custom image is clipped to the inner border area (inset 5px)
+ * Animated images (GIF / WebP) are supported automatically.
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -21,6 +22,19 @@ interface Props {
     style?: ViewStyle;
     imageOffsetY?: number;
     fitInsideBorder?: boolean;
+}
+
+// ---------------------------------------------------------------
+// Helper: detect whether a URI points to / is an animated image
+// ---------------------------------------------------------------
+function isAnimatedUri(uri: string): boolean {
+    if (!uri) return false;
+    const lower = uri.toLowerCase();
+    // file extension check
+    if (lower.includes('.gif') || lower.includes('.webp')) return true;
+    // base64 header check
+    if (lower.startsWith('data:image/gif') || lower.startsWith('data:image/webp')) return true;
+    return false;
 }
 
 const RARITY_THEMES = {
@@ -241,6 +255,38 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
     );
 };
 
+// ---------------------------------------------------------------
+// CardImage — renders static OR animated image automatically
+// ---------------------------------------------------------------
+interface CardImageProps {
+    cardImage: ReturnType<typeof getCardImage>;
+    isCustomImage: boolean;
+    imgStyle: object;
+}
+const CardImage = ({ cardImage, isCustomImage, imgStyle }: CardImageProps) => {
+    // uri-based source (custom image stored as uri string)
+    const uri: string | undefined =
+        cardImage && typeof cardImage === 'object' && 'uri' in cardImage
+            ? (cardImage as any).uri
+            : undefined;
+
+    const animated = uri ? isAnimatedUri(uri) : false;
+
+    // Animated images need { uri } source + no cache transformations on Android
+    const source = animated
+        ? { uri, headers: {} }   // explicit headers prevent Expo from stripping the frames
+        : (cardImage as any);
+
+    return (
+        <Image
+            source={source}
+            style={imgStyle as any}
+            resizeMode={isCustomImage ? 'contain' : 'cover'}
+            // React Native's Image component plays GIF/WebP automatically on both platforms
+        />
+    );
+};
+
 export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
@@ -256,7 +302,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const scH = cardH / BASE_H;
     const sc = Math.min(scW, scH);
 
-    // inner border inset (matches innerBorder style: top/left/right/bottom = 5)
     const INSET = Math.round(5 * sc);
 
     const foilPos = useSharedValue(-cardW * 0.55);
@@ -296,7 +341,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const badgeTop = Math.max(4, 9 * scH);
     const badgeLeft = Math.max(4, 9 * scW);
 
-    // Image positioning: if fitInsideBorder, inset by INSET on all sides
     const imgStyle = isCustomImage && fitInsideBorder
         ? { position: 'absolute' as const, top: INSET + imageOffsetY, left: INSET, right: INSET, bottom: INSET, width: undefined, height: undefined }
         : { position: 'absolute' as const, top: imageOffsetY, left: 0, right: 0, width: '100%' as const, height: '100%' as const };
@@ -312,7 +356,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
 
-                {/* Rarity background always visible */}
                 <LinearGradient
                     colors={theme.bgColors}
                     style={StyleSheet.absoluteFill}
@@ -320,12 +363,12 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                     end={{ x: 1, y: 1 }}
                 />
 
-                {/* Card image */}
+                {/* Static or animated card image */}
                 {hasImage && (
-                    <Image
-                        source={cardImage!}
-                        style={imgStyle}
-                        resizeMode={isCustomImage ? 'contain' : 'cover'}
+                    <CardImage
+                        cardImage={cardImage}
+                        isCustomImage={isCustomImage}
+                        imgStyle={imgStyle}
                     />
                 )}
 
