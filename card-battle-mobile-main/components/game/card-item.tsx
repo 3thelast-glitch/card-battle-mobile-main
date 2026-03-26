@@ -11,7 +11,7 @@
  *  - Stats overlay: attack, defense, hp
  *  - Rarity badge pill (top-right)
  *  - Gradient placeholder when no image available
- *  - Video support with sound (videoUrl)
+ *  - Video support with sound (videoUrl) via expo-video
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
@@ -35,7 +35,7 @@ import { FireParticles } from '@/lib/particles';
 import { getCardImage } from '@/lib/game/get-card-image';
 import type { CardRarity } from '@/lib/game/types';
 
-// ─── Placeholder colors per rarity ─────────────────────────────────────────
+// ─── Placeholder colors per rarity ───────────────────────────────────────────
 const PLACEHOLDER_COLORS: Record<string, readonly [string, string, string]> = {
   common:    ['#1a1a2e', '#2d2d44', '#1a1a2e'],
   rare:      ['#1a1200', '#2d2000', '#1a1200'],
@@ -43,7 +43,7 @@ const PLACEHOLDER_COLORS: Record<string, readonly [string, string, string]> = {
   legendary: ['#1a1400', '#2d2400', '#1a1400'],
 };
 
-// ─── Size Presets ─────────────────────────────────────────────────────────────────
+// ─── Size Presets ─────────────────────────────────────────────────────────────
 
 const SIZE_PRESETS = {
   small: {
@@ -69,7 +69,7 @@ const SIZE_PRESETS = {
   },
 } as const;
 
-// ─── Props ────────────────────────────────────────────────────────────────────────
+// ─── Props ───────────────────────────────────────────────────────────────────
 
 interface CardItemProps {
   card: Card;
@@ -91,7 +91,24 @@ interface CardItemProps {
   customHeight?: number;
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────────
+// ─── VideoCard sub-component (expo-video) ────────────────────────────────────
+function VideoCard({ source, style }: { source: any; style: object }) {
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = false;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={style as any}
+      contentFit="contain"
+      nativeControls={false}
+    />
+  );
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CardItem({
   card,
@@ -113,13 +130,11 @@ export function CardItem({
   const width = customWidth ?? preset.width;
   const height = customHeight ?? preset.height;
 
-  // ── Resolve image / video ────────────────────────────────────────────────
+  // ── Resolve image / video ──────────────────────────────────────────────────
   const cardImage = getCardImage(card);
   const hasVideo = !!(card as any).videoUrl;
   const hasImage = !hasVideo && !!cardImage;
   const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS.common;
-
-  const videoRef = useRef<Video>(null);
 
   // ── Animations ──
   const tap = useCardTapAnimation();
@@ -197,15 +212,9 @@ export function CardItem({
 
           {/* Card Art — Video, Image, or Placeholder */}
           {hasVideo ? (
-            <Video
-              ref={videoRef}
+            <VideoCard
               source={(card as any).videoUrl}
               style={styles.image}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-              isLooping
-              isMuted={false}
-              useNativeControls={false}
             />
           ) : hasImage ? (
             <Image
@@ -298,7 +307,7 @@ export function CardItem({
   );
 }
 
-// ─── StatBadge ─────────────────────────────────────────────────────────────────────
+// ─── StatBadge ───────────────────────────────────────────────────────────────
 
 function StatBadge({ icon, value, size }: { icon: string; value: number; size: number }) {
   return (
@@ -309,7 +318,7 @@ function StatBadge({ icon, value, size }: { icon: string; value: number; size: n
   );
 }
 
-// ─── Effect icon map ────────────────────────────────────────────────────────────
+// ─── Effect icon map ──────────────────────────────────────────────────────────
 
 const EFFECT_ICONS: Record<string, string> = {
   taunt: '🛡️',
@@ -319,7 +328,7 @@ const EFFECT_ICONS: Record<string, string> = {
   charge: '⚡',
 };
 
-// ─── Styles ─────────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   outerWrapper: {
