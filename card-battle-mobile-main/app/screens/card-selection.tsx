@@ -15,6 +15,7 @@ import { AbilityCard, AbilityData } from '@/components/game/ability-card';
 import { abilities as allAbilitiesData } from '@/data/abilities';
 import { ProButton } from '@/components/ui/ProButton';
 import { SPACE, RADIUS } from '@/components/ui/design-tokens';
+import type { RarityWeights, RarityKey } from '@/lib/game/game-context';
 import {
   useLandscapeLayout,
   useCardSize,
@@ -22,14 +23,74 @@ import {
   LAYOUT_PADDING,
 } from '@/utils/layout';
 
-/** تحويل AbilityType إلى nameEn بإضافة مسافات */
-function abilityTypeToNameEn(type: AbilityType): string {
-  return type
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+// ── منطق الندرة ────────────────────────────────────────────────────────────────────
+/**
+ * يسحب `count` كرت عشوائياً باحترام نسب الندرة.
+ * الخوارزمية:
+ * 1. لكل جولة اطرح رقماً عشوائياً [0–1) وحدد فئة الندرة بناءً على الأوزان التراكمية.
+ * 2. اختر كرتاً عشوائياً من تلك الفئة.
+ * 3. إذا لم توجد كروت بتلك الندرة انتقل للفئة التالية بالترتيب.
+ */
+function sampleCardsByRarity(
+  cards: Card[],
+  count: number,
+  weights: RarityWeights
+): Card[] {
+  if (cards.length === 0) return [];
+  count = Math.min(count, cards.length);
+
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  const safeWeights = total > 0 ? weights : { common: 55, rare: 25, epic: 15, legendary: 5 };
+
+  // تجميع الكروت حسب الندرة
+  const buckets: Record<RarityKey, Card[]> = {
+    common:    cards.filter(c => (c.rarity ?? 'common') === 'common'),
+    rare:      cards.filter(c => c.rarity === 'rare'),
+    epic:      cards.filter(c => c.rarity === 'epic'),
+    legendary: cards.filter(c => c.rarity === 'legendary'),
+  };
+
+  // خلط كل فئة
+  (Object.keys(buckets) as RarityKey[]).forEach(k => {
+    buckets[k] = [...buckets[k]].sort(() => Math.random() - 0.5);
+  });
+
+  const usedIndices: Record<RarityKey, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  const result: Card[] = [];
+
+  // ترتيب الفئات للتراجع
+  const rarityOrder: RarityKey[] = ['common', 'rare', 'epic', 'legendary'];
+
+  for (let i = 0; i < count; i++) {
+    const roll = Math.random() * (total > 0 ? total : 100);
+    let cumulative = 0;
+    let chosen: RarityKey = 'common';
+
+    for (const key of rarityOrder) {
+      cumulative += safeWeights[key];
+      if (roll < cumulative) { chosen = key; break; }
+    }
+
+    // إذا نفدت الفئة جرب التالية
+    let picked: Card | undefined;
+    for (const key of [chosen, ...rarityOrder.filter(k => k !== chosen)]) {
+      if (usedIndices[key] < buckets[key].length) {
+        picked = buckets[key][usedIndices[key]++];
+        break;
+      }
+    }
+
+    if (picked) result.push(picked);
+  }
+
+  return result;
 }
 
-/** هل هذه القدرة موجودة في data/abilities? */
+// ─────────────────────────────────────────────────────────────────────────────
+function abilityTypeToNameEn(type: AbilityType): string {
+  return type.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+}
+
 function isAbilityInData(type: AbilityType): boolean {
   const nameEn = abilityTypeToNameEn(type);
   return allAbilitiesData.some(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
@@ -38,11 +99,7 @@ function isAbilityInData(type: AbilityType): boolean {
 function resolveAbilityData(type: AbilityType): AbilityData {
   const nameEn = abilityTypeToNameEn(type);
   const found = allAbilitiesData.find(a => a.nameEn.toLowerCase() === nameEn.toLowerCase());
-  if (found) return {
-    id: found.id, nameEn: found.nameEn, nameAr: found.nameAr,
-    description: found.description, icon: found.icon,
-    rarity: found.rarity, isActive: found.isActive,
-  };
+  if (found) return { id: found.id, nameEn: found.nameEn, nameAr: found.nameAr, description: found.description, icon: found.icon, rarity: found.rarity, isActive: found.isActive };
   return { id: type, nameEn, nameAr: type, description: '', icon: null, rarity: 'Common' };
 }
 
@@ -64,7 +121,7 @@ interface CardRound { card: Card; round: number | null; }
 export default function CardSelectionScreen() {
   const router = useRouter();
   const { width, isLandscape, size } = useLandscapeLayout();
-  const { state, setPlayerDeck, startBattle } = useGame();
+  const { state, setPlayerDeck, startBattle, rarityWeights } = useGame();
   const [cardRounds, setCardRounds] = useState<CardRound[]>([]);
   const [focusedCardIndex, setFocusedCardIndex] = useState<number | null>(null);
   const [isAbilitiesModalOpen, setIsAbilitiesModalOpen] = useState(false);
@@ -81,19 +138,17 @@ export default function CardSelectionScreen() {
   useEffect(() => {
     getDisabledAbilityIds().then(disabledIds => {
       const disabledTypes = idsToAbilityTypes(disabledIds);
-
-      const available = ALL_ABILITIES.filter(a =>
-        !disabledTypes.has(a) &&  // ليست معطّلة
-        isAbilityInData(a)         // موجودة في data/abilities (= ظاهرة في screens/abilities)
-      );
-
+      const available = ALL_ABILITIES.filter(a => !disabledTypes.has(a) && isAbilityInData(a));
       const picked = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
+
       const safeAllCards = Array.isArray(allCards) ? allCards : [];
-      const shuffled = [...safeAllCards].sort(() => Math.random() - 0.5);
-      setCardRounds(shuffled.slice(0, totalRounds).map(card => ({ card, round: null })));
+
+      // ✔ استخدام نسب الندرة لاختيار الكروت
+      const sampled = sampleCardsByRarity(safeAllCards, totalRounds, rarityWeights);
+      setCardRounds(sampled.map(card => ({ card, round: null })));
       setAssignedAbilities(picked);
     });
-  }, [totalRounds, allCards]);
+  }, [totalRounds, allCards, rarityWeights]);
 
   const handleRoundSelect = (round: number) => {
     if (focusedCardIndex !== null) {
@@ -209,17 +264,8 @@ export default function CardSelectionScreen() {
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(round => {
                 const alreadyUsed = cardRounds.some((cr, idx) => cr.round === round && idx !== focusedCardIndex);
                 return (
-                  <TouchableOpacity
-                    key={round}
-                    style={[styles.focusRoundBtn, alreadyUsed && styles.focusRoundBtnUsed]}
-                    onPress={() => handleRoundSelect(round)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.focusRoundBadge,
-                      alreadyUsed && styles.focusRoundBadgeUsed,
-                      focusedCardIndex !== null && cardRounds[focusedCardIndex]?.round === round && styles.focusRoundBadgeActive,
-                    ]}>
+                  <TouchableOpacity key={round} style={[styles.focusRoundBtn, alreadyUsed && styles.focusRoundBtnUsed]} onPress={() => handleRoundSelect(round)} activeOpacity={0.7}>
+                    <View style={[styles.focusRoundBadge, alreadyUsed && styles.focusRoundBadgeUsed, focusedCardIndex !== null && cardRounds[focusedCardIndex]?.round === round && styles.focusRoundBadgeActive]}>
                       <Text style={[styles.focusRoundText, alreadyUsed && styles.focusRoundTextUsed]}>ج {round}</Text>
                     </View>
                   </TouchableOpacity>
@@ -228,10 +274,7 @@ export default function CardSelectionScreen() {
             </View>
             {focusedCardIndex !== null && cardRounds[focusedCardIndex] && (
               <View style={styles.focusModalRightCol}>
-                <LuxuryCharacterCardAnimated
-                  card={cardRounds[focusedCardIndex].card}
-                  style={{ width: modalCardW, height: modalCardH }}
-                />
+                <LuxuryCharacterCardAnimated card={cardRounds[focusedCardIndex].card} style={{ width: modalCardW, height: modalCardH }} />
               </View>
             )}
           </TouchableOpacity>
@@ -248,24 +291,12 @@ export default function CardSelectionScreen() {
                 <Text style={{ color: '#94a3b8', fontSize: 20 }}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 8, paddingVertical: 8 }}>
               {assignedAbilities.length > 0 ? (
                 assignedAbilities.map((abilityType, index) => {
                   const data = resolveAbilityData(abilityType);
                   return (
-                    <AbilityCard
-                      key={index}
-                      ability={{
-                        id: index, nameEn: data.nameEn, nameAr: data.nameAr,
-                        description: data.description, icon: data.icon,
-                        rarity: data.rarity ?? 'Common', isActive: true,
-                      }}
-                      showActionButtons={false}
-                    />
+                    <AbilityCard key={index} ability={{ id: index, nameEn: data.nameEn, nameAr: data.nameAr, description: data.description, icon: data.icon, rarity: data.rarity ?? 'Common', isActive: true }} showActionButtons={false} />
                   );
                 })
               ) : (
@@ -282,12 +313,7 @@ export default function CardSelectionScreen() {
 const styles = StyleSheet.create({
   bgWrapper: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
   container: { flex: 1, zIndex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
-    backgroundColor: 'rgba(5,5,10,0.85)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,175,55,0.2)',
-  },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, backgroundColor: 'rgba(5,5,10,0.85)', borderBottomWidth: 1, borderBottomColor: 'rgba(212,175,55,0.2)' },
   backBtn: { paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: RADIUS.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   backBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   titleGroup: { alignItems: 'center' },
