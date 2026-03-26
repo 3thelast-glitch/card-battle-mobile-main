@@ -23,6 +23,8 @@ interface Props {
     style?: ViewStyle;
     imageOffsetY?: number;
     fitInsideBorder?: boolean;
+    /** إذا true يكون الفيديو بدون صوت (الافتراضي: true) */
+    videoMuted?: boolean;
 }
 
 // ---------------------------------------------------------------
@@ -270,8 +272,9 @@ interface CardMediaProps {
     customUri?: string;
     isCustomImage: boolean;
     imgStyle: object;
+    videoMuted: boolean;
 }
-const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle }: CardMediaProps) => {
+const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle, videoMuted }: CardMediaProps) => {
     if (customUri && isVideoUri(customUri)) {
         return (
             <Video
@@ -280,7 +283,7 @@ const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle }: CardMediaP
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
                 isLooping
-                isMuted
+                isMuted={videoMuted}
                 useNativeControls={false}
             />
         );
@@ -302,7 +305,7 @@ const CardMedia = ({ cardImage, customUri, isCustomImage, imgStyle }: CardMediaP
     );
 };
 
-export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false }: Props) {
+export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false, videoMuted = true }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
     const hasAbility = !!card.specialAbility;
@@ -384,6 +387,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                         customUri={customUri}
                         isCustomImage={isCustomImage}
                         imgStyle={imgStyle}
+                        videoMuted={videoMuted}
                     />
                 )}
 
