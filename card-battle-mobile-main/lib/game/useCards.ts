@@ -18,25 +18,42 @@ import { Card } from './types';
 /** Must match CARD_EDITS_KEY in cards-gallery.tsx */
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
-/** Returns ALL_CARDS merged with any saved edits from the gallery. */
+/**
+ * Deduplicate cards by id — last occurrence wins (same as gallery).
+ * This removes duplicates coming from CARDS_BATCH_* + ANIME_CARDS.
+ */
+function dedup(cards: Card[]): Card[] {
+  return Object.values(
+    cards.reduce<Record<string, Card>>((acc, card) => {
+      acc[card.id] = card;
+      return acc;
+    }, {})
+  );
+}
+
+/** Returns unique ALL_CARDS merged with any saved edits from the gallery. */
 export async function getCardsWithEdits(): Promise<Card[]> {
+  const unique = dedup(ALL_CARDS);
   try {
     const raw = await AsyncStorage.getItem(CARD_EDITS_KEY);
-    if (!raw) return ALL_CARDS;
+    if (!raw) return unique;
     const map: Record<string, Partial<Card>> = JSON.parse(raw);
-    return ALL_CARDS.map(c => (map[c.id] ? { ...c, ...map[c.id] } : c));
+    return unique.map(c => (map[c.id] ? { ...c, ...map[c.id] } : c));
   } catch {
-    return ALL_CARDS;
+    return unique;
   }
 }
 
 /**
- * React hook — returns cards with gallery edits applied.
+ * React hook — returns unique cards with gallery edits applied.
  * @param ids  Optional card IDs to filter. Omit to get all cards.
  */
 export function useCards(ids?: string[]): Card[] {
   const [cards, setCards] = useState<Card[]>(
-    ids ? ALL_CARDS.filter(c => ids.includes(c.id)) : ALL_CARDS
+    () => {
+      const unique = dedup(ALL_CARDS);
+      return ids ? unique.filter(c => ids.includes(c.id)) : unique;
+    }
   );
 
   useEffect(() => {
