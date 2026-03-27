@@ -1,11 +1,15 @@
 /**
  * MultiplayerLobbyScreen
  * شاشة إنشاء / الانضمام للغرفة
+ *
+ * بعد اكتمال اللاعبين → ينتقل لـ rounds-config
+ *   • Host  : يضبط الإعدادات ويرسلها للضيف
+ *   • Guest : ينتظر الإعدادات تلقائياً
  */
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Modal, ScrollView,
+  TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
@@ -33,39 +37,34 @@ export default function MultiplayerLobbyScreen() {
   const [opponentName, setOpponentName] = useState('');
   const [error, setError] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isHost, setIsHost] = useState(false);
 
   const playerIdRef = useRef<string>('');
 
-  // ─── اتصال بالسيرفر ──────────────────────────────────────────────────────
   const ensureConnected = useCallback(async () => {
-    if (!mpClient.isConnected()) {
-      await mpClient.connect();
-    }
+    if (!mpClient.isConnected()) await mpClient.connect();
   }, []);
 
-  // ─── إنشاء غرفة ──────────────────────────────────────────────────────────
+  // ─── إنشاء غرفة ────────────────────────────────────────────────────────────────
   const handleCreate = useCallback(async () => {
     if (!playerName.trim()) { setError('أدخل اسمك أولاً'); return; }
     setError('');
     setIsConnecting(true);
-
     try {
       await ensureConnected();
-
       let pid = await AsyncStorage.getItem('mp_player_id');
       if (!pid) { pid = generatePlayerId(); await AsyncStorage.setItem('mp_player_id', pid); }
       playerIdRef.current = pid;
 
       mpClient.on('ROOM_CREATED', (msg) => {
-        const { roomId: rid } = msg.payload;
-        setRoomId(rid);
+        setRoomId(msg.payload.roomId);
+        setIsHost(true);
         setPhase('waiting_opponent');
         setIsConnecting(false);
       });
 
       mpClient.on('PLAYER_JOINED', (msg) => {
-        const opponent = msg.payload.player;
-        setOpponentName(opponent?.name ?? 'لاعب');
+        setOpponentName(msg.payload.player?.name ?? 'لاعب');
         setPhase('ready');
       });
 
@@ -81,24 +80,22 @@ export default function MultiplayerLobbyScreen() {
     }
   }, [playerName, ensureConnected]);
 
-  // ─── الانضمام لغرفة ───────────────────────────────────────────────────────
+  // ─── الانضمام لغرفة ───────────────────────────────────────────────────────────
   const handleJoin = useCallback(async () => {
     if (!playerName.trim()) { setError('أدخل اسمك أولاً'); return; }
     if (!joinInput.trim()) { setError('أدخل كود الغرفة'); return; }
     setError('');
     setIsConnecting(true);
-
     try {
       await ensureConnected();
-
       let pid = await AsyncStorage.getItem('mp_player_id');
       if (!pid) { pid = generatePlayerId(); await AsyncStorage.setItem('mp_player_id', pid); }
       playerIdRef.current = pid;
 
       mpClient.on('ROOM_JOINED', (msg) => {
-        const p1 = msg.payload.player1;
-        setOpponentName(p1?.name ?? 'لاعب');
+        setOpponentName(msg.payload.player1?.name ?? 'لاعب');
         setRoomId(msg.payload.roomId);
+        setIsHost(false);
         setPhase('ready');
         setIsConnecting(false);
       });
@@ -115,30 +112,19 @@ export default function MultiplayerLobbyScreen() {
     }
   }, [playerName, joinInput, ensureConnected]);
 
-  // ─── بدء المعركة ─────────────────────────────────────────────────────────
-  const handleStartBattle = useCallback(() => {
-    router.push({
-      pathname: '/screens/multiplayer-battle' as any,
-      params: {
-        roomId,
-        playerId: playerIdRef.current,
-        playerName: playerName.trim(),
-        opponentName,
-      },
-    });
-  }, [roomId, playerName, opponentName, router]);
+  // ─── الانتقال — إلى rounds-config ليس multiplayer-battle ─────────────────────
+  const handleProceed = useCallback(() => {
+    router.push('/screens/rounds-config' as any);
+  }, [router]);
 
-  // ─── UI ──────────────────────────────────────────────────────────────────
+  // ─── UI ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={S.root}>
       <StatusBar hidden />
       <View style={S.bg}><LuxuryBackground /></View>
 
       <ScrollView
-        contentContainerStyle={[
-          S.container,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={[S.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
@@ -171,18 +157,10 @@ export default function MultiplayerLobbyScreen() {
         {/* ── Menu ── */}
         {phase === 'menu' && (
           <View style={S.actions}>
-            <TouchableOpacity
-              style={[S.btn, S.btnCreate]}
-              onPress={handleCreate}
-              disabled={isConnecting}
-              activeOpacity={0.85}
-            >
+            <TouchableOpacity style={[S.btn, S.btnCreate]} onPress={handleCreate} disabled={isConnecting} activeOpacity={0.85}>
               {isConnecting
                 ? <ActivityIndicator color="#fff" />
-                : <>
-                    <Text style={S.btnIcon}>🏠</Text>
-                    <Text style={S.btnText}>إنشاء غرفة</Text>
-                  </>
+                : <><Text style={S.btnIcon}>🏠</Text><Text style={S.btnText}>إنشاء غرفة</Text></>
               }
             </TouchableOpacity>
 
@@ -202,12 +180,7 @@ export default function MultiplayerLobbyScreen() {
                 maxLength={6}
                 autoCapitalize="characters"
               />
-              <TouchableOpacity
-                style={[S.btn, S.btnJoin]}
-                onPress={handleJoin}
-                disabled={isConnecting}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity style={[S.btn, S.btnJoin]} onPress={handleJoin} disabled={isConnecting} activeOpacity={0.85}>
                 <Text style={S.btnText}>انضم</Text>
               </TouchableOpacity>
             </View>
@@ -224,7 +197,7 @@ export default function MultiplayerLobbyScreen() {
           </View>
         )}
 
-        {/* ── Ready ── */}
+        {/* ── Ready: الانتقال لـ rounds-config ── */}
         {phase === 'ready' && (
           <View style={S.readyBox}>
             <Text style={S.readyIcon}>✅</Text>
@@ -232,13 +205,17 @@ export default function MultiplayerLobbyScreen() {
             <Text style={S.readyPlayers}>
               {playerName.trim()} <Text style={{ color: COLOR.gold }}>VS</Text> {opponentName}
             </Text>
-            <TouchableOpacity
-              style={[S.btn, S.btnStart]}
-              onPress={handleStartBattle}
-              activeOpacity={0.85}
-            >
-              <Text style={S.btnIcon}>⚔️</Text>
-              <Text style={S.btnText}>ابدأ المعركة!</Text>
+
+            {/* بادج إظهار الدور */}
+            <View style={[S.roleBadge, isHost ? S.roleBadgeHost : S.roleBadgeGuest]}>
+              <Text style={S.roleBadgeText}>
+                {isHost ? '👑 أنت صاحب الجلسة — ستضبط الإعدادات' : '👤 أنت ضيف — ستستقبل الإعدادات'}
+              </Text>
+            </View>
+
+            <TouchableOpacity style={[S.btn, S.btnStart]} onPress={handleProceed} activeOpacity={0.85}>
+              <Text style={S.btnIcon}>⚙️</Text>
+              <Text style={S.btnText}>تالي: إعداد المباراة</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -247,12 +224,8 @@ export default function MultiplayerLobbyScreen() {
         <TouchableOpacity
           style={S.backBtn}
           onPress={() => {
-            if (phase !== 'menu') {
-              mpClient.leaveRoom(playerIdRef.current);
-              setPhase('menu');
-            } else {
-              router.back();
-            }
+            if (phase !== 'menu') { mpClient.leaveRoom(playerIdRef.current); setPhase('menu'); }
+            else { router.back(); }
           }}
         >
           <Text style={S.backText}>← رجوع</Text>
@@ -294,6 +267,10 @@ const S = StyleSheet.create({
   readyIcon: { fontSize: 48 },
   readyTitle: { fontSize: FONT.xl, color: '#4ade80' },
   readyPlayers: { fontSize: FONT.base, color: '#e2e8f0', textAlign: 'center' },
+  roleBadge: { borderRadius: RADIUS.pill, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.xs, borderWidth: 1 },
+  roleBadgeHost: { backgroundColor: 'rgba(212,175,55,0.12)', borderColor: 'rgba(212,175,55,0.4)' },
+  roleBadgeGuest: { backgroundColor: 'rgba(148,163,184,0.08)', borderColor: 'rgba(148,163,184,0.25)' },
+  roleBadgeText: { color: '#e2e8f0', fontSize: FONT.sm, textAlign: 'center' },
   backBtn: { marginTop: SPACE.xl, padding: SPACE.md },
   backText: { color: '#64748b', fontSize: FONT.sm },
 });
