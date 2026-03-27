@@ -1,120 +1,151 @@
-export interface GameMessage {
-  type: string;
+/**
+ * WebSocket Client — Multiplayer
+ * يتصل بـ server/multiplayer/websocket-server.ts
+ */
+
+import { GameCard } from '@/lib/game/types';
+
+export type MPMessageType =
+  | 'ROOM_CREATED' | 'ROOM_JOINED' | 'PLAYER_JOINED'
+  | 'OPPONENT_READY' | 'OPPONENT_CARDS_SET'
+  | 'BATTLE_START' | 'ROUND_RESULT' | 'GAME_OVER'
+  | 'OPPONENT_CARD_REVEALED'
+  | 'OPPONENT_DISCONNECTED' | 'OPPONENT_RECONNECTED' | 'OPPONENT_LEFT_PERMANENTLY'
+  | 'RECONNECTED' | 'PLAYER_LEFT'
+  | 'ERROR' | 'PONG';
+
+export interface MPMessage {
+  type: MPMessageType;
   payload: any;
 }
 
-export type MessageHandler = (message: GameMessage) => void;
+type MessageHandler = (msg: MPMessage) => void;
 
-export class MultiplayerWebSocketClient {
+const SERVER_URL = process.env.EXPO_PUBLIC_MP_SERVER_URL ?? 'ws://localhost:3001/multiplayer';
+
+class MultiplayerClient {
   private ws: WebSocket | null = null;
-  private url: string;
-  private messageHandlers: Set<MessageHandler> = new Set();
+  private handlers: Map<MPMessageType, Set<MessageHandler>> = new Map();
+  private globalHandlers: Set<MessageHandler> = new Set();
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 2000;
-  private isIntentionalClose = false;
-  
-  constructor(url: string) {
-    this.url = url;
-  }
-  
-  // الاتصال بالخادم
+  private maxReconnects = 3;
+
+  // ─── Connect ────────────────────────────────────────────────────────────────
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.url);
-        
-        this.ws.onopen = () => {
-          console.log('[Multiplayer] Connected to server');
+        this.ws = new WebSocket(SERVER_URL) as any;
+
+        this.ws!.onopen = () => {
           this.reconnectAttempts = 0;
+          this.startPing();
           resolve();
         };
-        
-        this.ws.onmessage = (event) => {
+
+        this.ws!.onmessage = (event: MessageEvent) => {
           try {
-            const message: GameMessage = JSON.parse(event.data);
-            this.handleMessage(message);
-          } catch (error) {
-            console.error('[Multiplayer] Error parsing message:', error);
-          }
+            const msg: MPMessage = JSON.parse(event.data);
+            this.dispatch(msg);
+          } catch { }
         };
-        
-        this.ws.onerror = (error) => {
-          console.error('[Multiplayer] WebSocket error:', error);
-          reject(error);
+
+        this.ws!.onerror = (err: Event) => {
+          reject(new Error('WebSocket connection failed'));
         };
-        
-        this.ws.onclose = () => {
-          console.log('[Multiplayer] Disconnected from server');
-          
-          if (!this.isIntentionalClose && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnect();
-          }
+
+        this.ws!.onclose = () => {
+          this.stopPing();
+          this.dispatch({ type: 'OPPONENT_DISCONNECTED', payload: { grace: 0 } });
         };
-      } catch (error) {
-        reject(error);
+      } catch (err) {
+        reject(err);
       }
     });
   }
-  
-  // إعادة الاتصال التلقائي
-  private reconnect() {
-    this.reconnectAttempts++;
-    console.log(`[Multiplayer] Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
-    
-    setTimeout(() => {
-      this.connect().catch((error) => {
-        console.error('[Multiplayer] Reconnection failed:', error);
-      });
-    }, this.reconnectDelay * this.reconnectAttempts);
-  }
-  
-  // إرسال رسالة
-  send(message: GameMessage) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-    } else {
-      console.warn('[Multiplayer] Cannot send message: WebSocket not connected');
-    }
-  }
-  
-  // معالجة الرسائل الواردة
-  private handleMessage(message: GameMessage) {
-    this.messageHandlers.forEach((handler) => {
-      try {
-        handler(message);
-      } catch (error) {
-        console.error('[Multiplayer] Error in message handler:', error);
-      }
-    });
-  }
-  
-  // إضافة معالج رسائل
-  onMessage(handler: MessageHandler) {
-    this.messageHandlers.add(handler);
-    
-    // إرجاع دالة لإزالة المعالج
-    return () => {
-      this.messageHandlers.delete(handler);
-    };
-  }
-  
-  // قطع الاتصال
+
   disconnect() {
-    this.isIntentionalClose = true;
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    this.stopPing();
+    this.ws?.close();
+    this.ws = null;
+    this.handlers.clear();
+    this.globalHandlers.clear();
+  }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  // ─── Send ────────────────────────────────────────────────────────────────────
+  private send(type: string, payload: any) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type, payload }));
     }
   }
-  
-  // التحقق من حالة الاتصال
-  isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+
+  // ─── Game Actions ────────────────────────────────────────────────────────────
+  createRoom(playerId: string, playerName: string) {
+    this.send('CREATE_ROOM', { playerId, playerName });
   }
-  
-  // إرسال ping للتحقق من الاتصال
-  ping() {
-    this.send({ type: 'PING', payload: {} });
+
+  joinRoom(roomId: string, playerId: string, playerName: string) {
+    this.send('JOIN_ROOM', { roomId, playerId, playerName });
+  }
+
+  setCards(playerId: string, cards: GameCard[], rounds: number) {
+    this.send('SET_CARDS', { playerId, cards, rounds });
+  }
+
+  setReady(playerId: string, isReady: boolean) {
+    this.send('PLAYER_READY', { playerId, isReady });
+  }
+
+  revealCard(playerId: string, roundIndex: number, card: GameCard) {
+    this.send('REVEAL_CARD', { playerId, roundIndex, card });
+  }
+
+  leaveRoom(playerId: string) {
+    this.send('LEAVE_ROOM', { playerId });
+  }
+
+  reconnect(playerId: string, roomId: string) {
+    this.send('RECONNECT', { playerId, roomId });
+  }
+
+  // ─── Event Handling ──────────────────────────────────────────────────────────
+  on(type: MPMessageType, handler: MessageHandler) {
+    if (!this.handlers.has(type)) this.handlers.set(type, new Set());
+    this.handlers.get(type)!.add(handler);
+    return () => this.off(type, handler);
+  }
+
+  onAny(handler: MessageHandler) {
+    this.globalHandlers.add(handler);
+    return () => this.globalHandlers.delete(handler);
+  }
+
+  off(type: MPMessageType, handler: MessageHandler) {
+    this.handlers.get(type)?.delete(handler);
+  }
+
+  private dispatch(msg: MPMessage) {
+    this.globalHandlers.forEach(h => h(msg));
+    this.handlers.get(msg.type)?.forEach(h => h(msg));
+  }
+
+  // ─── Ping ────────────────────────────────────────────────────────────────────
+  private startPing() {
+    this.pingInterval = setInterval(() => {
+      this.send('PING', { ts: Date.now() });
+    }, 20000);
+  }
+
+  private stopPing() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
   }
 }
+
+export const mpClient = new MultiplayerClient();

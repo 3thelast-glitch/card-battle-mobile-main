@@ -1,410 +1,321 @@
 /**
- * MultiplayerBattleScreen — Real-time P2P Battle
- *
- * Flow:
- *  1. Show YOUR card for this round (face-up) + opponent card (face-down / spinner)
- *  2. Tap "⚔️ أكشف" → sends REVEAL_CARD to server
- *  3. Server waits for both reveals → broadcasts ROUND_RESULT
- *  4. Both clients show result + score update + animated overlay
- *  5. "الجولة التالية" → repeat | GAME_OVER → final screen
+ * MultiplayerBattleScreen
+ * معركة أونلاين — لاعب ضد لاعب عبر WebSocket
  */
-
-import React, { useEffect, useCallback, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View, TouchableOpacity, StyleSheet, Alert,
+} from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withTiming,
+  useSharedValue, useAnimatedStyle, withTiming, withDelay,
 } from 'react-native-reanimated';
-import { ScreenContainer } from '@/components/screen-container';
+import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { LuxuryBackground } from '@/components/game/luxury-background';
-import { useMultiplayer } from '@/lib/multiplayer/multiplayer-context';
-import { Card } from '@/lib/game/types';
+import { ElementEffect } from '@/components/game/element-effect';
+import { RotateHintScreen } from '@/components/game/RotateHintScreen';
+import { useLandscapeLayout, CARD_WIDTH_FACTOR } from '@/utils/layout';
+import { mpClient, MPMessage } from '@/lib/multiplayer/websocket-client';
+import { useGame } from '@/lib/game/game-context';
+import { COLOR, SPACE, RADIUS, FONT, SHADOW } from '@/components/ui/design-tokens';
 
-// ─── HP Hearts ───────────────────────────────────────────────────────────────
-
-function HpHearts({ score, max = 3, color }: { score: number; max?: number; color: string }) {
-  return (
-    <View style={styles.heartsRow}>
-      {Array.from({ length: max }).map((_, i) => (
-        <Text key={i} style={[styles.heart, { opacity: i < score ? 1 : 0.2 }]}>
-          ❤️
-        </Text>
-      ))}
-    </View>
-  );
-}
-
-// ─── Card Face ───────────────────────────────────────────────────────────────
-
-function CardFace({ card, revealed = true, isOpponent = false }: { card?: Card | null; revealed?: boolean; isOpponent?: boolean }) {
-  if (!card || !revealed) {
-    return (
-      <View style={[styles.cardFace, styles.cardBack, isOpponent && styles.opponentBack]}>
-        <Text style={styles.cardBackText}>🃏</Text>
-        {!revealed && <ActivityIndicator size="small" color="#FFD700" style={{ marginTop: 8 }} />}
-      </View>
-    );
-  }
-  return (
-    <View style={[styles.cardFace, { borderColor: '#d4af37' }]}>
-      <Text style={styles.cardEmoji}>{card.emoji}</Text>
-      <Text style={styles.cardName} numberOfLines={1}>{card.nameAr}</Text>
-      <View style={styles.statsRow}>
-        <Text style={styles.statText}>⚔️ {card.attack}</Text>
-        <Text style={styles.statText}>🛡️ {card.defense}</Text>
-      </View>
-      <Text style={styles.statText}>❤️ {card.hp}</Text>
-    </View>
-  );
-}
-
-// ─── Advantage Label ─────────────────────────────────────────────────────────
-
-const ADV_LABELS: Record<string, string> = {
-  fire: '🔥', ice: '❄️', water: '💧', earth: '🌍', lightning: '⚡', wind: '🌪️',
-};
-
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+type MPBattlePhase =
+  | 'waiting_start'     // ننتظر BATTLE_START
+  | 'selection'         // اختيار الكرت
+  | 'waiting_opponent'  // أرسلنا كرتنا، ننتظر الخصم
+  | 'result'            // نتيجة الجولة
+  | 'game_over';        // نهاية
 
 export default function MultiplayerBattleScreen() {
   const router = useRouter();
-  const { state, revealCard, advanceToNextRound, leaveRoom } = useMultiplayer();
+  const insets = useSafeAreaInsets();
+  const { width, height, isLandscape, size } = useLandscapeLayout();
+  const params = useLocalSearchParams<{
+    roomId: string;
+    playerId: string;
+    playerName: string;
+    opponentName: string;
+  }>();
 
-  const playerCard = state.playerCards[state.currentRound] ?? null;
-  const opponentCard = state.opponentCards[state.currentRound] ?? null;
+  const { currentPlayerCard } = useGame();
 
-  const isPlaying = state.status === 'playing';
-  const isRevealing = state.status === 'revealing';
-  const isResult = state.status === 'result';
-  const isFinished = state.status === 'finished';
-  const hasRevealed = isRevealing || isResult;
+  const maxH = height * 0.54;
+  const cardWidth = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
+  const cardHeight = cardWidth * 1.5;
 
-  // Opponent disconnected modal
-  const showGrace = state.reconnectGraceSeconds > 0;
+  // ─── State ──────────────────────────────────────────────────────────────────
+  const [phase, setPhase] = useState<MPBattlePhase>('waiting_start');
+  const [myCards, setMyCards] = useState<any[]>([]);
+  const [opponentCards, setOpponentCards] = useState<any[]>([]);
+  const [currentRound, setCurrentRound] = useState(0);
+  const [totalRounds, setTotalRounds] = useState(0);
+  const [myScore, setMyScore] = useState(3);
+  const [oppScore, setOppScore] = useState(3);
+  const [lastResult, setLastResult] = useState<any>(null);
+  const [gameOver, setGameOver] = useState<any>(null);
+  const [oppCardRevealed, setOppCardRevealed] = useState(false);
+  const [disconnected, setDisconnected] = useState(false);
+  const [isPlayer1, setIsPlayer1] = useState(true);
 
-  // ── Animations ──
-  const resultScale = useSharedValue(0);
-  const resultStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: resultScale.value }],
-  }));
+  // ─── Animations ─────────────────────────────────────────────────────────────
+  const myCardAnim = useSharedValue(0);
+  const oppCardAnim = useSharedValue(0);
+  const resultOp = useSharedValue(0);
+  const myStyle = useAnimatedStyle(() => ({ transform: [{ scale: myCardAnim.value }] }));
+  const oppStyle = useAnimatedStyle(() => ({ transform: [{ scale: oppCardAnim.value }] }));
+  const resultStyle = useAnimatedStyle(() => ({ opacity: resultOp.value }));
 
-  const revealBtnScale = useSharedValue(1);
-  const revealBtnStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: revealBtnScale.value }],
-  }));
+  const enterCards = useCallback(() => {
+    myCardAnim.value = 0; oppCardAnim.value = 0; resultOp.value = 0;
+    myCardAnim.value = withDelay(80, withTiming(1, { duration: 280 }));
+    oppCardAnim.value = withDelay(240, withTiming(1, { duration: 280 }));
+  }, []);
 
+  // ─── WebSocket listeners ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (isResult) {
-      resultScale.value = withSequence(
-        withTiming(0, { duration: 0 }),
-        withSpring(1.05, { damping: 10 }),
-        withSpring(1.0, { damping: 14 })
-      );
-    }
-  }, [isResult, state.currentRound]);
+    const unsubs: (() => void)[] = [];
 
-  // Navigate to results when finished
-  useEffect(() => {
-    if (isFinished) {
-      const t = setTimeout(() => {
-        router.push('/screens/multiplayer-results' as any);
-      }, 3500);
-      return () => clearTimeout(t);
-    }
-  }, [isFinished]);
+    unsubs.push(mpClient.on('BATTLE_START', (msg: MPMessage) => {
+      const { player1, player2, totalRounds: tr, p1Score, p2Score } = msg.payload;
+      const iAmP1 = player1.id === params.playerId;
+      setIsPlayer1(iAmP1);
+      setMyCards(iAmP1 ? player1.cards : player2.cards);
+      setOpponentCards(iAmP1 ? player2.cards : player1.cards);
+      setTotalRounds(tr);
+      setMyScore(iAmP1 ? p1Score : p2Score);
+      setOppScore(iAmP1 ? p2Score : p1Score);
+      setCurrentRound(0);
+      setPhase('selection');
+      enterCards();
+    }));
 
+    unsubs.push(mpClient.on('OPPONENT_CARD_REVEALED', () => {
+      setOppCardRevealed(true);
+    }));
+
+    unsubs.push(mpClient.on('ROUND_RESULT', (msg: MPMessage) => {
+      const r = msg.payload;
+      const myWin = (isPlayer1 && r.winner === 'player1') || (!isPlayer1 && r.winner === 'player2');
+      setLastResult({ ...r, myWin });
+      setMyScore(isPlayer1 ? r.p1Score : r.p2Score);
+      setOppScore(isPlayer1 ? r.p2Score : r.p1Score);
+      resultOp.value = withTiming(1, { duration: 300 });
+      setPhase('result');
+      setOppCardRevealed(false);
+    }));
+
+    unsubs.push(mpClient.on('GAME_OVER', (msg: MPMessage) => {
+      setGameOver(msg.payload);
+      setPhase('game_over');
+    }));
+
+    unsubs.push(mpClient.on('OPPONENT_DISCONNECTED', () => {
+      setDisconnected(true);
+      Alert.alert('⚠️ الخصم انقطع', 'الخصم فقد الاتصال — 30 ثانية للعودة');
+    }));
+
+    unsubs.push(mpClient.on('OPPONENT_LEFT_PERMANENTLY', () => {
+      Alert.alert('🏳️ الخصم انسحب', 'فزت بالمباراة!', [
+        { text: 'حسناً', onPress: () => router.replace('/screens/splash' as any) },
+      ]);
+    }));
+
+    return () => unsubs.forEach(u => u());
+  }, [params.playerId, isPlayer1, enterCards]);
+
+  // ─── الكرت الحالي ────────────────────────────────────────────────────────────
+  const myCurrentCard = myCards[currentRound];
+  const oppCurrentCard = opponentCards[currentRound];
+
+  // ─── كشف كرتي ────────────────────────────────────────────────────────────────
   const handleReveal = useCallback(() => {
-    if (!playerCard || hasRevealed) return;
-    revealBtnScale.value = withSequence(
-      withTiming(0.92, { duration: 80 }),
-      withSpring(1.0, { damping: 12 })
-    );
-    revealCard(state.currentRound, playerCard);
-  }, [playerCard, hasRevealed, state.currentRound, revealCard]);
+    if (!myCurrentCard) return;
+    mpClient.revealCard(params.playerId, currentRound, myCurrentCard);
+    setPhase('waiting_opponent');
+  }, [myCurrentCard, params.playerId, currentRound]);
 
-  const handleNextRound = useCallback(() => {
-    advanceToNextRound();
-  }, [advanceToNextRound]);
+  // ─── التالي ──────────────────────────────────────────────────────────────────
+  const handleNext = useCallback(() => {
+    setCurrentRound(r => r + 1);
+    setLastResult(null);
+    setPhase('selection');
+    enterCards();
+  }, [enterCards]);
 
-  const handleForfeit = useCallback(() => {
-    leaveRoom();
-    router.back();
-  }, [leaveRoom, router]);
+  if (!isLandscape) return <RotateHintScreen />;
 
-  // ── Result analysis ──
-  const result = state.lastRoundResult;
-  const roundWinner = result
-    ? state.isHost
-      ? result.winner === 'player1' ? 'win' : result.winner === 'player2' ? 'lose' : 'draw'
-      : result.winner === 'player2' ? 'win' : result.winner === 'player1' ? 'lose' : 'draw'
-    : null;
-
-  // ── Game Over screen ──
-  if (isFinished) {
-    const winner = state.gameOverWinner;
+  // ─── Game Over ───────────────────────────────────────────────────────────────
+  if (phase === 'game_over' && gameOver) {
+    const iWon = (isPlayer1 && gameOver.winner === 'player1') ||
+                 (!isPlayer1 && gameOver.winner === 'player2');
+    const isDraw = gameOver.winner === 'draw';
     return (
-      <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
-        <LuxuryBackground>
-          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={styles.gameOverIcon}>
-              {winner === 'player' ? '🏆' : winner === 'draw' ? '🤝' : '💀'}
-            </Text>
-            <Text style={styles.gameOverTitle}>
-              {winner === 'player' ? 'أنت الفائز!' : winner === 'draw' ? 'تعادل!' : 'البوت يفوز!'}
-            </Text>
-            <View style={styles.finalScoreRow}>
-              <View style={styles.finalScoreBox}>
-                <Text style={styles.finalScoreLabel}>أنت</Text>
-                <Text style={[styles.finalScoreNum, { color: '#4ade80' }]}>{state.playerScore}</Text>
-              </View>
-              <Text style={styles.finalScoreSep}>–</Text>
-              <View style={styles.finalScoreBox}>
-                <Text style={styles.finalScoreLabel}>{state.opponentName}</Text>
-                <Text style={[styles.finalScoreNum, { color: '#f87171' }]}>{state.opponentScore}</Text>
-              </View>
-            </View>
-            <ActivityIndicator color="#d4af37" style={{ marginTop: 24 }} />
-            <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 8 }}>يتم الانتقال...</Text>
-          </View>
-        </LuxuryBackground>
-      </ScreenContainer>
+      <View style={S.root}>
+        <LuxuryBackground />
+        <View style={S.gameOverBox}>
+          <Text style={S.gameOverIcon}>{isDraw ? '🤝' : iWon ? '🏆' : '💀'}</Text>
+          <Text style={[S.gameOverTitle, { color: isDraw ? '#fbbf24' : iWon ? '#4ade80' : '#f87171' }]}>
+            {isDraw ? 'تعادل!' : iWon ? 'فزت!' : 'خسرت!'}
+          </Text>
+          <Text style={S.gameOverScore}>
+            {myScore} — {oppScore}
+          </Text>
+          <TouchableOpacity style={[S.btn, S.btnHome]} onPress={() => router.replace('/screens/splash' as any)}>
+            <Text style={S.btnText}>🏠 الرئيسية</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 
+  const myCard = phase === 'result' && lastResult ? (isPlayer1 ? lastResult.p1Card : lastResult.p2Card) : myCurrentCard;
+  const oppCard = phase === 'result' && lastResult ? (isPlayer1 ? lastResult.p2Card : lastResult.p1Card) : (oppCardRevealed ? oppCurrentCard : null);
+
   return (
-    <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
-      <LuxuryBackground>
-        <View style={styles.container}>
+    <View style={S.root}>
+      <StatusBar hidden />
+      <View style={S.bg}><LuxuryBackground /></View>
 
-          {/* ── HUD ── */}
-          <View style={styles.hud}>
-            <View style={styles.hudPlayer}>
-              <Text style={styles.hudName} numberOfLines={1}>👤 أنت</Text>
-              <HpHearts score={state.playerScore} color="#4ade80" />
-            </View>
-            <View style={styles.hudCenter}>
-              <Text style={styles.hudRound}>
-                الجولة {state.currentRound + 1}/{state.totalRounds}
-              </Text>
-              <View style={styles.hudDots}>
-                {Array.from({ length: Math.min(state.totalRounds, 9) }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.hudDot,
-                      i < state.currentRound ? styles.hudDotDone
-                        : i === state.currentRound ? styles.hudDotActive
-                          : styles.hudDotFuture,
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-            <View style={styles.hudPlayer}>
-              <Text style={styles.hudName} numberOfLines={1}>🤖 {state.opponentName}</Text>
-              <HpHearts score={state.opponentScore} color="#f87171" />
-            </View>
-          </View>
-
-          {/* ── Cards ── */}
-          <View style={styles.cardsArea}>
-            {/* Player card */}
-            <View style={styles.cardSlot}>
-              <Text style={styles.cardSlotLabel}>بطاقتك</Text>
-              <CardFace card={playerCard} revealed />
-            </View>
-
-            {/* VS */}
-            <View style={styles.vsCol}>
-              <Text style={styles.vs}>⚔️</Text>
-            </View>
-
-            {/* Opponent card — face down until result */}
-            <View style={styles.cardSlot}>
-              <Text style={styles.cardSlotLabel}>{state.opponentName}</Text>
-              <CardFace
-                card={isResult ? opponentCard : null}
-                revealed={isResult}
-                isOpponent
-              />
-              {state.opponentRevealedThisRound && !isResult && (
-                <Text style={styles.opponentReadyLabel}>✅ جاهز</Text>
-              )}
-            </View>
-          </View>
-
-          {/* ── Actions ── */}
-          <View style={styles.actionsArea}>
-
-            {/* Playing Phase: reveal button */}
-            {(isPlaying || isRevealing) && (
-              <View style={{ alignItems: 'center', gap: 12 }}>
-                {isPlaying && (
-                  <Animated.View style={revealBtnStyle}>
-                    <TouchableOpacity
-                      style={[styles.revealBtn, !playerCard && styles.disabled]}
-                      onPress={handleReveal}
-                      disabled={!playerCard}
-                    >
-                      <Text style={styles.revealBtnText}>⚔️ أكشف البطاقة</Text>
-                    </TouchableOpacity>
-                  </Animated.View>
-                )}
-                {isRevealing && (
-                  <View style={styles.waitingBox}>
-                    <ActivityIndicator color="#d4af37" />
-                    <Text style={styles.waitingText}>في انتظار {state.opponentName}...</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Result Phase */}
-            {isResult && result && (
-              <Animated.View style={[styles.resultBox, resultStyle]}>
-                <Text style={styles.resultAdvantage}>
-                  {result.advantage === 'element' ? `🔄 تفوق عنصري` : result.advantage === 'attack' ? '💥 تفوق هجومي' : '⚖️'}
-                </Text>
-                <Text style={[
-                  styles.resultLabel,
-                  roundWinner === 'win' && styles.winColor,
-                  roundWinner === 'lose' && styles.loseColor,
-                  roundWinner === 'draw' && styles.drawColor,
-                ]}>
-                  {roundWinner === 'win' ? '🏆 فزت بالجولة!' : roundWinner === 'lose' ? '💔 خسرت الجولة' : '🤝 تعادل'}
-                </Text>
-                <Text style={styles.resultScore}>
-                  ❤️ {state.playerScore} — {state.opponentScore} ❤️
-                </Text>
-                <TouchableOpacity style={styles.nextBtn} onPress={handleNextRound}>
-                  <Text style={styles.nextBtnText}>
-                    {state.currentRound + 1 >= state.totalRounds ? '🏁 انتهت المباراة' : '▶ الجولة التالية'}
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </View>
-
-          {/* ── Forfeit ── */}
-          <TouchableOpacity style={styles.forfeitBtn} onPress={handleForfeit}>
-            <Text style={styles.forfeitText}>🚪 استسلام</Text>
-          </TouchableOpacity>
-
-          {/* ── Reconnect Grace Modal ── */}
-          <Modal visible={showGrace} transparent animationType="fade">
-            <View style={styles.graceOverlay}>
-              <View style={styles.graceBox}>
-                <Text style={styles.graceIcon}>📡</Text>
-                <Text style={styles.graceTitle}>انقطع اتصال الخصم</Text>
-                <Text style={styles.graceTimer}>{state.reconnectGraceSeconds}s</Text>
-                <Text style={styles.graceSub}>انتظار إعادة الاتصال...</Text>
-              </View>
-            </View>
-          </Modal>
-
+      {/* HUD */}
+      <View style={[S.hud, { paddingLeft: Math.max(insets.left, 8), paddingRight: Math.max(insets.right, 8) }]}>
+        <View style={S.hudSide}>
+          <Text style={[S.hudName, { color: '#4ade80' }]}>{params.playerName}</Text>
+          <Text style={[S.hudScore, { color: '#4ade80' }]}>{myScore}</Text>
         </View>
-      </LuxuryBackground>
-    </ScreenContainer>
+        <View style={S.hudCenter}>
+          <Text style={S.hudRound}>جولة {currentRound + 1} / {totalRounds}</Text>
+          {phase === 'waiting_start' && <Text style={S.waitText}>⌛ انتظار...</Text>}
+        </View>
+        <View style={[S.hudSide, { alignItems: 'flex-end' }]}>
+          <Text style={[S.hudScore, { color: '#f87171' }]}>{oppScore}</Text>
+          <Text style={[S.hudName, { color: '#f87171', textAlign: 'right' }]}>{params.opponentName}</Text>
+        </View>
+      </View>
+
+      {/* Arena */}
+      <View style={[S.arena, { paddingLeft: Math.max(insets.left, 8), paddingRight: Math.max(insets.right, 8) }]}>
+
+        {/* My Card */}
+        <View style={S.panel}>
+          <Text style={S.panelLabel}>{params.playerName}</Text>
+          {myCard ? (
+            <Animated.View style={myStyle}>
+              <LuxuryCharacterCardAnimated
+                card={myCard}
+                style={{ width: cardWidth, height: cardHeight }}
+                videoMuted={!(phase === 'result' && lastResult?.myWin)}
+              />
+              {phase === 'result' && <ElementEffect element={myCard.element} isActive />}
+            </Animated.View>
+          ) : (
+            <View style={[S.emptyCard, { width: cardWidth, height: cardHeight }]}>
+              <Text style={S.emptyCardText}>?</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Center */}
+        <View style={S.center}>
+          <Text style={S.vsIcon}>⚔️</Text>
+
+          {/* Result badge */}
+          {phase === 'result' && lastResult && (
+            <Animated.View style={[S.resultBadge, resultStyle, {
+              borderColor: lastResult.myWin ? '#4ade80' : lastResult.winner === 'draw' ? '#fbbf24' : '#f87171',
+              backgroundColor: lastResult.myWin ? 'rgba(74,222,128,0.12)' : lastResult.winner === 'draw' ? 'rgba(251,191,36,0.08)' : 'rgba(248,113,113,0.12)',
+            }]}>
+              <Text style={[S.resultText, {
+                color: lastResult.myWin ? '#4ade80' : lastResult.winner === 'draw' ? '#fbbf24' : '#f87171',
+              }]}>
+                {lastResult.myWin ? '🏆 فزت!' : lastResult.winner === 'draw' ? '🤝 تعادل' : '💀 خسرت'}
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* CTA */}
+          {phase === 'selection' && (
+            <TouchableOpacity style={[S.btn, S.btnAttack]} onPress={handleReveal} activeOpacity={0.85}>
+              <Text style={S.btnIcon}>⚔️</Text>
+              <Text style={S.btnText}>اكشف كرتك</Text>
+            </TouchableOpacity>
+          )}
+          {phase === 'waiting_opponent' && (
+            <View style={[S.btn, S.btnWait]}>
+              <Text style={S.btnText}>⌛ ننتظر الخصم...</Text>
+            </View>
+          )}
+          {phase === 'result' && (
+            <TouchableOpacity style={[S.btn, S.btnNext]} onPress={handleNext} activeOpacity={0.85}>
+              <Text style={S.btnText}>▶️ التالي</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Opponent Card */}
+        <View style={S.panel}>
+          <Text style={[S.panelLabel, { color: '#f87171' }]}>{params.opponentName}</Text>
+          {oppCard ? (
+            <Animated.View style={oppStyle}>
+              <LuxuryCharacterCardAnimated
+                card={oppCard}
+                style={{ width: cardWidth, height: cardHeight }}
+                videoMuted={true}
+              />
+              {phase === 'result' && <ElementEffect element={oppCard.element} isActive />}
+            </Animated.View>
+          ) : (
+            <View style={[S.emptyCard, { width: cardWidth, height: cardHeight }]}>
+              <Text style={[S.emptyCardText, { color: oppCardRevealed ? '#fbbf24' : '#475569' }]}>
+                {oppCardRevealed ? '✓' : '?'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Disconnect warning */}
+      {disconnected && (
+        <View style={S.disconnectBar}>
+          <Text style={S.disconnectText}>⚠️ الخصم انقطع — ينتظر عودته...</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const GOLD = '#d4af37';
-
-const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-
-  // HUD
-  hud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 14, padding: 10 },
-  hudPlayer: { flex: 1, alignItems: 'center', gap: 4 },
-  hudName: { color: GOLD, fontSize: 11, fontWeight: '700', maxWidth: 90 },
-  heartsRow: { flexDirection: 'row', gap: 2 },
-  heart: { fontSize: 14 },
-  hudCenter: { alignItems: 'center', gap: 4, flex: 1 },
-  hudRound: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  hudDots: { flexDirection: 'row', gap: 4 },
-  hudDot: { width: 7, height: 7, borderRadius: 4 },
-  hudDotDone: { backgroundColor: '#4ade80' },
-  hudDotActive: { backgroundColor: GOLD, width: 9, height: 9, borderRadius: 5 },
-  hudDotFuture: { backgroundColor: '#374151' },
-
-  // Cards
-  cardsArea: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  cardSlot: { flex: 1, alignItems: 'center', gap: 6 },
-  cardSlotLabel: { color: '#9ca3af', fontSize: 11, fontWeight: '600' },
-  vsCol: { alignItems: 'center' },
-  vs: { fontSize: 28 },
-
-  cardFace: {
-    width: 130, height: 185, borderRadius: 14, borderWidth: 2.5,
-    borderColor: '#d4af37', backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center', justifyContent: 'center', gap: 5,
-    padding: 10,
-  },
-  cardBack: { borderColor: '#374151', backgroundColor: 'rgba(17,24,39,0.8)' },
-  opponentBack: { borderColor: '#7f1d1d', backgroundColor: 'rgba(127,29,29,0.3)' },
-  cardBackText: { fontSize: 40 },
-  cardEmoji: { fontSize: 36 },
-  cardName: { color: '#e5e7eb', fontSize: 11, fontWeight: '700', textAlign: 'center', flexWrap: 'wrap' },
-  statsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  statText: { color: '#d1d5db', fontSize: 11, fontWeight: '600' },
-  opponentReadyLabel: { color: '#4ade80', fontSize: 10, fontWeight: '700', marginTop: 4, textAlign: 'center', flexWrap: 'wrap' },
-
-  // Actions
-  actionsArea: { minHeight: 160, justifyContent: 'center', alignItems: 'center' },
-
-  revealBtn: {
-    backgroundColor: GOLD, paddingHorizontal: 36, paddingVertical: 16,
-    borderRadius: 28, minWidth: 220, alignItems: 'center',
-    shadowColor: GOLD, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5, shadowRadius: 12, elevation: 10,
-  },
-  revealBtnText: { color: '#1a1a1a', fontSize: 18, fontWeight: '900', letterSpacing: 0.3 },
-  disabled: { opacity: 0.4 },
-
-  waitingBox: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12, flexWrap: 'wrap', justifyContent: 'center' },
-  waitingText: { color: '#9ca3af', fontSize: 13, fontWeight: '600', textAlign: 'center', flexWrap: 'wrap' },
-
-  resultBox: {
-    backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 18, padding: 20,
-    alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
-    width: '100%',
-  },
-  resultAdvantage: { color: '#9ca3af', fontSize: 12, fontWeight: '600' },
-  resultLabel: { fontSize: 22, fontWeight: '900', letterSpacing: 0.4, textAlign: 'center', flexWrap: 'wrap' },
-  winColor: { color: '#4ade80' },
-  loseColor: { color: '#f87171' },
-  drawColor: { color: '#facc15' },
-  resultScore: { color: '#e5e7eb', fontSize: 14, fontWeight: '700', textAlign: 'center', flexWrap: 'wrap' },
-
-  nextBtn: {
-    backgroundColor: GOLD, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12, marginTop: 4,
-  },
-  nextBtnText: { color: '#1a1a1a', fontSize: 15, fontWeight: '900' },
-
-  forfeitBtn: { alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 16 },
-  forfeitText: { color: '#4b5563', fontSize: 11, fontWeight: '600' },
-
-  // Game Over
-  gameOverIcon: { fontSize: 72, marginBottom: 12 },
-  gameOverTitle: { color: GOLD, fontSize: 32, fontWeight: '900', letterSpacing: 1, marginBottom: 20, textAlign: 'center', flexWrap: 'wrap' },
-  finalScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'center' },
-  finalScoreBox: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 14, padding: 16, minWidth: 100 },
-  finalScoreLabel: { color: '#9ca3af', fontSize: 12, fontWeight: '600' },
-  finalScoreNum: { fontSize: 44, fontWeight: '900', marginTop: 4 },
-  finalScoreSep: { color: GOLD, fontSize: 28, fontWeight: '300' },
-
-  // Grace Modal
-  graceOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
-  graceBox: { backgroundColor: '#111827', borderRadius: 20, padding: 32, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#374151' },
-  graceIcon: { fontSize: 40 },
-  graceTitle: { color: '#e5e7eb', fontSize: 18, fontWeight: '700' },
-  graceTimer: { color: '#f59e0b', fontSize: 48, fontWeight: '900' },
-  graceSub: { color: '#6b7280', fontSize: 12 },
+const S = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#080612' },
+  bg: { position: 'absolute', inset: 0 },
+  hud: { height: 60, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(8,6,18,0.85)', borderBottomWidth: 1, borderBottomColor: 'rgba(228,165,42,0.18)', paddingHorizontal: SPACE.lg, gap: SPACE.sm },
+  hudSide: { flex: 1, gap: 2 },
+  hudCenter: { width: 140, alignItems: 'center' },
+  hudName: { fontSize: FONT.xs, letterSpacing: 0.4 },
+  hudScore: { fontSize: FONT.xxl, fontVariant: ['tabular-nums'] } as any,
+  hudRound: { color: '#e2e8f0', fontSize: FONT.sm },
+  waitText: { color: '#fbbf24', fontSize: FONT.xs },
+  arena: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, gap: SPACE.sm },
+  panel: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(10,26,10,0.4)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, height: '100%', gap: SPACE.sm },
+  panelLabel: { color: '#4ade80', fontSize: FONT.xs - 2, letterSpacing: 1 },
+  emptyCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: RADIUS.lg, borderWidth: 2, borderColor: 'rgba(255,255,255,0.1)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  emptyCardText: { fontSize: 48, color: '#475569' },
+  center: { width: 148, alignItems: 'center', gap: SPACE.md, zIndex: 20 },
+  vsIcon: { fontSize: 28 },
+  resultBadge: { paddingHorizontal: SPACE.lg, paddingVertical: SPACE.sm, borderRadius: RADIUS.pill, borderWidth: 1.5, alignItems: 'center' },
+  resultText: { fontSize: FONT.base, letterSpacing: 0.5 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.xs, borderRadius: RADIUS.pill, paddingVertical: 12, paddingHorizontal: SPACE.xl, borderWidth: 1.5 },
+  btnAttack: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: '#4ade80' },
+  btnNext: { backgroundColor: 'rgba(96,165,250,0.12)', borderColor: '#60a5fa' },
+  btnWait: { backgroundColor: 'rgba(71,85,105,0.2)', borderColor: '#475569' },
+  btnHome: { backgroundColor: 'rgba(228,165,42,0.12)', borderColor: COLOR.gold, marginTop: SPACE.lg },
+  btnIcon: { fontSize: 16 },
+  btnText: { color: '#f1f5f9', fontSize: FONT.sm },
+  disconnectBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(248,113,113,0.15)', padding: SPACE.md, alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(248,113,113,0.3)' },
+  disconnectText: { color: '#f87171', fontSize: FONT.sm },
+  gameOverBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACE.lg },
+  gameOverIcon: { fontSize: 72 },
+  gameOverTitle: { fontSize: FONT.xxl + 8, letterSpacing: 1 },
+  gameOverScore: { fontSize: FONT.xxl, color: '#e2e8f0', letterSpacing: 4 },
 });
