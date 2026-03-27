@@ -122,7 +122,7 @@ export default function SplashScreen() {
         </View>
       </FadeIn>
 
-      {/* CTA */}
+      {/* Solo CTA */}
       <FadeIn delay={240}>
         <PulsingPlay
           onPress={() => router.push('/screens/game-mode' as any)}
@@ -130,8 +130,25 @@ export default function SplashScreen() {
         />
       </FadeIn>
 
+      {/* ─── Multiplayer Button ─────────────────────────────────────────── */}
+      <FadeIn delay={320}>
+        <TouchableOpacity
+          style={styles.multiplayerBtn}
+          onPress={() => router.push('/screens/multiplayer-lobby' as any)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.multiplayerBtnIcon}>🌐</Text>
+          <View style={styles.multiplayerBtnTextWrap}>
+            <Text style={styles.multiplayerBtnTitle}>العب أونلاين</Text>
+            <Text style={styles.multiplayerBtnSub}>تحدَّ صديقك في الوقت الحقيقي</Text>
+          </View>
+          <Text style={styles.multiplayerArrow}>›</Text>
+        </TouchableOpacity>
+      </FadeIn>
+      {/* ──────────────────────────────────────────────────────────────────── */}
+
       {/* Nav grid */}
-      <FadeIn delay={360}>
+      <FadeIn delay={400}>
         <View style={styles.navRow}>
           <NavBtn icon="📊" label="الإحصائيات" onPress={() => router.push('/screens/stats' as any)} />
           <NavBtn icon="🃏" label="المجموعة" onPress={() => router.push('/screens/cards-gallery' as any)} />
@@ -253,6 +270,35 @@ const styles = StyleSheet.create({
     color: '#1A0D1A',
     fontSize: FONT.xl,
     letterSpacing: 0.5,
+  },
+
+  // ─ Multiplayer Button
+  multiplayerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.md,
+    backgroundColor: 'rgba(96,165,250,0.08)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(96,165,250,0.35)',
+    paddingVertical: SPACE.lg,
+    paddingHorizontal: SPACE.xl,
+  },
+  multiplayerBtnIcon: { fontSize: 26 },
+  multiplayerBtnTextWrap: { flex: 1, gap: 2 },
+  multiplayerBtnTitle: {
+    color: '#93c5fd',
+    fontSize: FONT.base,
+    letterSpacing: 0.3,
+  },
+  multiplayerBtnSub: {
+    color: '#475569',
+    fontSize: FONT.xs,
+  },
+  multiplayerArrow: {
+    color: '#60a5fa',
+    fontSize: 28,
+    lineHeight: 32,
   },
 
   // ─ Nav grid
