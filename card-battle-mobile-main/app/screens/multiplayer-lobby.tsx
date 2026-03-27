@@ -1,12 +1,9 @@
 /**
  * MultiplayerLobbyScreen
- * شاشة إنشاء / الانضمام للغرفة
- *
- * بعد اكتمال اللاعبين → ينتقل لـ rounds-config
- *   • Host  : يضبط الإعدادات ويرسلها للضيف
- *   • Guest : ينتظر الإعدادات تلقائياً
+ * يستخدم MultiplayerContext (useMultiplayer) مباشرة
+ * — نفس الاتصال المستخدم في باقي الشاشات
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet,
   TextInput, ActivityIndicator, ScrollView,
@@ -16,108 +13,73 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LuxuryBackground } from '@/components/game/luxury-background';
-import { mpClient } from '@/lib/multiplayer/websocket-client';
+import { useMultiplayer } from '@/lib/multiplayer/multiplayer-context';
 import { COLOR, SPACE, RADIUS, FONT, SHADOW } from '@/components/ui/design-tokens';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type LobbyPhase = 'menu' | 'creating' | 'waiting_opponent' | 'joining' | 'ready';
-
-function generatePlayerId() {
-  return 'p_' + Math.random().toString(36).slice(2, 10);
-}
 
 export default function MultiplayerLobbyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { state, connect, createRoom, joinRoom, leaveRoom } = useMultiplayer();
 
-  const [phase, setPhase] = useState<LobbyPhase>('menu');
   const [playerName, setPlayerName] = useState('');
-  const [roomId, setRoomId] = useState('');
   const [joinInput, setJoinInput] = useState('');
-  const [opponentName, setOpponentName] = useState('');
   const [error, setError] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isHost, setIsHost] = useState(false);
 
-  const playerIdRef = useRef<string>('');
+  // ── حدد المرحلة من الـ state مباشرة
+  const phase: 'menu' | 'waiting_opponent' | 'ready' = (() => {
+    if (!state.roomId) return 'menu';
+    if (!state.opponentId) return 'waiting_opponent';
+    return 'ready';
+  })();
 
-  const ensureConnected = useCallback(async () => {
-    if (!mpClient.isConnected()) await mpClient.connect();
-  }, []);
+  // ── لما ينضم الخصم — وقف الانتظار
+  useEffect(() => {
+    if (phase === 'ready') setIsConnecting(false);
+  }, [phase]);
 
-  // ─── إنشاء غرفة ────────────────────────────────────────────────────────────────
-  const handleCreate = useCallback(async () => {
+  // ── إنشاء غرفة
+  const handleCreate = async () => {
     if (!playerName.trim()) { setError('أدخل اسمك أولاً'); return; }
     setError('');
     setIsConnecting(true);
     try {
-      await ensureConnected();
-      let pid = await AsyncStorage.getItem('mp_player_id');
-      if (!pid) { pid = generatePlayerId(); await AsyncStorage.setItem('mp_player_id', pid); }
-      playerIdRef.current = pid;
-
-      mpClient.on('ROOM_CREATED', (msg) => {
-        setRoomId(msg.payload.roomId);
-        setIsHost(true);
-        setPhase('waiting_opponent');
-        setIsConnecting(false);
-      });
-
-      mpClient.on('PLAYER_JOINED', (msg) => {
-        setOpponentName(msg.payload.player?.name ?? 'لاعب');
-        setPhase('ready');
-      });
-
-      mpClient.on('ERROR', (msg) => {
-        setError(msg.payload.error);
-        setIsConnecting(false);
-      });
-
-      mpClient.createRoom(pid, playerName.trim());
+      await connect();
+      createRoom(playerName.trim());
     } catch {
       setError('فشل الاتصال بالسيرفر');
       setIsConnecting(false);
     }
-  }, [playerName, ensureConnected]);
+  };
 
-  // ─── الانضمام لغرفة ───────────────────────────────────────────────────────────
-  const handleJoin = useCallback(async () => {
+  // ── انضمام
+  const handleJoin = async () => {
     if (!playerName.trim()) { setError('أدخل اسمك أولاً'); return; }
     if (!joinInput.trim()) { setError('أدخل كود الغرفة'); return; }
     setError('');
     setIsConnecting(true);
     try {
-      await ensureConnected();
-      let pid = await AsyncStorage.getItem('mp_player_id');
-      if (!pid) { pid = generatePlayerId(); await AsyncStorage.setItem('mp_player_id', pid); }
-      playerIdRef.current = pid;
-
-      mpClient.on('ROOM_JOINED', (msg) => {
-        setOpponentName(msg.payload.player1?.name ?? 'لاعب');
-        setRoomId(msg.payload.roomId);
-        setIsHost(false);
-        setPhase('ready');
-        setIsConnecting(false);
-      });
-
-      mpClient.on('ERROR', (msg) => {
-        setError(msg.payload.error === 'Room not found or full' ? 'الغرفة غير موجودة أو ممتلئة' : msg.payload.error);
-        setIsConnecting(false);
-      });
-
-      mpClient.joinRoom(joinInput.trim().toUpperCase(), pid, playerName.trim());
+      await connect();
+      joinRoom(joinInput.trim().toUpperCase(), playerName.trim());
     } catch {
       setError('فشل الاتصال بالسيرفر');
       setIsConnecting(false);
     }
-  }, [playerName, joinInput, ensureConnected]);
+  };
 
-  // ─── الانتقال — إلى rounds-config ليس multiplayer-battle ─────────────────────
-  const handleProceed = useCallback(() => {
+  // ── المتابعة: الانتقال لـ rounds-config
+  const handleProceed = () => {
     router.push('/screens/rounds-config' as any);
-  }, [router]);
+  };
 
-  // ─── UI ─────────────────────────────────────────────────────────────────────────
+  const handleBack = () => {
+    if (phase !== 'menu') {
+      leaveRoom();
+    } else {
+      router.back();
+    }
+  };
+
   return (
     <View style={S.root}>
       <StatusBar hidden />
@@ -134,18 +96,19 @@ export default function MultiplayerLobbyScreen() {
         </View>
 
         {/* Name input */}
-        <View style={S.card}>
-          <Text style={S.label}>اسمك في اللعبة</Text>
-          <TextInput
-            style={S.input}
-            placeholder="اكتب اسمك..."
-            placeholderTextColor="#475569"
-            value={playerName}
-            onChangeText={setPlayerName}
-            maxLength={20}
-            editable={phase === 'menu'}
-          />
-        </View>
+        {phase === 'menu' && (
+          <View style={S.card}>
+            <Text style={S.label}>اسمك في اللعبة</Text>
+            <TextInput
+              style={S.input}
+              placeholder="اكتب اسمك..."
+              placeholderTextColor="#475569"
+              value={playerName}
+              onChangeText={setPlayerName}
+              maxLength={20}
+            />
+          </View>
+        )}
 
         {/* Error */}
         {!!error && (
@@ -191,25 +154,27 @@ export default function MultiplayerLobbyScreen() {
         {phase === 'waiting_opponent' && (
           <View style={S.waitingBox}>
             <Text style={S.waitingLabel}>كود الغرفة</Text>
-            <Text style={S.roomCode}>{roomId}</Text>
+            <Text style={S.roomCode}>{state.roomId}</Text>
             <Text style={S.waitingHint}>أرسل الكود لصديقك وانتظر...</Text>
             <ActivityIndicator color={COLOR.gold} style={{ marginTop: SPACE.lg }} />
           </View>
         )}
 
-        {/* ── Ready: الانتقال لـ rounds-config ── */}
+        {/* ── Ready ── */}
         {phase === 'ready' && (
           <View style={S.readyBox}>
             <Text style={S.readyIcon}>✅</Text>
             <Text style={S.readyTitle}>الغرفة جاهزة!</Text>
             <Text style={S.readyPlayers}>
-              {playerName.trim()} <Text style={{ color: COLOR.gold }}>VS</Text> {opponentName}
+              {state.playerName} <Text style={{ color: COLOR.gold }}>VS</Text> {state.opponentName}
             </Text>
 
-            {/* بادج إظهار الدور */}
-            <View style={[S.roleBadge, isHost ? S.roleBadgeHost : S.roleBadgeGuest]}>
+            <View style={[S.roleBadge, state.isHost ? S.roleBadgeHost : S.roleBadgeGuest]}>
               <Text style={S.roleBadgeText}>
-                {isHost ? '👑 أنت صاحب الجلسة — ستضبط الإعدادات' : '👤 أنت ضيف — ستستقبل الإعدادات'}
+                {state.isHost
+                  ? '👑 أنت صاحب الجلسة — ستضبط الإعدادات'
+                  : '👤 أنت ضيف — ستستقبل الإعدادات تلقائياً'
+                }
               </Text>
             </View>
 
@@ -221,13 +186,7 @@ export default function MultiplayerLobbyScreen() {
         )}
 
         {/* Back */}
-        <TouchableOpacity
-          style={S.backBtn}
-          onPress={() => {
-            if (phase !== 'menu') { mpClient.leaveRoom(playerIdRef.current); setPhase('menu'); }
-            else { router.back(); }
-          }}
-        >
+        <TouchableOpacity style={S.backBtn} onPress={handleBack}>
           <Text style={S.backText}>← رجوع</Text>
         </TouchableOpacity>
       </ScrollView>
