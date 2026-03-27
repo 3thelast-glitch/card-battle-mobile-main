@@ -693,6 +693,7 @@ export default function BattleScreen() {
 
   const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+  const playerWonThisRound = !!lastRoundResult && lastRoundResult.winner === 'player';
   const maxScore = state.totalRounds;
 
   const CHOICE_ABILITIES = ['Propaganda', 'AddElement', 'SwapClass', 'Dilemma', 'Recall', 'Revive', 'Arise', 'Disaster', 'Merge', 'Sniping', 'Subhan'];
@@ -716,10 +717,10 @@ export default function BattleScreen() {
         {editMode ? (
           <>
             <DraggableResizable id="playerCard" initialX={elements.playerCard.x} initialY={elements.playerCard.y} initialScale={elements.playerCard.scale} minScale={elements.playerCard.minScale} maxScale={elements.playerCard.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={S.editElem}><Text style={S.editLabel}>👤 بطاقة اللاعب</Text><View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayPlayerCard} /></View></View>
+              <View style={S.editElem}><Text style={S.editLabel}>👤 بطاقة اللاعب</Text><View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayPlayerCard} videoMuted={true} /></View></View>
             </DraggableResizable>
             <DraggableResizable id="botCard" initialX={elements.botCard.x} initialY={elements.botCard.y} initialScale={elements.botCard.scale} minScale={elements.botCard.minScale} maxScale={elements.botCard.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
-              <View style={S.editElem}><Text style={S.editLabel}>🤖 بطاقة البوت</Text><View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayBotCard} /></View></View>
+              <View style={S.editElem}><Text style={S.editLabel}>🤖 بطاقة البوت</Text><View style={{ transform: [{ scale: 0.8 }] }}><LuxuryCharacterCardAnimated card={displayBotCard} videoMuted={true} /></View></View>
             </DraggableResizable>
             <DraggableResizable id="vs" initialX={elements.vs.x} initialY={elements.vs.y} initialScale={elements.vs.scale} minScale={elements.vs.minScale} maxScale={elements.vs.maxScale} snapToGrid={snapToGrid} onUpdate={updateElement}>
               <View style={S.editElem}><Text style={S.editLabel}>⚔️ VS</Text><Text style={{ color: '#e94560', fontSize: 24, padding: 12 }}>⚔️ VS ⚔️</Text></View>
@@ -792,7 +793,7 @@ export default function BattleScreen() {
                 <View style={S.playerPanel}>
                   <Text style={S.panelLabel}>لاعب</Text>
                   <Animated.View style={playerStyle}>
-                    <LuxuryCharacterCardAnimated card={displayPlayerCard} style={{ width: cardWidth, height: cardHeight }} />
+                    <LuxuryCharacterCardAnimated card={displayPlayerCard} style={{ width: cardWidth, height: cardHeight }} videoMuted={!playerWonThisRound} />
                     {showPlayerEffect && <ElementEffect element={displayPlayerCard.element} isActive />}
                   </Animated.View>
                   {activeDamageNumbers.filter(n => n.side === 'player').map(n => (
@@ -862,7 +863,7 @@ export default function BattleScreen() {
                 <View style={S.botPanel}>
                   <Text style={S.panelLabel}>بوت</Text>
                   <Animated.View style={[botStyle, { transform: [{ scale: 0.95 }] }]}>
-                    <LuxuryCharacterCardAnimated card={displayBotCard} style={{ width: cardWidth, height: cardHeight }} />
+                    <LuxuryCharacterCardAnimated card={displayBotCard} style={{ width: cardWidth, height: cardHeight }} videoMuted={true} />
                     {showBotEffect && <ElementEffect element={displayBotCard.element} isActive />}
                   </Animated.View>
                   {activeDamageNumbers.filter(n => n.side === 'bot').map(n => (
@@ -1012,7 +1013,7 @@ export default function BattleScreen() {
                     <View key={idx} style={[S.historyRow, { borderLeftColor: c }]}>
                       <View style={S.historyCardWrap}>
                         {item.winner === 'player' && <Text style={S.crown}>👑</Text>}
-                        <LuxuryCharacterCardAnimated card={item.playerCard} style={{ width: 72, height: 100 }} />
+                        <LuxuryCharacterCardAnimated card={item.playerCard} style={{ width: 72, height: 100 }} videoMuted={true} />
                       </View>
                       <View style={S.historyCenter}>
                         <Text style={S.historyRound}>جولة {item.round}</Text>
@@ -1020,7 +1021,7 @@ export default function BattleScreen() {
                       </View>
                       <View style={S.historyCardWrap}>
                         {item.winner === 'bot' && <Text style={S.crown}>👑</Text>}
-                        <LuxuryCharacterCardAnimated card={item.botCard} style={{ width: 72, height: 100 }} />
+                        <LuxuryCharacterCardAnimated card={item.botCard} style={{ width: 72, height: 100 }} videoMuted={true} />
                       </View>
                     </View>
                   );
