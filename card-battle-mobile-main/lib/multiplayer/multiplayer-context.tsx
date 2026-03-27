@@ -4,7 +4,7 @@ import { MultiplayerWebSocketClient, GameMessage } from './websocket-client';
 import { Card } from '../game/types';
 import Constants from 'expo-constants';
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface RoundResult {
   roundIndex: number;
@@ -14,6 +14,12 @@ export interface RoundResult {
   p1Score: number;
   p2Score: number;
   advantage: 'element' | 'attack' | 'draw';
+}
+
+export interface MatchSettings {
+  rounds: number;
+  withAbilities: boolean;
+  rarityWeights: Record<string, number>;
 }
 
 interface MultiplayerState {
@@ -37,6 +43,9 @@ interface MultiplayerState {
   gameOverWinner: 'player' | 'opponent' | 'draw' | null;
   status: 'idle' | 'waiting' | 'ready' | 'playing' | 'revealing' | 'result' | 'finished';
   reconnectGraceSeconds: number;
+  // جديد — إعدادات المباراة المستقبَلة من صاحب الجلسة
+  pendingMatchSettings: MatchSettings | null;
+  opponentArrangementReady: boolean;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -57,6 +66,8 @@ type MultiplayerAction =
   | { type: 'TICK_GRACE' }
   | { type: 'OPPONENT_RECONNECTED' }
   | { type: 'SET_STATUS'; payload: MultiplayerState['status'] }
+  | { type: 'SET_PENDING_MATCH_SETTINGS'; payload: MatchSettings }
+  | { type: 'SET_OPPONENT_ARRANGEMENT_READY' }
   | { type: 'RESET' };
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -82,6 +93,8 @@ const initialState: MultiplayerState = {
   gameOverWinner: null,
   status: 'idle',
   reconnectGraceSeconds: 0,
+  pendingMatchSettings: null,
+  opponentArrangementReady: false,
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -106,6 +119,12 @@ function multiplayerReducer(state: MultiplayerState, action: MultiplayerAction):
     case 'SET_PLAYER_CARDS':
       return { ...state, playerCards: action.payload };
 
+    case 'SET_PENDING_MATCH_SETTINGS':
+      return { ...state, pendingMatchSettings: action.payload };
+
+    case 'SET_OPPONENT_ARRANGEMENT_READY':
+      return { ...state, opponentArrangementReady: true };
+
     case 'START_BATTLE': {
       const { totalRounds, p1Score, p2Score, isHost, p1Cards, p2Cards } = action.payload;
       return {
@@ -119,6 +138,7 @@ function multiplayerReducer(state: MultiplayerState, action: MultiplayerAction):
         opponentCards: isHost ? p2Cards : p1Cards,
         opponentRevealedThisRound: false,
         lastRoundResult: null,
+        opponentArrangementReady: false,
       };
     }
 
@@ -128,26 +148,18 @@ function multiplayerReducer(state: MultiplayerState, action: MultiplayerAction):
     case 'ROUND_RESULT': {
       const r = action.payload;
       const playerIsP1 = state.isHost;
-      const playerScore = playerIsP1 ? r.p1Score : r.p2Score;
-      const opponentScore = playerIsP1 ? r.p2Score : r.p1Score;
       return {
         ...state,
         lastRoundResult: r,
-        playerScore,
-        opponentScore,
+        playerScore: playerIsP1 ? r.p1Score : r.p2Score,
+        opponentScore: playerIsP1 ? r.p2Score : r.p1Score,
         status: 'result',
         opponentRevealedThisRound: false,
       };
     }
 
     case 'NEXT_ROUND':
-      return {
-        ...state,
-        currentRound: state.currentRound + 1,
-        status: 'playing',
-        lastRoundResult: null,
-        opponentRevealedThisRound: false,
-      };
+      return { ...state, currentRound: state.currentRound + 1, status: 'playing', lastRoundResult: null, opponentRevealedThisRound: false };
 
     case 'GAME_OVER': {
       const { winner, p1Score, p2Score } = action.payload;
@@ -197,6 +209,9 @@ interface MultiplayerContextType {
   setPlayerReady: (isReady: boolean) => void;
   revealCard: (roundIndex: number, card: Card) => void;
   advanceToNextRound: () => void;
+  // جديد
+  sendMatchSettings: (settings: MatchSettings) => void;
+  sendArrangementReady: (cards: Card[]) => void;
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
@@ -210,6 +225,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   });
   const wsClientRef = useRef<MultiplayerWebSocketClient | null>(null);
   const graceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pendingBattleStart, setPendingBattleStart] = React.useState<any>(null);
 
   const getServerUrl = () => {
     const apiUrl = Constants.expoConfig?.extra?.apiBaseUrl || 'http://localhost:3001';
@@ -218,9 +234,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
   const connect = useCallback(async () => {
     if (wsClientRef.current?.isConnected()) return;
-    const serverUrl = getServerUrl();
-    wsClientRef.current = new MultiplayerWebSocketClient(serverUrl);
-    wsClientRef.current.onMessage(handleMessage);
+    wsClientRef.current = new MultiplayerWebSocketClient(getServerUrl());
+    wsClientRef.current.onMessage(handleMessageWithBattle);
     try {
       await wsClientRef.current.connect();
       dispatch({ type: 'SET_CONNECTED', payload: true });
@@ -236,11 +251,14 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'SET_CONNECTED', payload: false });
   }, []);
 
+  const send = useCallback((msg: GameMessage) => {
+    wsClientRef.current?.send(msg);
+  }, []);
+
   // ─── Message Handler ───────────────────────────────────────────────────────
 
   const handleMessage = useCallback((message: GameMessage) => {
     const { type, payload } = message;
-
     switch (type) {
       case 'ROOM_CREATED':
         dispatch({ type: 'SET_ROOM', payload: { roomId: payload.roomId, isHost: true } });
@@ -261,12 +279,22 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         dispatch({ type: 'SET_OPPONENT_READY', payload: payload.isReady });
         break;
 
-      case 'BATTLE_START': {
-        // Cannot read state.playerId inside handleMessage — use pendingBattleStart
-        // A useEffect below reads state.playerId and dispatches START_BATTLE
-        setPendingBattleStart(message.payload);
+      // ── جديد: الضيف يستقبل إعدادات المباراة ──
+      case 'MATCH_SETTINGS_RECEIVED':
+        dispatch({
+          type: 'SET_PENDING_MATCH_SETTINGS',
+          payload: {
+            rounds: payload.rounds,
+            withAbilities: payload.withAbilities,
+            rarityWeights: payload.rarityWeights,
+          },
+        });
         break;
-      }
+
+      // ── جديد: الخصم انتهى من ترتيب كروته ──
+      case 'OPPONENT_ARRANGEMENT_READY':
+        dispatch({ type: 'SET_OPPONENT_ARRANGEMENT_READY' });
+        break;
 
       case 'OPPONENT_CARD_REVEALED':
         dispatch({ type: 'OPPONENT_REVEALED' });
@@ -282,26 +310,17 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
       case 'OPPONENT_DISCONNECTED':
         dispatch({ type: 'OPPONENT_DISCONNECTED', payload: { grace: payload.grace ?? 30 } });
-        // Start ticking countdown
         if (graceTimerRef.current) clearInterval(graceTimerRef.current);
-        graceTimerRef.current = setInterval(() => {
-          dispatch({ type: 'TICK_GRACE' });
-        }, 1000);
+        graceTimerRef.current = setInterval(() => dispatch({ type: 'TICK_GRACE' }), 1000);
         break;
 
       case 'OPPONENT_RECONNECTED':
         dispatch({ type: 'OPPONENT_RECONNECTED' });
-        if (graceTimerRef.current) {
-          clearInterval(graceTimerRef.current);
-          graceTimerRef.current = null;
-        }
+        if (graceTimerRef.current) { clearInterval(graceTimerRef.current); graceTimerRef.current = null; }
         break;
 
       case 'OPPONENT_LEFT_PERMANENTLY':
-        if (graceTimerRef.current) {
-          clearInterval(graceTimerRef.current);
-          graceTimerRef.current = null;
-        }
+        if (graceTimerRef.current) { clearInterval(graceTimerRef.current); graceTimerRef.current = null; }
         Alert.alert('المنافس غادر', 'غادر خصمك اللعبة. أنت الفائز!');
         dispatch({ type: 'GAME_OVER', payload: { winner: 'player2', p1Score: 0, p2Score: 3 } });
         break;
@@ -317,10 +336,12 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  // ─── BATTLE_START fix: re-dispatch with correct isHost ───────────────────
+  const handleMessageWithBattle = useCallback((message: GameMessage) => {
+    if (message.type === 'BATTLE_START') { setPendingBattleStart(message.payload); return; }
+    handleMessage(message);
+  }, [handleMessage]);
 
-  const [pendingBattleStart, setPendingBattleStart] = React.useState<any>(null);
-
+  // BATTLE_START fix: re-dispatch with correct isHost
   useEffect(() => {
     if (!pendingBattleStart) return;
     const isHost = state.playerId === pendingBattleStart.player1.id;
@@ -338,20 +359,15 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     setPendingBattleStart(null);
   }, [pendingBattleStart]);
 
-  // Override handleMessage to use pendingBattleStart for BATTLE_START
-  const handleMessageWithBattle = useCallback((message: GameMessage) => {
-    if (message.type === 'BATTLE_START') {
-      setPendingBattleStart(message.payload);
-      return;
-    }
-    handleMessage(message);
-  }, [handleMessage]);
+  useEffect(() => {
+    if (wsClientRef.current) wsClientRef.current.onMessage(handleMessageWithBattle);
+  }, [handleMessageWithBattle]);
+
+  useEffect(() => {
+    return () => { disconnect(); if (graceTimerRef.current) clearInterval(graceTimerRef.current); };
+  }, []);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
-
-  const send = useCallback((msg: GameMessage) => {
-    wsClientRef.current?.send(msg);
-  }, []);
 
   const createRoom = useCallback((playerName: string) => {
     dispatch({ type: 'SET_PLAYER_READY', payload: false });
@@ -386,21 +402,23 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'NEXT_ROUND' });
   }, []);
 
-  // ─── Setup onMessage with battle handler ────────────────────────────────────
+  // ── جديد ──────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (wsClientRef.current) {
-      wsClientRef.current.onMessage(handleMessageWithBattle);
-    }
-  }, [handleMessageWithBattle]);
+  // صاحب الجلسة يرسل الإعدادات بعد ضغط "التالي"
+  const sendMatchSettings = useCallback((settings: MatchSettings) => {
+    send({
+      type: 'MATCH_SETTINGS',
+      payload: { playerId: state.playerId, ...settings },
+    });
+  }, [state.playerId, send]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      disconnect();
-      if (graceTimerRef.current) clearInterval(graceTimerRef.current);
-    };
-  }, []);
+  // كل لاعب يرسل كروته المرتبة ويضغط "ابدأ المعركة"
+  const sendArrangementReady = useCallback((cards: Card[]) => {
+    send({
+      type: 'ARRANGEMENT_READY',
+      payload: { playerId: state.playerId, cards },
+    });
+  }, [state.playerId, send]);
 
   return (
     <MultiplayerContext.Provider value={{
@@ -415,6 +433,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       setPlayerReady,
       revealCard,
       advanceToNextRound,
+      sendMatchSettings,
+      sendArrangementReady,
     }}>
       {children}
     </MultiplayerContext.Provider>

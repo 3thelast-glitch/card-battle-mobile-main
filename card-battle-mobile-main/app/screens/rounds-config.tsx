@@ -1,8 +1,20 @@
 /**
- * RoundsConfigScreen — with Rarity Weights panel (persisted via GameContext).
+ * RoundsConfigScreen — Multiplayer-aware
+ *
+ * صاحب الجلسة (isHost):
+ *   - يضبط الإعدادات ثم يضغط "التالي" → يرسل MATCH_SETTINGS → ينتقل
+ *
+ * الضيف (guest):
+ *   - يرى شاشة انتظار حتى يستقبل MATCH_SETTINGS_RECEIVED
+ *   - بعدها تُحدَّث الإعدادات تلقائياً وينتقل للصفحة التالية
+ *
+ * اللعب الفردي: يعمل بنفس الطريقة القديمة بدون تغيير.
  */
-import React, { useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, Text as RNText } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import {
+  View, TouchableOpacity, StyleSheet, ScrollView,
+  useWindowDimensions, Text as RNText, ActivityIndicator,
+} from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
@@ -10,6 +22,13 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { useGame } from '@/lib/game/game-context';
 import { COLOR, SPACE, RADIUS, FONT, GLASS_PANEL, SHADOW } from '@/components/ui/design-tokens';
 import type { RarityWeights, RarityKey } from '@/lib/game/game-context';
+
+// Multiplayer — آمن حتى لو الـ provider غير موجود
+let useMultiplayer: (() => any) | null = null;
+try { useMultiplayer = require('@/lib/multiplayer/multiplayer-context').useMultiplayer; } catch {}
+function useSafeMultiplayer() {
+  try { return useMultiplayer?.() ?? null; } catch { return null; }
+}
 
 const ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20];
 
@@ -22,11 +41,8 @@ const RARITY_CONFIG: { key: RarityKey; labelAr: string; color: string; emoji: st
 
 const DEFAULT_WEIGHTS: RarityWeights = { common: 55, rare: 25, epic: 15, legendary: 5 };
 
-function RaritySliderRow({ cfg, value, onChange }: {
-  cfg: typeof RARITY_CONFIG[0];
-  value: number;
-  onChange: (v: number) => void;
-}) {
+// ── Rarity Slider ─────────────────────────────────────────────────────────────
+function RaritySliderRow({ cfg, value, onChange }: { cfg: typeof RARITY_CONFIG[0]; value: number; onChange: (v: number) => void }) {
   return (
     <View style={rs.row}>
       <RNText style={rs.emoji}>{cfg.emoji}</RNText>
@@ -36,18 +52,10 @@ function RaritySliderRow({ cfg, value, onChange }: {
       </View>
       <RNText style={[rs.pct, { color: cfg.color }]}>{value}%</RNText>
       <View style={rs.btns}>
-        <TouchableOpacity
-          style={[rs.stepBtn, { borderColor: cfg.color + '66' }]}
-          onPress={() => onChange(Math.max(0, value - 5))}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={[rs.stepBtn, { borderColor: cfg.color + '66' }]} onPress={() => onChange(Math.max(0, value - 5))} activeOpacity={0.7}>
           <RNText style={{ color: cfg.color, fontSize: 13, fontWeight: '800' }}>-</RNText>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[rs.stepBtn, { borderColor: cfg.color + '66' }]}
-          onPress={() => onChange(Math.min(100, value + 5))}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={[rs.stepBtn, { borderColor: cfg.color + '66' }]} onPress={() => onChange(Math.min(100, value + 5))} activeOpacity={0.7}>
           <RNText style={{ color: cfg.color, fontSize: 13, fontWeight: '800' }}>+</RNText>
         </TouchableOpacity>
       </View>
@@ -55,13 +63,9 @@ function RaritySliderRow({ cfg, value, onChange }: {
   );
 }
 
-function RarityWeightsPanel({ weights, onChange }: {
-  weights: RarityWeights;
-  onChange: (w: RarityWeights) => void;
-}) {
+function RarityWeightsPanel({ weights, onChange }: { weights: RarityWeights; onChange: (w: RarityWeights) => void }) {
   const total = Object.values(weights).reduce((a, b) => a + b, 0);
   const balanced = total === 100;
-
   const handleChange = useCallback((key: RarityKey, newVal: number) => {
     const diff = newVal - weights[key];
     const others = RARITY_CONFIG.filter(r => r.key !== key);
@@ -77,7 +81,6 @@ function RarityWeightsPanel({ weights, onChange }: {
     }
     onChange(newWeights);
   }, [weights, onChange]);
-
   return (
     <View style={styles.panel}>
       <View style={styles.panelHeader}>
@@ -86,17 +89,10 @@ function RarityWeightsPanel({ weights, onChange }: {
           <RNText style={rs.resetTxt}>إعادة تعيين</RNText>
         </TouchableOpacity>
       </View>
-      <Text style={styles.panelDesc}>حدّد احتمالية ظهور كل ندرة — يُحفظ تلقائياً</Text>
-
+      <Text style={styles.panelDesc}>حدّد احتمالية ظهور كل ندرة</Text>
       {RARITY_CONFIG.map(cfg => (
-        <RaritySliderRow
-          key={cfg.key}
-          cfg={cfg}
-          value={weights[cfg.key]}
-          onChange={v => handleChange(cfg.key, v)}
-        />
+        <RaritySliderRow key={cfg.key} cfg={cfg} value={weights[cfg.key]} onChange={v => handleChange(cfg.key, v)} />
       ))}
-
       <View style={[rs.totalRow, { borderColor: balanced ? '#4ade8066' : '#f8717166' }]}>
         <RNText style={[rs.totalLabel, { color: balanced ? '#4ade80' : '#f87171' }]}>
           {balanced ? '✔ المجموع = 100%' : `⚠ المجموع = ${total}%`}
@@ -111,22 +107,69 @@ function RarityWeightsPanel({ weights, onChange }: {
   );
 }
 
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function RoundsConfigScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const { setTotalRounds, setAbilitiesEnabled, rarityWeights, setRarityWeights } = useGame();
 
-  const { setTotalRounds, setAbilitiesEnabled, rarityWeights, setRarityWeights, state } = useGame();
+  const mp = useSafeMultiplayer();
+  const isMultiplayer = !!mp?.state?.roomId;
+  const isHost = mp?.state?.isHost ?? true;
+  const pendingMatchSettings = mp?.state?.pendingMatchSettings ?? null;
+
   const [rounds, setRounds] = React.useState(5);
   const [withAbility, setWithAbility] = React.useState(false);
+  const [settingsSent, setSettingsSent] = React.useState(false); // صاحب الجلسة أرسل وينتظر
+
+  // ── الضيف: لما يستقبل الإعدادات → طبّقها وانتقل ──────────────────────────
+  useEffect(() => {
+    if (!isMultiplayer || isHost || !pendingMatchSettings) return;
+    // طبّق الإعدادات على game context
+    setTotalRounds(pendingMatchSettings.rounds);
+    setAbilitiesEnabled(pendingMatchSettings.withAbilities);
+    setRarityWeights(pendingMatchSettings.rarityWeights as RarityWeights);
+    // انتقل للصفحة التالية تلقائياً
+    router.push('/screens/leaderboard' as any);
+  }, [pendingMatchSettings, isMultiplayer, isHost]);
 
   const handleContinue = () => {
     setTotalRounds(rounds);
     setAbilitiesEnabled(withAbility);
-    // rarityWeights محفوظة تلقائياً في context + AsyncStorage
+
+    if (isMultiplayer && isHost && mp?.sendMatchSettings) {
+      // أرسل الإعدادات للضيف عبر WebSocket
+      mp.sendMatchSettings({
+        rounds,
+        withAbilities: withAbility,
+        rarityWeights,
+      });
+      setSettingsSent(true);
+    }
+    // سواء multiplayer أو فردي → انتقل
     router.push('/screens/leaderboard' as any);
   };
 
+  // ── واجهة الضيف: انتظار ──────────────────────────────────────────────────
+  if (isMultiplayer && !isHost) {
+    return (
+      <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
+        <LuxuryBackground>
+          <View style={styles.waitingContainer}>
+            <ActivityIndicator size="large" color={COLOR.gold} />
+            <Text style={styles.waitingTitle}>⏳ انتظار صاحب الجلسة</Text>
+            <Text style={styles.waitingDesc}>سيتم الانتقال تلقائياً بعد ضبط الإعدادات</Text>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <Text style={styles.backBtnText}>← رجوع</Text>
+            </TouchableOpacity>
+          </View>
+        </LuxuryBackground>
+      </ScreenContainer>
+    );
+  }
+
+  // ── لوحة الجولات ─────────────────────────────────────────────────────────
   const roundsPanel = (
     <View style={styles.panel}>
       <View style={styles.panelHeader}>
@@ -148,6 +191,7 @@ export default function RoundsConfigScreen() {
     </View>
   );
 
+  // ── لوحة القدرات ─────────────────────────────────────────────────────────
   const abilitiesPanel = (
     <View style={styles.panel}>
       <Text style={styles.panelTitle}>⚡ القدرات الخاصة</Text>
@@ -165,9 +209,12 @@ export default function RoundsConfigScreen() {
     </View>
   );
 
+  // ── زر التالي ────────────────────────────────────────────────────────────
   const ctaBtn = (
     <TouchableOpacity style={styles.continueBtn} onPress={handleContinue} activeOpacity={0.85}>
-      <Text style={styles.continueBtnText}>التالي →</Text>
+      <Text style={styles.continueBtnText}>
+        {isMultiplayer && isHost ? '✓ تأكيد وإرسال للضيف →' : 'التالي →'}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -181,6 +228,11 @@ export default function RoundsConfigScreen() {
 
           <View style={styles.header}>
             <Text style={styles.title}>إعداد المباراة</Text>
+            {isMultiplayer && isHost && (
+              <View style={styles.hostBadge}>
+                <Text style={styles.hostBadgeText}>👑 صاحب الجلسة</Text>
+              </View>
+            )}
             <Text style={styles.subtitle}>خصّص تجربتك قبل المعركة</Text>
           </View>
 
@@ -216,6 +268,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: SPACE.xs },
   title: { fontSize: FONT.hero, color: COLOR.gold, letterSpacing: 1, textAlign: 'center' },
   subtitle: { color: COLOR.textMuted, fontSize: FONT.sm, textAlign: 'center' },
+  hostBadge: { backgroundColor: 'rgba(212,175,55,0.15)', borderRadius: RADIUS.full, paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs, borderWidth: 1, borderColor: 'rgba(212,175,55,0.4)' },
+  hostBadgeText: { color: COLOR.gold, fontSize: FONT.sm, fontWeight: '700' },
   twoCol: { flexDirection: 'row', gap: SPACE.lg },
   panel: { ...GLASS_PANEL, padding: SPACE.xl, gap: SPACE.md },
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -238,6 +292,10 @@ const styles = StyleSheet.create({
   toggleBtnTextInactive: { color: '#f87171' },
   continueBtn: { backgroundColor: COLOR.gold, paddingVertical: SPACE.lg, borderRadius: RADIUS.pill, alignItems: 'center', ...SHADOW.gold },
   continueBtnText: { fontSize: FONT.xl, color: '#1A0D1A' },
+  // waiting screen
+  waitingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACE.lg, padding: SPACE.xl },
+  waitingTitle: { fontSize: FONT.xl, color: COLOR.gold, fontWeight: '800', textAlign: 'center' },
+  waitingDesc: { fontSize: FONT.base, color: COLOR.textMuted, textAlign: 'center' },
 });
 
 const rs = StyleSheet.create({
