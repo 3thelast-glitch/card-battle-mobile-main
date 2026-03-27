@@ -1,4 +1,4 @@
-# ── Build Stage ──────────────────────────────────────────────────────────────
+# ── Build Stage
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN npm install
 COPY . .
 RUN npx tsc --outDir dist
 
-# ── Production Stage ─────────────────────────────────────────────────────────
+# ── Production Stage
 FROM node:20-alpine
 WORKDIR /app
 
