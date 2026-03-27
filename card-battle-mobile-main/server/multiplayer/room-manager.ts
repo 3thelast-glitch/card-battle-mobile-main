@@ -9,8 +9,16 @@ export interface Player {
   rounds?: number;
 }
 
-// ─── Round State ──────────────────────────────────────────────────────────────
+// ─── Match Settings ──────────────────────────────────────────────────────────────
+// يضبطها صاحب الجلسة في rounds-config ثم تُرسل للضيف
 
+export interface MatchSettings {
+  rounds: number;
+  withAbilities: boolean;
+  rarityWeights: Record<string, number>;
+}
+
+// ─── Round State ────────────────────────────────────────────────────────────────
 export interface RevealedCard {
   playerId: string;
   card: any;
@@ -34,8 +42,7 @@ export interface RoundResult {
   advantage: 'element' | 'attack' | 'draw';
 }
 
-// ─── Room ─────────────────────────────────────────────────────────────────────
-
+// ─── Room ────────────────────────────────────────────────────────────────────────
 export interface Room {
   id: string;
   player1: Player | null;
@@ -48,10 +55,10 @@ export interface Room {
   p1Score: number;
   p2Score: number;
   roundHistory: RoundResult[];
+  matchSettings: MatchSettings | null; // جديد — إعدادات المباراة
 }
 
-// ─── Element Advantage ────────────────────────────────────────────────────────
-
+// ─── Element Advantage ────────────────────────────────────────────────────────────
 const ELEMENT_BEATS: Record<string, string> = {
   fire: 'ice',
   ice: 'water',
@@ -61,65 +68,39 @@ const ELEMENT_BEATS: Record<string, string> = {
   wind: 'earth',
 };
 
-function getElementAdvantage(
-  e1: string,
-  e2: string
-): 'player1' | 'player2' | 'none' {
+function getElementAdvantage(e1: string, e2: string): 'player1' | 'player2' | 'none' {
   if (ELEMENT_BEATS[e1] === e2) return 'player1';
   if (ELEMENT_BEATS[e2] === e1) return 'player2';
   return 'none';
 }
 
-function resolveCards(
-  roundIndex: number,
-  p1Card: any,
-  p2Card: any,
-  p1Score: number,
-  p2Score: number
-): RoundResult {
+function resolveCards(roundIndex: number, p1Card: any, p2Card: any, p1Score: number, p2Score: number): RoundResult {
   const elAdv = getElementAdvantage(p1Card.element ?? '', p2Card.element ?? '');
-
   let p1Atk = (p1Card.attack ?? 0) + (elAdv === 'player1' ? 2 : 0);
   let p2Atk = (p2Card.attack ?? 0) + (elAdv === 'player2' ? 2 : 0);
-  let p1Def = p1Card.defense ?? 0;
-  let p2Def = p2Card.defense ?? 0;
-
-  const p1Net = p1Atk - p2Def;
-  const p2Net = p2Atk - p1Def;
+  const p1Net = p1Atk - (p2Card.defense ?? 0);
+  const p2Net = p2Atk - (p1Card.defense ?? 0);
 
   let winner: 'player1' | 'player2' | 'draw';
   let advantage: 'element' | 'attack' | 'draw' = 'draw';
 
-  if (elAdv !== 'none') {
-    winner = elAdv;
-    advantage = 'element';
-  } else if (p1Net > p2Net) {
-    winner = 'player1';
-    advantage = 'attack';
-  } else if (p2Net > p1Net) {
-    winner = 'player2';
-    advantage = 'attack';
-  } else {
-    winner = 'draw';
-    advantage = 'draw';
-  }
-
-  const newP1Score = p1Score - (winner === 'player2' ? 1 : 0);
-  const newP2Score = p2Score - (winner === 'player1' ? 1 : 0);
+  if (elAdv !== 'none') { winner = elAdv; advantage = 'element'; }
+  else if (p1Net > p2Net) { winner = 'player1'; advantage = 'attack'; }
+  else if (p2Net > p1Net) { winner = 'player2'; advantage = 'attack'; }
+  else { winner = 'draw'; advantage = 'draw'; }
 
   return {
     roundIndex,
     p1Card,
     p2Card,
     winner,
-    p1Score: Math.max(0, newP1Score),
-    p2Score: Math.max(0, newP2Score),
+    p1Score: Math.max(0, p1Score - (winner === 'player2' ? 1 : 0)),
+    p2Score: Math.max(0, p2Score - (winner === 'player1' ? 1 : 0)),
     advantage,
   };
 }
 
-// ─── Room Manager ─────────────────────────────────────────────────────────────
-
+// ─── Room Manager ───────────────────────────────────────────────────────────────
 export class RoomManager {
   private rooms: Map<string, Room> = new Map();
   private playerToRoom: Map<string, string> = new Map();
@@ -129,9 +110,7 @@ export class RoomManager {
     let roomId = '';
     do {
       roomId = '';
-      for (let i = 0; i < 6; i++) {
-        roomId += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
+      for (let i = 0; i < 6; i++) roomId += chars.charAt(Math.floor(Math.random() * chars.length));
     } while (this.rooms.has(roomId));
     return roomId;
   }
@@ -151,6 +130,7 @@ export class RoomManager {
       p1Score: 3,
       p2Score: 3,
       roundHistory: [],
+      matchSettings: null,
     };
     this.rooms.set(roomId, room);
     this.playerToRoom.set(player.id, roomId);
@@ -174,6 +154,15 @@ export class RoomManager {
     const roomId = this.playerToRoom.get(playerId);
     if (!roomId) return null;
     return this.rooms.get(roomId) || null;
+  }
+
+  // ── جديد: حفظ إعدادات المباراة في الغرفة ────────────────────────────────
+  setMatchSettings(roomId: string, settings: MatchSettings): Room | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    room.matchSettings = settings;
+    room.totalRounds = settings.rounds; // تحديث totalRounds من الإعدادات
+    return room;
   }
 
   setPlayerReady(playerId: string, isReady: boolean): Room | null {
@@ -205,50 +194,22 @@ export class RoomManager {
     return room.player1.isReady && room.player2.isReady;
   }
 
-  /**
-   * Record a revealed card for the current round.
-   * Returns RoundResult if both players have revealed, null if waiting.
-   */
   revealCard(playerId: string, roundIndex: number, card: any): RoundResult | null {
     const room = this.getPlayerRoom(playerId);
     if (!room || !room.player1 || !room.player2) return null;
-
     const isP1 = room.player1.id === playerId;
     const reveal: RevealedCard = { playerId, card, roundIndex };
-
-    if (isP1) {
-      room.currentRound.p1Card = reveal;
-    } else {
-      room.currentRound.p2Card = reveal;
-    }
-
-    // Both revealed — resolve
+    if (isP1) room.currentRound.p1Card = reveal;
+    else room.currentRound.p2Card = reveal;
     if (room.currentRound.p1Card && room.currentRound.p2Card && !room.currentRound.resolved) {
       room.currentRound.resolved = true;
-
-      const result = resolveCards(
-        roundIndex,
-        room.currentRound.p1Card.card,
-        room.currentRound.p2Card.card,
-        room.p1Score,
-        room.p2Score
-      );
-
+      const result = resolveCards(roundIndex, room.currentRound.p1Card.card, room.currentRound.p2Card.card, room.p1Score, room.p2Score);
       room.p1Score = result.p1Score;
       room.p2Score = result.p2Score;
       room.roundHistory.push(result);
-
-      // Advance to next round
-      room.currentRound = {
-        roundIndex: roundIndex + 1,
-        p1Card: null,
-        p2Card: null,
-        resolved: false,
-      };
-
+      room.currentRound = { roundIndex: roundIndex + 1, p1Card: null, p2Card: null, resolved: false };
       return result;
     }
-
     return null;
   }
 
@@ -266,10 +227,7 @@ export class RoomManager {
     if (room.player1?.id === playerId) room.player1 = null;
     else if (room.player2?.id === playerId) room.player2 = null;
     this.playerToRoom.delete(playerId);
-    if (!room.player1 && !room.player2) {
-      this.rooms.delete(roomId);
-      return null;
-    }
+    if (!room.player1 && !room.player2) { this.rooms.delete(roomId); return null; }
     if (room.status === 'playing') room.status = 'waiting';
     return room;
   }
@@ -291,22 +249,14 @@ export class RoomManager {
   cleanupExpiredRooms(): void {
     const now = new Date();
     for (const [roomId, room] of this.rooms.entries()) {
-      if (now > room.expiresAt || room.status === 'finished') {
-        this.deleteRoom(roomId);
-      }
+      if (now > room.expiresAt || room.status === 'finished') this.deleteRoom(roomId);
     }
   }
 
-  getActiveRoomsCount(): number {
-    return this.rooms.size;
-  }
-
-  getAllRooms(): Room[] {
-    return Array.from(this.rooms.values());
-  }
+  getActiveRoomsCount(): number { return this.rooms.size; }
+  getAllRooms(): Room[] { return Array.from(this.rooms.values()); }
 }
 
 export const roomManager = new RoomManager();
 
-// Cleanup every 5 minutes
 setInterval(() => roomManager.cleanupExpiredRooms(), 5 * 60 * 1000);
