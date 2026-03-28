@@ -3,14 +3,14 @@ import type { Card } from '@/lib/game/types';
 import { COMMON_IMAGES, COMMON_VIDEOS } from '@/assets/characters/common';
 import { RARE_IMAGES } from '@/assets/characters/rare';
 import { EPIC_IMAGES } from '@/assets/characters/epic';
-import { LEGENDARY_IMAGES } from '@/assets/characters/legendary';
+import { LEGENDARY_IMAGES, LEGENDARY_VIDEOS } from '@/assets/characters/legendary';
 
 // ─── خرائط الفيديو لكل ندرة ──────────────────────────────────────────────────
 const VIDEO_MAPS: Record<string, Record<string, any>> = {
     common: COMMON_VIDEOS,
     // rare: RARE_VIDEOS,    // أضف لاحقاً عند الحاجة
     // epic: EPIC_VIDEOS,
-    // legendary: LEGENDARY_VIDEOS,
+    legendary: LEGENDARY_VIDEOS,
 };
 
 /**
