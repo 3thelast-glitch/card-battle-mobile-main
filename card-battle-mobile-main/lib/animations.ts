@@ -3,6 +3,7 @@
  * Provides ready-to-use animated styles for all card interactions.
  */
 
+import { useEffect } from 'react';
 import {
     useSharedValue,
     useAnimatedStyle,
@@ -12,6 +13,7 @@ import {
     withRepeat,
     withDelay,
     runOnJS,
+    Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
@@ -150,30 +152,20 @@ export function useCardAttackAnimation() {
  */
 export function useGlowPulseAnimation() {
     const opacity = useSharedValue(0.5);
-    const scale = useSharedValue(1);
 
-    // Start immediately on mount
-    opacity.value = withRepeat(
-        withSequence(
-            withTiming(1, { duration: ANIMATION_TIMINGS.glowPulse }),
-            withTiming(0.4, { duration: ANIMATION_TIMINGS.glowPulse })
-        ),
-        -1, // infinite
-        false
-    );
-
-    scale.value = withRepeat(
-        withSequence(
-            withTiming(1.06, { duration: ANIMATION_TIMINGS.glowPulse }),
-            withTiming(0.98, { duration: ANIMATION_TIMINGS.glowPulse })
-        ),
-        -1,
-        false
-    );
+    useEffect(() => {
+        opacity.value = withRepeat(
+            withSequence(
+                withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+                withTiming(0.5, { duration: 1800, easing: Easing.inOut(Easing.sin) })
+            ),
+            -1, // infinite
+            false
+        );
+    }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
         opacity: opacity.value,
-        transform: [{ scale: scale.value }],
     }));
 
     return { animatedStyle };

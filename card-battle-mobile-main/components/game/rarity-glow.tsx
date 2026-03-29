@@ -13,9 +13,11 @@ interface RarityGlowProps {
     borderRadius: number;
     /** Larger = wider glow ring around the card */
     spread?: number;
+    /** When true, applies heavier glow for Legendary-tier cards */
+    isLegendary?: boolean;
 }
 
-export function RarityGlow({ color, borderRadius, spread = 8 }: RarityGlowProps) {
+export function RarityGlow({ color, borderRadius, spread = 8, isLegendary = false }: RarityGlowProps) {
     const { animatedStyle } = useGlowPulseAnimation();
 
     return (
@@ -25,7 +27,10 @@ export function RarityGlow({ color, borderRadius, spread = 8 }: RarityGlowProps)
                 {
                     borderColor: color,
                     borderRadius: borderRadius + spread,
+                    borderWidth: isLegendary ? 3 : 2,
                     shadowColor: color,
+                    shadowRadius: isLegendary ? 20 : 10,
+                    shadowOpacity: isLegendary ? 1 : 0.7,
                     top: -spread,
                     left: -spread,
                     right: -spread,
@@ -41,10 +46,7 @@ export function RarityGlow({ color, borderRadius, spread = 8 }: RarityGlowProps)
 const styles = StyleSheet.create({
     glow: {
         position: 'absolute',
-        borderWidth: 2,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 12,
         elevation: 0,
     },
 });

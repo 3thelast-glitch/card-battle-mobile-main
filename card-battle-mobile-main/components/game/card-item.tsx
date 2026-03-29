@@ -177,6 +177,7 @@ export function CardItem({
           color={rarityCfg.glowColor!}
           borderRadius={14}
           spread={size === 'small' ? 4 : 8}
+          isLegendary={rarity === 'legendary'}
         />
       )}
 
