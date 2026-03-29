@@ -203,7 +203,6 @@ export default function CardSelectionScreen() {
         <LuxuryCharacterCardAnimated
           card={item.card}
           style={{ width: gridCardW, height: gridCardH }}
-          videoMuted={true}
         />
         {item.round !== null ? (
           <View style={styles.roundOverlay}>
@@ -314,7 +313,7 @@ export default function CardSelectionScreen() {
                 <LuxuryCharacterCardAnimated
                   card={cardRounds[focusedCardIndex].card}
                   style={{ width: modalCardW, height: modalCardH }}
-                  videoMuted={false}
+                  isOpenedView={true}
                 />
               </View>
             )}

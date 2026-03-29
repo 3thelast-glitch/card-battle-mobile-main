@@ -416,12 +416,11 @@ export default function CardsGalleryScreen() {
           <View style={[styles.grid, { gap: gridGap, paddingHorizontal: padding }]}>
             {sortedCards.map(card => (
               <TouchableOpacity key={card.id} onPress={() => handleCardPress(card)} activeOpacity={0.85}>
-                {/* في الغاليري: videoMuted=true (بدون صوت) */}
+                {/* في الغاليري: بدون صوت (isOpenedView=false الافتراضي) */}
                 <LuxuryCharacterCardAnimated
                   card={card}
                   imageOffsetY={card.imageOffsetY ?? 0}
                   fitInsideBorder={card.fitInsideBorder ?? false}
-                  videoMuted={true}
                   style={{ width: galleryCardW, height: galleryCardH }}
                 />
               </TouchableOpacity>
@@ -435,12 +434,12 @@ export default function CardsGalleryScreen() {
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow}>
               <View pointerEvents="none">
-                {/* في المودال: videoMuted=false (مع صوت) */}
+                {/* في المودال: مع صوت (isOpenedView=true) */}
                 <LuxuryCharacterCardAnimated
                   card={previewCard}
                   imageOffsetY={edits.imageOffsetY}
                   fitInsideBorder={edits.fitInsideBorder}
-                  videoMuted={false}
+                  isOpenedView={true}
                   style={{ width: modalCardW, height: modalCardH }}
                 />
               </View>

@@ -4,12 +4,12 @@
  * Animated images (GIF / WebP) and videos are supported automatically via expo-video.
  *
  * Props:
- *   videoMuted — when true the video plays silently (default: false = sound ON)
+ *   isOpenedView — when true the card is in detail/modal view (video plays WITH sound).\r\n *                  When false (default) the card is in a list/grid (video plays silently).
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
     withSequence, interpolate, Easing,
@@ -26,8 +26,9 @@ interface Props {
     style?: ViewStyle;
     imageOffsetY?: number;
     fitInsideBorder?: boolean;
-    /** When true the video plays muted/silent (default: false = sound ON) */
-    videoMuted?: boolean;
+    /** When true the card is in a detailed/opened view — video plays WITH sound.
+     *  When false (default) the card is in a list/grid — video plays silently. */
+    isOpenedView?: boolean;
 }
 
 // ---------------------------------------------------------------
@@ -273,28 +274,8 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
 };
 
 // ---------------------------------------------------------------
-// VideoPlayer sub-component (expo-video)
-// Must be a separate component so useVideoPlayer hook is always
-// called unconditionally (Rules of Hooks).
-// ---------------------------------------------------------------
-function CardVideoPlayer({ source, style, videoMuted }: { source: any; style: object; videoMuted: boolean }) {
-    const player = useVideoPlayer(source, (p) => {
-        p.loop = true;
-        p.muted = videoMuted;
-        p.play();
-    });
-    return (
-        <VideoView
-            player={player}
-            style={style as any}
-            contentFit="cover"
-            nativeControls={false}
-        />
-    );
-}
-
-// ---------------------------------------------------------------
 // CardMedia — renders static image, animated GIF/WebP, or video
+// Uses expo-av <Video> with declarative props for reliable autoplay.
 // ---------------------------------------------------------------
 interface CardMediaProps {
     cardImage: ReturnType<typeof getCardImage>;
@@ -308,12 +289,32 @@ interface CardMediaProps {
 const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, videoMuted }: CardMediaProps) => {
     // 1. Local require() video
     if (videoAsset) {
-        return <CardVideoPlayer source={videoAsset} style={imgStyle} videoMuted={videoMuted} />;
+        return (
+            <Video
+                source={videoAsset}
+                style={imgStyle as any}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={true}
+                isLooping={true}
+                isMuted={videoMuted}
+                useNativeControls={false}
+            />
+        );
     }
 
     // 2. Remote URI video
     if (customUri && isVideoUri(customUri)) {
-        return <CardVideoPlayer source={{ uri: customUri }} style={imgStyle} videoMuted={videoMuted} />;
+        return (
+            <Video
+                source={{ uri: customUri }}
+                style={imgStyle as any}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={true}
+                isLooping={true}
+                isMuted={videoMuted}
+                useNativeControls={false}
+            />
+        );
     }
 
     // 3. Static image (or animated GIF/WebP)
@@ -341,7 +342,7 @@ export function LuxuryCharacterCardAnimated({
     style,
     imageOffsetY = 0,
     fitInsideBorder = false,
-    videoMuted = false,
+    isOpenedView = false,
 }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity];
@@ -432,7 +433,7 @@ export function LuxuryCharacterCardAnimated({
                         customUri={customUri}
                         isCustomImage={isCustomImage}
                         imgStyle={imgStyle}
-                        videoMuted={videoMuted}
+                        videoMuted={!isOpenedView}
                     />
                 )}
 
@@ -505,7 +506,7 @@ export function LuxuryCharacterCardAnimated({
 
                     <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 12 * scW) }]}>
                         {[{ icon: '\u2694\ufe0f', value: card.attack, col: theme.atkColor, rev: false },
-                          { icon: '\ud83d\udee1\ufe0f', value: card.defense, col: theme.defColor, rev: true }]
+                        { icon: '\ud83d\udee1\ufe0f', value: card.defense, col: theme.defColor, rev: true }]
                             .map(({ icon, value, col, rev }) => (
                                 <View key={icon} style={styles.statWrapper}>
                                     {theme.hasRunicRing && (
