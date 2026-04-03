@@ -39,14 +39,14 @@ async function loadRarityWeights(): Promise<RarityWeights> {
   try {
     const raw = await AsyncStorage.getItem(RARITY_WEIGHTS_KEY);
     if (raw) return { ...DEFAULT_RARITY_WEIGHTS, ...JSON.parse(raw) };
-  } catch {}
+  } catch { }
   return { ...DEFAULT_RARITY_WEIGHTS };
 }
 
 async function saveRarityWeights(weights: RarityWeights): Promise<void> {
   try {
     await AsyncStorage.setItem(RARITY_WEIGHTS_KEY, JSON.stringify(weights));
-  } catch {}
+  } catch { }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,7 +401,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'ConvertDebuffsToBuffs': { nextEffects = [...nextEffects, { id: makeEffectId('ConvertDebuffsToBuffs', side, roundNumber), kind: 'convertDebuffs', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.cleanseEffects, data: {} }]; break; }
         case 'Sniping': { const sniperRound = Number(data?.round); if (!Number.isInteger(sniperRound) || sniperRound <= roundNumber || sniperRound > state.totalRounds) return state; nextEffects = [...nextEffects, { id: makeEffectId('Sniping', side, roundNumber), kind: 'forcedOutcome', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: sniperRound, charges: 1, priority: EFFECT_PRIORITY.forcedOutcome, data: { appliesToRound: sniperRound } }]; break; }
         case 'Merge': { const mergeIdx = data?.roundIndex !== undefined ? Number(data.roundIndex) : state.roundResults.length - 1; const mergeResult = state.roundResults[mergeIdx]; if (mergeResult) { const pastCard = side === 'player' ? mergeResult.playerCard : mergeResult.botCard; const curCard = side === 'player' ? state.playerDeck[state.currentRound] : state.botDeck[state.currentRound]; if (curCard) { const merged: Card = { ...curCard, attack: curCard.attack + pastCard.attack, defense: curCard.defense + pastCard.defense, ability: undefined }; if (side === 'player') { const d = [...state.playerDeck]; d[state.currentRound] = merged; nextState = { ...nextState, playerDeck: d }; } else { const d = [...state.botDeck]; d[state.currentRound] = merged; nextState = { ...nextState, botDeck: d }; } } } break; }
-        case 'DoubleNextCards': { const n1 = roundNumber + 1; const n2 = roundNumber + 2; [n1, n2].filter(r => r <= state.totalRounds).forEach(r => { nextEffects = [...nextEffects, { id: makeEffectId('DoubleNextCards', side, r), kind: 'statModifier', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: r, charges: 1, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack', amount: 100, multiplier: true } }]; }); break; }
+        case 'DoubleNextCards': { const n1 = roundNumber + 1; const n2 = roundNumber + 2;[n1, n2].filter(r => r <= state.totalRounds).forEach(r => { nextEffects = [...nextEffects, { id: makeEffectId('DoubleNextCards', side, r), kind: 'statModifier', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: r, charges: 1, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack', amount: 100, multiplier: true } }]; }); break; }
         case 'Deprivation': { const chosenBuffId = data?.chosenBuffId as string | undefined; nextEffects = [...nextEffects, { id: makeEffectId('Deprivation', side, roundNumber), kind: 'deprivation', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.cleanseEffects, data: { chosenBuffId } }]; break; }
         case 'Greed': { nextEffects = [...nextEffects, { id: makeEffectId('Greed', side, roundNumber), kind: 'greedBuff', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.rewards, data: {} }]; break; }
         case 'Dilemma': { const chosenRoundIndex = Number(data?.roundIndex ?? -1); const myResult = state.roundResults[chosenRoundIndex]; if (myResult) { const myPastCard = side === 'player' ? myResult.playerCard : myResult.botCard; if (side === 'player') { const d = [...state.botDeck]; d[state.currentRound] = { ...myPastCard, ability: undefined }; nextState = { ...nextState, botDeck: d }; } else { const d = [...state.playerDeck]; d[state.currentRound] = { ...myPastCard, ability: undefined }; nextState = { ...nextState, playerDeck: d }; } } break; }
