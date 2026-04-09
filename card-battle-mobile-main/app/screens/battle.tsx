@@ -60,6 +60,9 @@ import {
 import type { DifficultyLevel } from '@/app/screens/difficulty';
 // ✅ Step 1: settings hook + timings
 import { useSettings, BATTLE_TIMINGS } from '@/lib/game/hooks/useSettings';
+// 🔥 Rage Mode
+import { shouldTriggerRage, applyRageToCard, buildRageTriggerEvent, buildRageState } from '@/lib/game/rage-engine';
+import { RageModeOverlay } from '@/components/game/rage-mode-overlay';
 
 type BattlePhase = 'selection' | 'action' | 'combat' | 'result' | 'waiting';
 
@@ -436,6 +439,10 @@ export default function BattleScreen() {
   const [showPopularityModal, setShowPopularityModal] = useState(false);
   const [selectedPopularityRound, setSelectedPopularityRound] = useState<number | null>(null);
   const [activeDamageNumbers, setActiveDamageNumbers] = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant }[]>([]);
+  // 🔥 Rage Mode
+  const [rageEvent, setRageEvent] = useState<ReturnType<typeof buildRageTriggerEvent> | null>(null);
+  const [pendingRageData, setPendingRageData] = useState<{ losingCard: any; rageCard: any; event: ReturnType<typeof buildRageTriggerEvent> } | null>(null);
+  const rageState = useRef(buildRageState());
 
   // ── Choice modal state ──
   const [choiceModal, setChoiceModal] = useState<{
@@ -659,6 +666,23 @@ export default function BattleScreen() {
       return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
     });
 
+    // 🔥 Rage Mode: تحقق من الخاسر وفعّل الـ Rage إذا تحقق الشرط
+    const losingCard =
+      lastRoundResult.winner === 'bot'
+        ? lastRoundResult.playerCard
+        : lastRoundResult.winner === 'player'
+          ? lastRoundResult.botCard
+          : null;
+
+    if (losingCard && shouldTriggerRage(losingCard, rageState.current)) {
+      const rageCard = applyRageToCard(losingCard, rageState.current);
+      const event = buildRageTriggerEvent(losingCard, rageCard);
+      // لا نُظهر الـ Overlay مباشرة — ننتظر اللاعب يضغط الزر
+      setPendingRageData({ losingCard, rageCard, event });
+    } else {
+      setPendingRageData(null);
+    }
+
     // ✅ Step 3: إظهار أرقام الضرر فقط إذا كان الإعداد مفعّلاً
     if (settings.showDamageNumbers) {
       if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
@@ -740,6 +764,12 @@ export default function BattleScreen() {
               playerScore={state.playerScore} botScore={state.botScore}
               onPlayAgain={() => { resetGame(); router.replace('/screens/rounds-config' as any); }}
               onHome={() => router.replace('/screens/splash' as any)}
+            />
+
+            {/* 🔥 Rage Mode Overlay */}
+            <RageModeOverlay
+              event={rageEvent}
+              onDismiss={() => setRageEvent(null)}
             />
 
             <View style={[S.screen, { paddingLeft: Math.max(insets.left, 8), paddingRight: Math.max(insets.right, 8) }]}>
@@ -841,6 +871,15 @@ export default function BattleScreen() {
                     ) : phase === 'waiting' ? (
                       <TouchableOpacity style={[S.ctaBtn, S.ctaBtnNext]} onPress={handleNextRound} activeOpacity={0.85}>
                         <Text style={S.ctaBtnIcon}>{isGameOver ? '🏁' : '▶️'}</Text><Text style={S.ctaBtnText}>{isGameOver ? 'إنهاء' : 'التالي'}</Text>
+                      </TouchableOpacity>
+                    ) : phase === 'result' && pendingRageData ? (
+                      <TouchableOpacity
+                        style={[S.ctaBtn, S.ctaBtnRage]}
+                        onPress={() => { setRageEvent(pendingRageData.event); setPendingRageData(null); }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={S.ctaBtnIcon}>😡</Text>
+                        <Text style={S.ctaBtnText}>غضب!</Text>
                       </TouchableOpacity>
                     ) : (
                       <View style={[S.ctaBtn, S.ctaBtnDisabled]}>
@@ -1078,6 +1117,7 @@ const S = StyleSheet.create({
   ctaBtn: { width: 140, height: 48, borderRadius: RADIUS.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.xs, borderWidth: 1.5, backgroundColor: 'rgba(0,0,0,0.4)' },
   ctaBtnAttack: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: '#4ade80', shadowColor: '#4ade80', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 10, elevation: 6 },
   ctaBtnNext: { backgroundColor: 'rgba(96,165,250,0.12)', borderColor: '#60a5fa', shadowColor: '#60a5fa', shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, elevation: 4 },
+  ctaBtnRage: { backgroundColor: 'rgba(249,115,22,0.18)', borderColor: '#f97316', shadowColor: '#f97316', shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   ctaBtnAbilities: { backgroundColor: 'rgba(168,85,247,0.12)', borderColor: '#a855f7', shadowColor: '#a855f7', shadowOpacity: 0.45, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, elevation: 4 },
   ctaBtnDisabled: { backgroundColor: 'rgba(71,85,105,0.2)', borderColor: '#475569', shadowOpacity: 0 },
   ctaBtnIcon: { fontSize: 16 },
