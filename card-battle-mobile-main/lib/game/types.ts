@@ -33,6 +33,27 @@ export interface LocalizedString {
 /** Per-card animation preset key */
 export type CardAnimationPreset = 'default' | 'fire' | 'ice' | 'lightning' | 'shadow' | 'holy';
 
+/**
+ * بيانات وضع الغضب للبطاقة — اختياري، يُضبَط من شاشة إدارة الكروت
+ * عند خسارة الكرت: تتحول البطاقة إلى نسخة أقوى مع صورة/فيديو جديد
+ */
+export interface RageModeData {
+  /** هل الميزة مفعّلة لهذه البطاقة؟ */
+  enabled: boolean;
+  /** رابط صورة الغضب (URL أو base64) — تحل محل صورة الكرت عند التفعيل */
+  rageImageUrl?: string;
+  /** رابط فيديو التحول — يُشغَّل لحظة تفعيل وضع الغضب */
+  rageVideoUrl?: string;
+  /** زيادة قيمة الهجوم عند الغضب */
+  rageAttackBoost: number;
+  /** زيادة قيمة الدفاع عند الغضب */
+  rageDefenseBoost: number;
+  /** اسم وضع الغضب بالعربية (مثل: سوبر سايان) */
+  rageNameAr?: string;
+  /** تفعيل مرة واحدة فقط في المباراة، أو عند كل خسارة */
+  oncePer: 'match' | 'unlimited';
+}
+
 export interface Card {
   id: string;
   name: string;
@@ -59,6 +80,8 @@ export interface Card {
   animationPreset?: CardAnimationPreset;
   /** Optional ability slot — can be undefined after Recall/Merge/etc. */
   ability?: AbilityType;
+  /** إعدادات وضع الغضب — اختياري، يُفعّل من شاشة إدارة الكروت */
+  rageMode?: RageModeData;
 }
 
 export type AbilityType =
