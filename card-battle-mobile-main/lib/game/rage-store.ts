@@ -1,33 +1,15 @@
 /**
  * rage-store.ts
- * حفظ / تحميل إعدادات وضع الغضب (Rage Mode) لكل كرت في AsyncStorage.
- * نفس نمط abilities-store.ts
+ * حفظ وقراءة إعدادات وضع الغضب لكل كرت — يُخزَّن في AsyncStorage
  */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { RageModeData } from './types';
 
-const RAGE_KEY = 'card_rage_overrides_v1';
-
-export interface RageModeData {
-  /** هل الميزة مفعّلة لهذه البطاقة؟ */
-  enabled: boolean;
-  /** رابط صورة الغضب (URL أو base64) */
-  rageImageUrl?: string;
-  /** رابط فيديو التحول — يُشغَّل لحظة التفعيل */
-  rageVideoUrl?: string;
-  /** زيادة قيمة الهجوم عند الغضب */
-  rageAttackBoost: number;
-  /** زيادة قيمة الدفاع عند الغضب */
-  rageDefenseBoost: number;
-  /** اسم الشكل الجديد بالعربية (اختياري) */
-  rageNameAr?: string;
-  /** تفعيل مرة واحدة فقط في المباراة، أو في كل خسارة */
-  oncePer: 'match' | 'unlimited';
-}
+const RAGE_KEY = 'rage_overrides_v1';
 
 export type RageOverridesMap = Record<string, RageModeData>;
 
-/** تحميل كل إعدادات وضع الغضب المحفوظة */
+/** قراءة كامل خريطة إعدادات الغضب */
 export async function getRageOverrides(): Promise<RageOverridesMap> {
   try {
     const raw = await AsyncStorage.getItem(RAGE_KEY);
@@ -38,29 +20,28 @@ export async function getRageOverrides(): Promise<RageOverridesMap> {
   }
 }
 
-/** حفظ إعدادات كرت واحد */
+/** حفظ إعدادات الغضب لكرت واحد */
 export async function saveRageOverride(cardId: string, data: RageModeData): Promise<void> {
   try {
-    const current = await getRageOverrides();
-    current[cardId] = data;
-    await AsyncStorage.setItem(RAGE_KEY, JSON.stringify(current));
-  } catch {
-    // تجاهل أخطاء الحفظ بصمت
+    const map = await getRageOverrides();
+    map[cardId] = data;
+    await AsyncStorage.setItem(RAGE_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[rage-store] save failed:', e);
   }
 }
 
-/** حذف إعدادات كرت معيّن */
+/** حذف إعدادات الغضب لكرت واحد */
 export async function deleteRageOverride(cardId: string): Promise<void> {
   try {
-    const current = await getRageOverrides();
-    delete current[cardId];
-    await AsyncStorage.setItem(RAGE_KEY, JSON.stringify(current));
+    const map = await getRageOverrides();
+    delete map[cardId];
+    await AsyncStorage.setItem(RAGE_KEY, JSON.stringify(map));
   } catch {}
 }
 
-/** مسح كل إعدادات الغضب */
-export async function clearAllRageOverrides(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(RAGE_KEY);
-  } catch {}
+/** دمج إعدادات الغضب المحفوظة على قائمة بطاقات */
+export async function injectRageModes<T extends { id: string; rageMode?: RageModeData }>(cards: T[]): Promise<T[]> {
+  const map = await getRageOverrides();
+  return cards.map(c => map[c.id] ? { ...c, rageMode: map[c.id] } : c);
 }
