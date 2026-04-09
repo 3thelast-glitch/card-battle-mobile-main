@@ -11,11 +11,12 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data-exports';
-import { Card, CardRarity } from '@/lib/game/types';
+import { Card, CardRarity, RageModeData } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
-import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap } from 'lucide-react-native';
 import { saveImage, loadImage, deleteImage } from '@/lib/game/image-storage';
+import { getRageOverrides, saveRageOverride, RageOverridesMap } from '@/lib/game/rage-store';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
@@ -37,11 +38,11 @@ type CardEdits = {
   specialAbility: string;
   attack: number;
   defense: number;
-  customImage?: string;   // uri: base64 image OR base64 video OR data:video/...
+  customImage?: string;
   imageOffsetY: number;
   fitInsideBorder: boolean;
   rarity: CardRarity;
-  isVideo: boolean;       // true when customImage is a video
+  isVideo: boolean;
 };
 
 function isVideoUri(uri: string): boolean {
@@ -147,7 +148,6 @@ function StatStepper({ icon, label, value, color, onChange }: {
   );
 }
 
-// ── Media Picker: يدعم صورة + فيديو ───────────────────────────────────────
 function MediaPickerSection({ value, isVideo, rarityColor, onChange }: {
   value?: string;
   isVideo: boolean;
@@ -192,7 +192,7 @@ function MediaPickerSection({ value, isVideo, rarityColor, onChange }: {
         <View style={ep.imgPreviewWrap}>
           {isVideo ? (
             <View style={ep.videoThumb}>
-              <RNText style={ep.videoThumbIcon}>🎬</RNText>
+              <RNText style={ep.videoThumbIcon}>🎦</RNText>
               <RNText style={ep.videoThumbTxt}>فيديو محفوظ</RNText>
             </View>
           ) : (
@@ -243,6 +243,190 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
   );
 }
 
+// ── مكوّن قسم وضع الغضب ────────────────────────────────────────────────────
+function RageModeSection({ cardId, data, onChange }: {
+  cardId: string;
+  data: RageModeData;
+  onChange: (patch: Partial<RageModeData>) => void;
+}) {
+  const RAGE_COLOR = '#f59e0b';
+
+  const handlePickRageImage = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: Event) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') onChange({ rageImageUrl: reader.result });
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
+  const handlePickRageVideo = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'video/mp4,video/webm,video/*';
+      input.onchange = (e: Event) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') onChange({ rageVideoUrl: reader.result });
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
+  return (
+    <View style={rgs.container}>
+      {/* — عنوان القسم — */}
+      <View style={rgs.headerRow}>
+        <Zap size={14} color={RAGE_COLOR} />
+        <RNText style={[rgs.sectionTitle, { color: RAGE_COLOR }]}>وضع الغضب</RNText>
+        <Zap size={14} color={RAGE_COLOR} />
+      </View>
+
+      {/* — تفعيل / تعطيل — */}
+      <View style={ep.switchRow}>
+        <Switch
+          value={data.enabled}
+          onValueChange={v => onChange({ enabled: v })}
+          trackColor={{ false: '#1e1e1e', true: RAGE_COLOR + '55' }}
+          thumbColor={data.enabled ? RAGE_COLOR : '#555'}
+        />
+        <RNText style={[ep.label, { marginBottom: 0 }]}>تفعيل وضع الغضب</RNText>
+      </View>
+
+      {data.enabled && (
+        <>
+          {/* — اسم وضع الغضب — */}
+          <RNText style={[ep.label, { marginTop: 10 }]}>⚡ اسم وضع الغضب</RNText>
+          <TextInput
+            style={[ep.nameArInput, { borderColor: RAGE_COLOR + '55', color: RAGE_COLOR }]}
+            value={data.rageNameAr ?? ''}
+            onChangeText={t => onChange({ rageNameAr: t })}
+            placeholder="مثال: سوبر سايان — غضب البركان..."
+            placeholderTextColor="#555"
+            textAlign="right"
+            writingDirection="rtl"
+          />
+
+          {/* — زيادة الطاقات — */}
+          <RNText style={[ep.label, { marginTop: 10 }]}>⚡ زيادة الطاقات عند الغضب</RNText>
+          <View style={ep.steppers}>
+            <StatStepper
+              icon="⚔️"
+              label="هجوم +"
+              value={data.rageAttackBoost}
+              color="#f87171"
+              onChange={v => onChange({ rageAttackBoost: clamp(v, 0, 999) })}
+            />
+            <StatStepper
+              icon="🛡️"
+              label="دفاع +"
+              value={data.rageDefenseBoost}
+              color="#60a5fa"
+              onChange={v => onChange({ rageDefenseBoost: clamp(v, 0, 999) })}
+            />
+          </View>
+
+          {/* — تكرار التفعيل — */}
+          <RNText style={[ep.label, { marginTop: 10 }]}>🔁 تكرار التفعيل</RNText>
+          <View style={rgs.onceRow}>
+            {(['match', 'unlimited'] as const).map(opt => (
+              <TouchableOpacity
+                key={opt}
+                onPress={() => onChange({ oncePer: opt })}
+                activeOpacity={0.75}
+                style={[
+                  rgs.onceBtn,
+                  data.oncePer === opt
+                    ? { backgroundColor: RAGE_COLOR + '22', borderColor: RAGE_COLOR }
+                    : { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: '#333' },
+                ]}
+              >
+                <RNText style={[
+                  rgs.onceBtnTxt,
+                  { color: data.oncePer === opt ? RAGE_COLOR : '#666' },
+                ]}>
+                  {opt === 'match' ? 'مرة واحدة بالمباراة' : 'كل خسارة'}
+                </RNText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* — صورة وضع الغضب — */}
+          <RNText style={[ep.label, { marginTop: 10 }]}>🖼️ صورة وضع الغضب</RNText>
+          <View style={ep.imgSection}>
+            {data.rageImageUrl ? (
+              <View style={ep.imgPreviewWrap}>
+                <Image source={{ uri: data.rageImageUrl }} style={ep.imgPreview} resizeMode="contain" />
+                <TouchableOpacity style={ep.imgRemoveBtn} onPress={() => onChange({ rageImageUrl: undefined })} activeOpacity={0.8}>
+                  <X size={12} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <View style={ep.mediaPickRow}>
+              <TouchableOpacity
+                style={[ep.mediaPickBtn, { borderColor: RAGE_COLOR + '66', flex: 1 }]}
+                onPress={handlePickRageImage}
+                activeOpacity={0.8}
+              >
+                <ImageIcon size={13} color={RAGE_COLOR} />
+                <RNText style={[ep.imgPickTxt, { color: RAGE_COLOR }]}>صورة الغضب</RNText>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* — فيديو وضع الغضب — */}
+          <RNText style={[ep.label, { marginTop: 10 }]}>🎥 فيديو التحول (اختياري)</RNText>
+          <View style={ep.imgSection}>
+            {data.rageVideoUrl ? (
+              <View style={[ep.imgPreviewWrap, { backgroundColor: 'rgba(245,158,11,0.08)' }]}>
+                <View style={ep.videoThumb}>
+                  <RNText style={ep.videoThumbIcon}>🎦</RNText>
+                  <RNText style={[ep.videoThumbTxt, { color: RAGE_COLOR }]}>فيديو محفوظ</RNText>
+                </View>
+                <TouchableOpacity style={ep.imgRemoveBtn} onPress={() => onChange({ rageVideoUrl: undefined })} activeOpacity={0.8}>
+                  <X size={12} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <View style={ep.mediaPickRow}>
+              <TouchableOpacity
+                style={[ep.mediaPickBtn, { borderColor: '#a78bfa66', flex: 1 }]}
+                onPress={handlePickRageVideo}
+                activeOpacity={0.8}
+              >
+                <Film size={13} color="#a78bfa" />
+                <RNText style={[ep.imgPickTxt, { color: '#a78bfa' }]}>فيديو التحول</RNText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+// ── DEFAULT للبيانات الغضب ──────────────────────────────────────────────────
+const DEFAULT_RAGE: RageModeData = {
+  enabled: false,
+  rageAttackBoost: 0,
+  rageDefenseBoost: 0,
+  oncePer: 'match',
+};
+
 export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
@@ -253,11 +437,16 @@ export default function CardsGalleryScreen() {
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
+  // ── Rage Mode state ──
+  const [rageMap, setRageMap] = useState<RageOverridesMap>({});
+  const [rageEdits, setRageEdits] = useState<RageModeData>(DEFAULT_RAGE);
+
   const { cardW: galleryCardW, cardH: galleryCardH } = useCardSize('gallery');
   const { cardW: modalCardW,   cardH: modalCardH   } = useCardSize('modal');
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
+  // تحميل التعديلات المحفوظة
   useEffect(() => {
     AsyncStorage.getItem(CARD_EDITS_KEY).then(async raw => {
       if (!raw) return;
@@ -278,6 +467,9 @@ export default function CardsGalleryScreen() {
         setCards(UNIQUE_CARDS.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
       } catch {}
     });
+
+    // تحميل إعدادات وضع الغضب
+    getRageOverrides().then(map => setRageMap(map));
   }, []);
 
   useEffect(() => {
@@ -300,7 +492,12 @@ export default function CardsGalleryScreen() {
   const handleCardPress = (card: any) => {
     setSelectedCard(card);
     setEdits(toEdits(card));
+    // تحميل بيانات الغضب الخاصة بهذا الكرت
+    setRageEdits(rageMap[card.id] ?? { ...DEFAULT_RAGE });
   };
+
+  const patchRage = (p: Partial<RageModeData>) =>
+    setRageEdits(prev => ({ ...prev, ...p }));
 
   const handleSave = async () => {
     if (!selectedCard || !edits) { handleClose(); return; }
@@ -342,7 +539,15 @@ export default function CardsGalleryScreen() {
       console.warn('AsyncStorage save failed:', e);
     }
 
-    setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...memRecord } : c));
+    // ─ حفظ بيانات وضع الغضب ─
+    await saveRageOverride(selectedCard.id, rageEdits);
+    setRageMap(prev => ({ ...prev, [selectedCard.id]: rageEdits }));
+
+    setCards(prev => prev.map(c =>
+      c.id === selectedCard.id
+        ? { ...c, ...memRecord, rageMode: rageEdits }
+        : c
+    ));
     handleClose();
   };
 
@@ -416,7 +621,6 @@ export default function CardsGalleryScreen() {
           <View style={[styles.grid, { gap: gridGap, paddingHorizontal: padding }]}>
             {sortedCards.map(card => (
               <TouchableOpacity key={card.id} onPress={() => handleCardPress(card)} activeOpacity={0.85}>
-                {/* في الغاليري: بدون صوت (isOpenedView=false الافتراضي) */}
                 <LuxuryCharacterCardAnimated
                   card={card}
                   imageOffsetY={card.imageOffsetY ?? 0}
@@ -434,7 +638,6 @@ export default function CardsGalleryScreen() {
           {selectedCard && edits && previewCard && (
             <View style={styles.modalRow}>
               <View pointerEvents="none">
-                {/* في المودال: مع صوت (isOpenedView=true) */}
                 <LuxuryCharacterCardAnimated
                   card={previewCard}
                   imageOffsetY={edits.imageOffsetY}
@@ -500,8 +703,7 @@ export default function CardsGalleryScreen() {
                   </View>
                   <View style={ep.divider} />
 
-                  {/* ── Media Picker: صورة أو فيديو ── */}
-                  <RNText style={ep.label}>🎬 صورة / فيديو الكرت</RNText>
+                  <RNText style={ep.label}>🎦 صورة / فيديو الكرت</RNText>
                   <MediaPickerSection
                     value={edits.customImage}
                     isVideo={edits.isVideo}
@@ -526,6 +728,15 @@ export default function CardsGalleryScreen() {
                       <ImageOffsetAdjuster value={edits.imageOffsetY} rarityColor={rarityColor} onChange={v => patch({ imageOffsetY: v })} />
                     </>
                   )}
+
+                  {/* ════ قسم وضع الغضب ════ */}
+                  <View style={ep.divider} />
+                  <RageModeSection
+                    cardId={selectedCard.id}
+                    data={rageEdits}
+                    onChange={patchRage}
+                  />
+
                   <View style={ep.divider} />
 
                   <View style={ep.actionRow}>
@@ -550,6 +761,16 @@ const rp = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 4, flexWrap: 'wrap' },
   btn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
   txt: { fontSize: 11, fontWeight: '800' },
+});
+
+// ─ styles وضع الغضب
+const rgs = StyleSheet.create({
+  container:    { borderTopWidth: 1, borderTopColor: 'rgba(245,158,11,0.2)', paddingTop: 12, marginTop: 4 },
+  headerRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+  onceRow:      { flexDirection: 'row', gap: 8, marginTop: 4 },
+  onceBtn:      { flex: 1, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, alignItems: 'center' },
+  onceBtnTxt:   { fontSize: 11, fontWeight: '800' },
 });
 
 const ep = StyleSheet.create({
