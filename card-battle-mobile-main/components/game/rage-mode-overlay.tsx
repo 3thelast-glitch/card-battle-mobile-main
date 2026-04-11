@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import type { RageTriggerEvent } from '@/lib/game/rage-engine';
 import type { Card } from '@/lib/game/types';
+import { getCardImage } from '@/lib/game/get-card-image';
 
 interface Props {
   event: RageTriggerEvent | null;
@@ -89,15 +90,24 @@ export function RageModeOverlay({ event, onDismiss, onConfirm }: Props) {
         <Text style={s.rageTag}>⚡ وضع الغضب ⚡</Text>
 
         {/* فيديو أو صورة */}
-        {event.videoUrl ? (
-          <VideoPlayer uri={event.videoUrl} onEnd={() => {}} />
-        ) : event.imageUrl ? (
-          <Image
-            source={{ uri: event.imageUrl }}
-            style={s.rageImage}
-            resizeMode="contain"
-          />
-        ) : null}
+        {(() => {
+          const imageSrc = getCardImage(event.rageCard);
+          const videoSrc = event.videoUrl || (event.rageCard as any).videoUrl;
+          
+          if (videoSrc) {
+            return <VideoPlayer uri={videoSrc} onEnd={() => {}} />;
+          }
+          if (imageSrc) {
+            return (
+              <Image
+                source={imageSrc}
+                style={s.rageImage}
+                resizeMode="contain"
+              />
+            );
+          }
+          return null;
+        })()}
 
         {/* مؤشر الزيادة */}
         <View style={s.boostRow}>

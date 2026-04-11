@@ -45,12 +45,32 @@ export function applyRageToCard(card: Card, rageState: RageState): Card {
     rageState.activatedThisMatch.add(card.id);
   }
 
+  const hasRageImageOnly = !!(rm.rageImageUrl || (rm as any).image) && !(rm.rageVideoUrl || (rm as any).video);
+  const newImageUrl = rm.rageImageUrl || (rm as any).image || card.imageUrl;
+  const newVideoUrl = hasRageImageOnly ? undefined : (rm.rageVideoUrl || (rm as any).video || card.videoUrl);
+  const hasNewRageMedia = !!(rm.rageImageUrl || (rm as any).image || rm.rageVideoUrl || (rm as any).video);
+
   return {
     ...card,
+    // تغيير الـ ID قليلاً إذا كان هناك ميديا مؤكدة للغضب لمنع getCardImage من سحب فيديو محلي بالخطأ
+    id: hasRageImageOnly ? `${card.id}_rage` : card.id,
+    
     attack:  card.attack  + (rm.rageAttackBoost  ?? 0),
     defense: card.defense + (rm.rageDefenseBoost ?? 0),
     nameAr:  rm.rageNameAr ?? card.nameAr,
-    // الصورة الجديدة — تُقرأ في مكوّن LuxuryCharacterCardAnimated عبر rageMode.rageImageUrl
+
+    // الصورة والفيديو الجديدتين
+    imageUrl: newImageUrl,
+    videoUrl: newVideoUrl,
+
+    // إبطال الصور المحلية في حال تم تخصيص ميديا جديدة للغضب
+    ...(hasNewRageMedia && {
+      customImage: undefined,
+      finalImage: undefined,
+      localImage: undefined,
+      ...(hasRageImageOnly && { videoUrl: undefined }),
+    }),
+
     _rageActive: true,
   } as Card & { _rageActive: boolean };
 }
@@ -70,7 +90,7 @@ export function buildRageTriggerEvent(original: Card, rageCard: Card): RageTrigg
   return {
     card:     original,
     rageCard,
-    videoUrl: original.rageMode?.rageVideoUrl,
-    imageUrl: original.rageMode?.rageImageUrl,
+    videoUrl: original.rageMode?.rageVideoUrl ?? (original as any).videoUrl,
+    imageUrl: original.rageMode?.rageImageUrl ?? original.imageUrl,
   };
 }
