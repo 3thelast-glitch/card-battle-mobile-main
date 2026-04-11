@@ -1006,6 +1006,13 @@ export const ANIME_CARDS: Card[] = [
     rarity: 'common', stars: 2,
     animationPreset: 'shadow',
     specialAbility: 'عيون الموت — ترى رقم الجولة القادمة للخصم',
+    rageMode: {
+      enabled: true,
+      rageNameAr: 'عيون الشينيغامي',
+      rageAttackBoost: 10,
+      rageDefenseBoost: 6,
+      oncePer: 'match',
+    },
   },
 
   // ════════════════════════════════════════════════════

@@ -2,6 +2,8 @@
  * RageModeOverlay.tsx
  * شاشة Overlay تظهر لحظة تفعيل وضع الغضب
  * — تعرض فيديو التحول إن وُجد، وإلا تعرض صورة الغضب مع تأثير بصري
+ * — زر "تفعيل الغضب" يُفعّل handleRageActivate عبر onConfirm
+ * — زر "تخطي" يُغلق الـ overlay بدون تفعيل
  */
 import React, { useEffect, useRef } from 'react';
 import {
@@ -14,19 +16,30 @@ import {
   Platform,
 } from 'react-native';
 import type { RageTriggerEvent } from '@/lib/game/rage-engine';
+import type { Card } from '@/lib/game/types';
 
 interface Props {
   event: RageTriggerEvent | null;
   onDismiss: () => void;
+  /** Called when the player confirms rage activation — receives the boosted rage card */
+  onConfirm?: (rageCard: Card) => void;
 }
 
-export function RageModeOverlay({ event, onDismiss }: Props) {
+export function RageModeOverlay({ event, onDismiss, onConfirm }: Props) {
   const opacity  = useRef(new Animated.Value(0)).current;
   const scale    = useRef(new Animated.Value(0.75)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const btnPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!event) return;
+    if (!event) {
+      // ريسيت عند الإغلاق
+      opacity.setValue(0);
+      scale.setValue(0.75);
+      glowAnim.setValue(0);
+      btnPulse.setValue(1);
+      return;
+    }
     // انتر
     Animated.parallel([
       Animated.spring(opacity, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 200 }),
@@ -41,16 +54,27 @@ export function RageModeOverlay({ event, onDismiss }: Props) {
       ])
     ).start();
 
-    // إغلاق تلقائي بعد 3.5 ثانية إذا لم يوجد فيديو
-    if (!event.videoUrl) {
-      const t = setTimeout(onDismiss, 3500);
-      return () => clearTimeout(t);
-    }
+    // نبض زر التفعيل
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(btnPulse, { toValue: 1.06, duration: 600, useNativeDriver: true }),
+        Animated.timing(btnPulse, { toValue: 1,    duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
   }, [event]);
 
   if (!event) return null;
 
   const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.85] });
+
+  const handleConfirmPress = () => {
+    if (onConfirm) {
+      onConfirm(event.rageCard);
+    } else {
+      // fallback: إغلاق فقط إذا لم يُمرَّر onConfirm
+      onDismiss();
+    }
+  };
 
   return (
     <View style={s.backdrop}>
@@ -66,7 +90,7 @@ export function RageModeOverlay({ event, onDismiss }: Props) {
 
         {/* فيديو أو صورة */}
         {event.videoUrl ? (
-          <VideoPlayer uri={event.videoUrl} onEnd={onDismiss} />
+          <VideoPlayer uri={event.videoUrl} onEnd={() => {}} />
         ) : event.imageUrl ? (
           <Image
             source={{ uri: event.imageUrl }}
@@ -95,9 +119,18 @@ export function RageModeOverlay({ event, onDismiss }: Props) {
           )}
         </View>
 
-        <TouchableOpacity style={s.dismissBtn} onPress={onDismiss} activeOpacity={0.75}>
-          <Text style={s.dismissTxt}>استمرار ⚡</Text>
-        </TouchableOpacity>
+        {/* أزرار: تفعيل الغضب + تخطي */}
+        <View style={s.btnRow}>
+          <Animated.View style={{ transform: [{ scale: btnPulse }] }}>
+            <TouchableOpacity style={s.confirmBtn} onPress={handleConfirmPress} activeOpacity={0.75}>
+              <Text style={s.confirmTxt}>😡 تفعيل الغضب ⚡</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          <TouchableOpacity style={s.dismissBtn} onPress={onDismiss} activeOpacity={0.75}>
+            <Text style={s.dismissTxt}>تخطي ▸</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </View>
   );
@@ -204,19 +237,45 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  dismissBtn: {
+  btnRow: {
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'center',
     marginTop: 4,
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: RAGE_COLOR,
-    backgroundColor: RAGE_COLOR + '22',
+    width: '100%',
+  },
+  confirmBtn: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#ef4444',
+    backgroundColor: 'rgba(239,68,68,0.25)',
+    shadowColor: '#ef4444',
+    shadowOpacity: 0.7,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  confirmTxt: {
+    color: '#fca5a5',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  dismissBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   dismissTxt: {
-    color: RAGE_COLOR,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });

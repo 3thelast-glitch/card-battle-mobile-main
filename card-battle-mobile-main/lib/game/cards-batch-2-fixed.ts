@@ -272,6 +272,13 @@ export const CARDS_BATCH_2: Card[] = [
     tags: ["sword"],
     rarity: 'common', stars: 1,
     animationPreset: 'ice',
+    rageMode: {
+      enabled: true,
+      rageNameAr: 'عيون الشينيغامي',
+      rageAttackBoost: 10,
+      rageDefenseBoost: 8,
+      oncePer: 'match',
+    },
   },
   {
     id: 'l_lawliet',
