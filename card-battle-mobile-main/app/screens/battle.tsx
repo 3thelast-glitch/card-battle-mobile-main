@@ -715,11 +715,7 @@ export default function BattleScreen() {
     // winner === 'bot' يعني اللاعب خسر الجولة → كرته قد يدخل Rage
     if (lastRoundResult.winner === 'bot') {
       const losingCard = lastRoundResult.playerCard;
-      // تحقق مباشرة من وجود إعداد الغضب في الكرت بدون الاعتماد على shouldTriggerRage فقط
-      const hasRageConfig =
-        (losingCard as any)?.rageMode?.enabled === true ||
-        (losingCard as any)?.rage?.enabled === true ||
-        shouldTriggerRage(losingCard, rageState.current);
+      const hasRageConfig = shouldTriggerRage(losingCard, rageState.current);
 
       if (hasRageConfig) {
         const rageCard = applyRageToCard(losingCard, rageState.current);
@@ -751,12 +747,7 @@ export default function BattleScreen() {
       hapticImpact(Haptics.ImpactFeedbackStyle.Light);
       // 🔥 Rage Mode: إذا خسر اللاعب وكرته لديه Rage، لا تتقدم تلقائياً
       const playerLost = lastRoundResult.winner === 'bot';
-      const playerCardHasRage =
-        playerLost && (
-          (lastRoundResult.playerCard as any)?.rageMode?.enabled === true ||
-          (lastRoundResult.playerCard as any)?.rage?.enabled === true ||
-          shouldTriggerRage(lastRoundResult.playerCard, rageState.current)
-        );
+      const playerCardHasRage = playerLost && shouldTriggerRage(lastRoundResult.playerCard, rageState.current);
 
       if (playerCardHasRage) {
         // أوقف التقدم التلقائي — اللاعب يحتاج يضغط زر الغضب أو التالي
