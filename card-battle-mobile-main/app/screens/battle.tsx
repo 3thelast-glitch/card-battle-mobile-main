@@ -422,7 +422,7 @@ export default function BattleScreen() {
   const {
     state, playRound, isGameOver, currentPlayerCard, currentBotCard,
     lastRoundResult, expectedRoundResult, useAbility,
-    resetGame, nextRound, startBattle,
+    resetGame, nextRound, startBattle, setPlayerDeck,
   } = useGame();
 
   const [phase, setPhase] = useState<BattlePhase>('selection');
@@ -441,8 +441,6 @@ export default function BattleScreen() {
   const [activeDamageNumbers, setActiveDamageNumbers] = useState<{ id: string; side: 'player' | 'bot'; value: number; variant: DamageNumberVariant }[]>([]);
   // 🔥 Rage Mode
   const [rageEvent, setRageEvent] = useState<ReturnType<typeof buildRageTriggerEvent> | null>(null);
-  const [pendingRageData, setPendingRageData] = useState<{ losingCard: any; rageCard: any; event: ReturnType<typeof buildRageTriggerEvent> } | null>(null);
-  const [rageRoundResult, setRageRoundResult] = useState<{ winner: 'player' | 'bot' | 'draw'; playerDamage: number; botDamage: number } | null>(null);
   const [rageScoreBonus, setRageScoreBonus] = useState(0); // نقاط إضافية للاعب بعد الغضب
   const rageState = useRef(buildRageState());
 
@@ -537,46 +535,14 @@ export default function BattleScreen() {
     }
   }, [currentPlayerCard, state, useAbility]);
 
-  // 🔥 Rage Mode: إعادة حساب النتيجة بعد تفعيل الغضب
+  // 🔥 Rage Mode: تحديث الكرت الحالي في الملعب قبل الهجوم
   const handleRageActivate = useCallback((rageCard: any) => {
-    if (!lastRoundResult) return;
-    const botCard = lastRoundResult.botCard;
-
-    const rageAtk = rageCard.attack ?? rageCard.atk ?? 0;
-    const rageDef = rageCard.defense ?? rageCard.def ?? 0;
-    const botAtk = botCard?.attack ?? botCard?.atk ?? 0;
-    const botDef = botCard?.defense ?? botCard?.def ?? 0;
-
-    const newPlayerDmg = Math.max(0, rageAtk - botDef);
-    const newBotDmg = Math.max(0, botAtk - rageDef);
-
-    let newWinner: 'player' | 'bot' | 'draw' = 'draw';
-    if (newPlayerDmg > newBotDmg) newWinner = 'player';
-    else if (newBotDmg > newPlayerDmg) newWinner = 'bot';
-    else {
-      if (rageAtk > botAtk) newWinner = 'player';
-      else if (botAtk > rageAtk) newWinner = 'bot';
-    }
-
-    setRageRoundResult({ winner: newWinner, playerDamage: newPlayerDmg, botDamage: newBotDmg });
-
-    setRoundHistory(prev =>
-      prev.map(h =>
-        h.round === lastRoundResult.round
-          ? { ...h, winner: newWinner, rageActivated: true }
-          : h
-      )
-    );
-
-    if (newWinner === 'player') {
-      setRageScoreBonus(prev => prev + 2);
-    } else if (newWinner === 'draw') {
-      setRageScoreBonus(prev => prev + 1);
-    }
-
+    const newDeck = [...state.playerDeck];
+    newDeck[state.currentRound] = rageCard;
+    setPlayerDeck(newDeck);
+    
     setRageEvent(null);
-    setPhase('waiting');
-  }, [lastRoundResult]);
+  }, [state.playerDeck, state.currentRound, setPlayerDeck]);
 
   const handleExecuteAttack = useCallback(() => {
     // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
@@ -597,10 +563,12 @@ export default function BattleScreen() {
   const handleNextRound = useCallback(() => {
     // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
     hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-    setPendingRageData(null); // 🔥 امسح بيانات الغضب
-    setRageRoundResult(null);    // 🔥 امسح نتيجة الغضب للجولة الجديدة
-    if (isGameOver) router.push('/screens/battle-results' as any);
-    else { setPhase('selection'); nextRound(); }
+    if (isGameOver) {
+      router.push('/screens/battle-results' as any);
+    } else {
+      setPhase('selection');
+      nextRound();
+    }
   }, [isGameOver, router, nextRound, hapticImpact]);
 
   const handleConfirmPrediction = useCallback(() => {
@@ -711,24 +679,6 @@ export default function BattleScreen() {
       return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
     });
 
-    // 🔥 Rage Mode: يُفعَّل فقط عند خسارة كرت اللاعب
-    // winner === 'bot' يعني اللاعب خسر الجولة → كرته قد يدخل Rage
-    if (lastRoundResult.winner === 'bot') {
-      const losingCard = lastRoundResult.playerCard;
-      const hasRageConfig = shouldTriggerRage(losingCard, rageState.current);
-
-      if (hasRageConfig) {
-        const rageCard = applyRageToCard(losingCard, rageState.current);
-        const event = buildRageTriggerEvent(losingCard, rageCard);
-        setPendingRageData({ losingCard, rageCard, event });
-      } else {
-        setPendingRageData(null);
-      }
-    } else {
-      // اللاعب فاز أو تعادل — لا يوجد Rage
-      setPendingRageData(null);
-    }
-
     // ✅ Step 3: إظهار أرقام الضرر فقط إذا كان الإعداد مفعّلاً
     if (settings.showDamageNumbers) {
       if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
@@ -745,17 +695,8 @@ export default function BattleScreen() {
     } else {
       // ✅ Step 2
       hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-      // 🔥 Rage Mode: إذا خسر اللاعب وكرته لديه Rage، لا تتقدم تلقائياً
-      const playerLost = lastRoundResult.winner === 'bot';
-      const playerCardHasRage = playerLost && shouldTriggerRage(lastRoundResult.playerCard, rageState.current);
-
-      if (playerCardHasRage) {
-        // أوقف التقدم التلقائي — اللاعب يحتاج يضغط زر الغضب أو التالي
-        setPhase('waiting');
-      } else {
-        // ✅ Step 4: استخدام BATTLE_TIMINGS.autoNextRound بدل 1200
-        setTimeout(() => { setPhase('selection'); nextRound(); }, BATTLE_TIMINGS.autoNextRound);
-      }
+      // ✅ Step 4: استخدام BATTLE_TIMINGS.autoNextRound بدل 1200
+      setTimeout(() => { setPhase('selection'); nextRound(); }, BATTLE_TIMINGS.autoNextRound);
     }
   }, [phase, lastRoundResult, editMode, isGameOver, settings.showDamageNumbers]);
 
@@ -774,6 +715,9 @@ export default function BattleScreen() {
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
   const playerWonThisRound = !!lastRoundResult && lastRoundResult.winner === 'player';
   const maxScore = state.totalRounds;
+
+  const isExpectedLoss = expectedRoundResult?.winner === 'bot';
+  const canRageNow = isExpectedLoss && !!currentPlayerCard && shouldTriggerRage(currentPlayerCard, rageState.current);
 
   const CHOICE_ABILITIES = ['Propaganda', 'AddElement', 'SwapClass', 'Dilemma', 'Recall', 'Revive', 'Arise', 'Disaster', 'Merge', 'Sniping', 'Subhan'];
   const DIRECT_ABILITIES = ['CancelAbility', 'Trap', 'DoubleOrNothing', 'Sacrifice', 'Pool', 'Skip'];
@@ -910,11 +854,11 @@ export default function BattleScreen() {
 
                   {(phase === 'result' || phase === 'waiting') && lastRoundResult && (
                     <View style={[S.resultBadge, {
-                      borderColor: (rageRoundResult ?? lastRoundResult).winner === 'player' ? '#4ade80' : (rageRoundResult ?? lastRoundResult).winner === 'bot' ? '#f87171' : '#fbbf24',
-                      backgroundColor: (rageRoundResult ?? lastRoundResult).winner === 'player' ? 'rgba(74,222,128,0.12)' : (rageRoundResult ?? lastRoundResult).winner === 'bot' ? 'rgba(248,113,113,0.12)' : 'rgba(251,191,36,0.12)',
+                      borderColor: lastRoundResult.winner === 'player' ? '#4ade80' : lastRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24',
+                      backgroundColor: lastRoundResult.winner === 'player' ? 'rgba(74,222,128,0.12)' : lastRoundResult.winner === 'bot' ? 'rgba(248,113,113,0.12)' : 'rgba(251,191,36,0.12)',
                     }]}>
-                      <Text style={[S.resultBadgeText, { color: (rageRoundResult ?? lastRoundResult).winner === 'player' ? '#4ade80' : (rageRoundResult ?? lastRoundResult).winner === 'bot' ? '#f87171' : '#fbbf24' }]}>
-                        {(rageRoundResult ?? lastRoundResult).winner === 'player' ? '🏆 فزت! 😡🔥' : (rageRoundResult ?? lastRoundResult).winner === 'bot' ? '💀 خسرت' : '🤝 تعادل'}{rageRoundResult ? ' (بعد الغضب)' : ''}
+                      <Text style={[S.resultBadgeText, { color: lastRoundResult.winner === 'player' ? '#4ade80' : lastRoundResult.winner === 'bot' ? '#f87171' : '#fbbf24' }]}>
+                        {lastRoundResult.winner === 'player' ? '🏆 فزت! 🔥' : lastRoundResult.winner === 'bot' ? '💀 خسرت' : '🤝 تعادل'}
                       </Text>
                     </View>
                   )}
@@ -943,11 +887,16 @@ export default function BattleScreen() {
                       <Text style={S.ctaBtnIcon}>⚡</Text><Text style={S.ctaBtnText}>قدرات</Text>
                     </TouchableOpacity>
 
-                    {/* 🔥 زر الغضب — يظهر تحت القدرات عند تحقق الشرط */}
-                    {pendingRageData && (
+                    {/* 🔥 زر الغضب — قرار استراتيجي بناءً على التوقع */}
+                    {canRageNow && phase === 'action' && (
                       <TouchableOpacity
                         style={[S.ctaBtn, S.ctaBtnRage]}
-                        onPress={() => { setRageEvent(pendingRageData.event); setPendingRageData(null); }}
+                        onPress={() => {
+                          if (!currentPlayerCard) return;
+                          const rageCard = applyRageToCard(currentPlayerCard, rageState.current);
+                          const event = buildRageTriggerEvent(currentPlayerCard, rageCard);
+                          setRageEvent(event);
+                        }}
                         activeOpacity={0.85}
                       >
                         <Text style={S.ctaBtnIcon}>😡</Text>
