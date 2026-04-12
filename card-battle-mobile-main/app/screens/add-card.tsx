@@ -1,5 +1,6 @@
 /**
  * add-card.tsx — تخطيط عمودين: شكل الكارت يسار + الحقول يمين
+ * ✨ قسم الأيقونات: تعديل element / race / cardClass / tags مع إمكانية الإلغاء
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -12,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { saveCustomCard, generateCardCode } from '@/lib/game/custom-cards-store';
 import { saveImage } from '@/lib/game/image-storage';
-import { Card, CardRarity, Race, CardClass, Element, Tag } from '@/lib/game/types';
+import { Card, CardRarity, Race, CardClass, Element, Tag, ELEMENT_EMOJI, ELEMENT_COLORS, RACE_EMOJI, CLASS_EMOJI } from '@/lib/game/types';
 import { CARD_EDITS_KEY } from '@/app/screens/cards-gallery';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,9 @@ const ELEMENT_AR: Record<Element, string> = {
 const TAG_AR: Record<Tag, string> = {
   sword: 'سيف', shield: 'درع', magic: 'سحر', bow: 'قوس', crown: 'تاج',
 };
+const TAG_ICONS: Record<Tag, string> = {
+  sword: '⚔️', shield: '🛡️', magic: '✨', bow: '🏹', crown: '👑',
+};
 
 const RARITIES: { value: CardRarity; label: string; color: string }[] = [
   { value: 'common',    label: 'عادي',   color: '#6366f1' },
@@ -47,15 +51,22 @@ const RARITY_STARS: Record<CardRarity, number> = {
 const RACES:    Race[]      = ['human','elf','orc','dragon','demon','undead','monster','robot'];
 const CLASSES:  CardClass[] = ['warrior','knight','mage','archer','berserker','paladin'];
 const ELEMENTS: Element[]   = ['fire','ice','water','earth','lightning','wind'];
-const ELEMENT_COLORS: Record<Element, string> = {
+const EL_COLORS: Record<Element, string> = {
   fire: '#ef4444', ice: '#38bdf8', water: '#3b82f6',
   earth: '#a3e635', lightning: '#facc15', wind: '#a78bfa',
+};
+const RACE_COLORS: Record<Race, string> = {
+  human:'#FCD34D', elf:'#34D399', orc:'#FB923C', dragon:'#F87171',
+  demon:'#EF4444', undead:'#94A3B8', monster:'#A78BFA', robot:'#67E8F9',
+};
+const CLASS_COLORS: Record<CardClass, string> = {
+  warrior:'#F87171', knight:'#60A5FA', mage:'#C084FC',
+  archer:'#4ADE80', berserker:'#FB923C', paladin:'#FBBF24',
 };
 const TAGS: Tag[] = ['sword','shield','magic','bow','crown'];
 
 const defaultForm = { nameAr: '', nameEn: '', attack: '18', defense: '16', specialAbility: '' };
 
-/** تحويل الاسم الإنجليزي إلى id آمن */
 function nameToId(name: string): string {
   return name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 }
@@ -86,7 +97,39 @@ const Chip = ({ label, selected, color, onPress }: {
   </TouchableOpacity>
 );
 
-// ─ معاينة الكارت ───────────────────────────────────────────────────
+// ─ IconChip — أيقونة كبيرة قابلة للتحديد والإلغاء ─────────────
+const IconChip = ({ icon, label, selected, color, onPress, onClear }: {
+  icon: string; label: string; selected: boolean; color: string;
+  onPress: () => void; onClear?: () => void;
+}) => (
+  <View style={IC.wrapper}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        IC.btn,
+        selected && { borderColor: color, backgroundColor: color + '20' },
+      ]}
+    >
+      <Text style={IC.icon}>{icon}</Text>
+      <Text style={[IC.lbl, selected && { color }]}>{label}</Text>
+    </TouchableOpacity>
+    {selected && onClear && (
+      <TouchableOpacity style={IC.clearBtn} onPress={onClear}>
+        <Text style={IC.clearTxt}>✕</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+const IC = StyleSheet.create({
+  wrapper:  { position: 'relative', margin: 3 },
+  btn:      { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', minWidth: 52 },
+  icon:     { fontSize: 18, textAlign: 'center' },
+  lbl:      { fontSize: 10, color: '#6B7280', fontWeight: '700', marginTop: 2, textAlign: 'center' },
+  clearBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 8, width: 16, height: 16, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  clearTxt: { color: '#fff', fontSize: 9, fontWeight: '900', lineHeight: 16 },
+});
+
+// ─ معاينة الكارت ─────────────────────────────────────────────
 function CardPreview({ card, mediaB64, isVideo }: { card: Partial<Card>; mediaB64?: string; isVideo: boolean }) {
   const previewCard: Card = {
     id: 'preview',
@@ -105,32 +148,29 @@ function CardPreview({ card, mediaB64, isVideo }: { card: Partial<Card>; mediaB6
     customImage: mediaB64,
     isVideo,
   } as any;
-
   return (
     <View style={S.previewWrap} pointerEvents="none">
-      <LuxuryCharacterCardAnimated
-        card={previewCard}
-        imageOffsetY={0}
-        fitInsideBorder={false}
-        style={{ width: 170, height: 240 }}
-      />
+      <LuxuryCharacterCardAnimated card={previewCard} imageOffsetY={0} fitInsideBorder={false} style={{ width: 170, height: 240 }} />
     </View>
   );
 }
 
-// ─ Main ──────────────────────────────────────────────────────────────
+// ─ Main ──────────────────────────────────────────────────────
 export default function AddCardScreen() {
-  const router   = useRouter();
-  const [form, setForm]       = useState(defaultForm);
-  const [rarity,  setRarity]  = useState<CardRarity>('common');
-  const [race,    setRace]    = useState<Race>('human');
-  const [cls,     setCls]     = useState<CardClass>('warrior');
-  const [element, setElement] = useState<Element>('fire');
-  const [tags,    setTags]    = useState<Tag[]>(['sword']);
+  const router = useRouter();
+  const [form,     setForm]     = useState(defaultForm);
+  const [rarity,   setRarity]   = useState<CardRarity>('common');
+  const [race,     setRace]     = useState<Race>('human');
+  const [cls,      setCls]      = useState<CardClass>('warrior');
+  const [element,  setElement]  = useState<Element>('fire');
+  const [tags,     setTags]     = useState<Tag[]>(['sword']);
   const [mediaB64, setMediaB64] = useState<string | undefined>();
   const [isVideo,  setIsVideo]  = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // قسم الأيقونات — هل هو مفتوح؟
+  const [iconsOpen, setIconsOpen] = useState(false);
 
   const rarityColor = RARITIES.find(r => r.value === rarity)?.color ?? '#FFD700';
   const stars       = RARITY_STARS[rarity];
@@ -147,15 +187,14 @@ export default function AddCardScreen() {
     if (!form.nameEn.trim()) { Alert.alert('أدخل الاسم الإنجليزي'); return; }
     setSaving(true);
     try {
-      // ⭐ id = الاسم الإنجليزي (مسافات تصبح underscore)
       const id = nameToId(form.nameEn);
       const card: Card = {
         id,
         name:    form.nameEn.trim(),
         nameAr:  form.nameAr.trim(),
-        attack:  Math.max(1, Math.min(99, parseInt(form.attack)  || 18)),
-        defense: Math.max(1, Math.min(99, parseInt(form.defense) || 16)),
-        hp:      Math.max(1, Math.min(99, parseInt(form.defense) || 16)),
+        attack:  Math.max(1,Math.min(99,parseInt(form.attack)||18)),
+        defense: Math.max(1,Math.min(99,parseInt(form.defense)||16)),
+        hp:      Math.max(1,Math.min(99,parseInt(form.defense)||16)),
         race, cardClass: cls, element,
         tags: tags.length ? tags : ['sword'],
         rarity, stars,
@@ -164,7 +203,7 @@ export default function AddCardScreen() {
       await saveCustomCard(card);
       if (mediaB64) await saveImage(`card_img_${id}`, mediaB64);
       const rawEdits = await AsyncStorage.getItem(CARD_EDITS_KEY);
-      const editsMap: Record<string, any> = rawEdits ? JSON.parse(rawEdits) : {};
+      const editsMap: Record<string,any> = rawEdits ? JSON.parse(rawEdits) : {};
       editsMap[id] = {
         nameAr: card.nameAr, stars, rarity,
         attack: card.attack, defense: card.defense,
@@ -184,22 +223,22 @@ export default function AddCardScreen() {
     Alert.alert('✅ تم النسخ');
   };
 
-  // ── شاشة الكود الناتج ─────────────────────────────────────────
+  // ── شاشة الكود ────────────────────────────────────────────────
   if (generatedCode) {
     return (
       <SafeAreaView style={S.root}>
         <LinearGradient colors={['#060610','#0f172a']} style={StyleSheet.absoluteFill} />
         <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
-          <Text style={[S.pageTitle, { marginBottom: 6 }]}>✅ تم حفظ الكارت!</Text>
+          <Text style={[S.pageTitle,{marginBottom:6}]}>✅ تم حفظ الكارت!</Text>
           <Text style={S.subtitle}>الكارت يظهر في المعرض.{`\n`}كود TypeScript جاهز للصق في cards-batch:</Text>
           <View style={S.codeBox}><Text style={S.codeTxt} selectable>{generatedCode}</Text></View>
-          <TouchableOpacity style={[S.btnFull, { backgroundColor: '#1d4ed8' }]} onPress={copyCode}>
+          <TouchableOpacity style={[S.btnFull,{backgroundColor:'#1d4ed8'}]} onPress={copyCode}>
             <Text style={S.btnFullTxt}>📋 نسخ الكود</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={S.btnOutline} onPress={() => { setGeneratedCode(null); setForm(defaultForm); setMediaB64(undefined); }}>
+          <TouchableOpacity style={S.btnOutline} onPress={()=>{ setGeneratedCode(null); setForm(defaultForm); setMediaB64(undefined); }}>
             <Text style={S.btnOutlineTxt}>➕ إضافة كارت آخر</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[S.btnOutline, { marginTop: 8 }]} onPress={() => router.back()}>
+          <TouchableOpacity style={[S.btnOutline,{marginTop:8}]} onPress={()=>router.back()}>
             <Text style={S.btnOutlineTxt}>🔙 رجوع للمعرض</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -207,146 +246,185 @@ export default function AddCardScreen() {
     );
   }
 
-  // ── شاشة الإدخال ──────────────────────────────────────────
+  // ── شاشة الإدخال ──────────────────────────────────────────────
   const previewCardData: Partial<Card> = {
-    nameAr:    form.nameAr   || 'كارت جديد',
-    name:      form.nameEn   || 'New Card',
-    attack:    parseInt(form.attack)  || 18,
-    defense:   parseInt(form.defense) || 16,
-    race, cardClass: cls, element,
-    tags, rarity, stars,
+    nameAr:  form.nameAr  || 'كارت جديد',
+    name:    form.nameEn  || 'New Card',
+    attack:  parseInt(form.attack)  || 18,
+    defense: parseInt(form.defense) || 16,
+    race, cardClass: cls, element, tags, rarity, stars,
     specialAbility: form.specialAbility || undefined,
   };
+
+  // ملخص الأيقونات الحالية للعرض في رأس القسم
+  const iconsPreview = [
+    ELEMENT_EMOJI[element],
+    RACE_EMOJI[race],
+    CLASS_EMOJI[cls],
+    tags[0] ? TAG_ICONS[tags[0]] : null,
+  ].filter(Boolean).join('  ');
 
   return (
     <SafeAreaView style={S.root}>
       <LinearGradient colors={['#060610','#0f172a']} style={StyleSheet.absoluteFill} />
 
-      {/* ─ شريط العنوان */}
       <View style={S.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
+        <TouchableOpacity onPress={()=>router.back()} style={S.backBtn}>
           <Text style={S.backTxt}>← رجوع</Text>
         </TouchableOpacity>
         <Text style={S.pageTitle}>➕ كارت جديد</Text>
-        <View style={{ width: 60 }} />
+        <View style={{width:60}} />
       </View>
 
-      {/* ─ تخطيط عمودين */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
         <View style={S.columns}>
 
-          {/* ── عمود الكارت (يسار) */}
+          {/* ── عمود الكارت */}
           <View style={S.leftCol}>
-            <CardPreview card={previewCardData} mediaB64={mediaB64} isVideo={isVideo ?? false} />
-
-            {/* صورة / فيديو */}
+            <CardPreview card={previewCardData} mediaB64={mediaB64} isVideo={isVideo??false} />
             <View style={S.mediaButtons}>
-              <TouchableOpacity style={[S.mediaBtnSmall, { borderColor: rarityColor + '88' }]}
-                onPress={() => handlePickMedia('image/*')}>
-                <Text style={[S.mediaBtnTxt, { color: rarityColor }]}>🖼️ صورة</Text>
+              <TouchableOpacity style={[S.mediaBtnSmall,{borderColor:rarityColor+'88'}]} onPress={()=>handlePickMedia('image/*')}>
+                <Text style={[S.mediaBtnTxt,{color:rarityColor}]}>🖼️ صورة</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[S.mediaBtnSmall, { borderColor: '#a78bfa88' }]}
-                onPress={() => handlePickMedia('video/mp4,video/webm,video/*')}>
-                <Text style={[S.mediaBtnTxt, { color: '#a78bfa' }]}>🎦 فيديو</Text>
+              <TouchableOpacity style={[S.mediaBtnSmall,{borderColor:'#a78bfa88'}]} onPress={()=>handlePickMedia('video/mp4,video/webm,video/*')}>
+                <Text style={[S.mediaBtnTxt,{color:'#a78bfa'}]}>🎦 فيديو</Text>
               </TouchableOpacity>
             </View>
             {mediaB64 && (
-              <TouchableOpacity style={S.removeMedia} onPress={() => { setMediaB64(undefined); setIsVideo(false); }}>
-                <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '700' }}>✕ حذف الوسيط</Text>
+              <TouchableOpacity style={S.removeMedia} onPress={()=>{ setMediaB64(undefined); setIsVideo(false); }}>
+                <Text style={{color:'#f87171',fontSize:11,fontWeight:'700'}}>✕ حذف الوسيط</Text>
               </TouchableOpacity>
             )}
-
-            {/* الندرة */}
             <Text style={S.secLabel}>الندرة</Text>
             <View style={S.chipCol}>
-              {RARITIES.map(r => (
-                <Chip key={r.value} label={r.label} selected={rarity === r.value}
-                  color={r.color} onPress={() => setRarity(r.value)} />
+              {RARITIES.map(r=>(
+                <Chip key={r.value} label={r.label} selected={rarity===r.value} color={r.color} onPress={()=>setRarity(r.value)} />
               ))}
             </View>
           </View>
 
-          {/* ── عمود الحقول (يمين) */}
-          <ScrollView style={S.rightCol} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* ── عمود الحقول */}
+          <ScrollView style={S.rightCol} contentContainerStyle={{paddingBottom:100}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-            {/* الأسماء */}
             <Text style={S.secLabel}>الاسم بالعربي *</Text>
-            <TextInput style={[S.input, { borderColor: rarityColor + '55' }]}
+            <TextInput style={[S.input,{borderColor:rarityColor+'55'}]}
               placeholder="مثال: ناروتو" placeholderTextColor="#444"
-              value={form.nameAr} onChangeText={t => setForm(f => ({ ...f, nameAr: t }))}
+              value={form.nameAr} onChangeText={t=>setForm(f=>({...f,nameAr:t}))}
               textAlign="right" />
 
             <Text style={S.secLabel}>الاسم بالإنجليزي *</Text>
-            <TextInput style={[S.input, { borderColor: '#37415155' }]}
+            <TextInput style={[S.input,{borderColor:'#37415155'}]}
               placeholder="Naruto" placeholderTextColor="#444"
-              value={form.nameEn} onChangeText={t => setForm(f => ({ ...f, nameEn: t }))} />
+              value={form.nameEn} onChangeText={t=>setForm(f=>({...f,nameEn:t}))} />
 
-            {/* الإحصائيات */}
-            <Text style={S.secLabel}>الإحصائيات</Text>
+            <Text style={S.secLabel}>الطاقات</Text>
             <View style={S.statsRow}>
               {([
-                { label: '⚔️ هجوم', key: 'attack', color: '#f87171' },
-                { label: '🛡️ دفاع', key: 'defense', color: '#60a5fa' },
-              ] as const).map(({ label, key, color }) => (
+                {label:'⚔️ هجوم',key:'attack',color:'#f87171'},
+                {label:'🛡️ دفاع',key:'defense',color:'#60a5fa'},
+              ] as const).map(({label,key,color})=>(
                 <View key={key} style={S.statBox}>
-                  <Text style={[S.statLbl, { color }]}>{label}</Text>
+                  <Text style={[S.statLbl,{color}]}>{label}</Text>
                   <TextInput
-                    style={[S.statInput, { borderColor: color + '55', color }]}
+                    style={[S.statInput,{borderColor:color+'55',color}]}
                     keyboardType="number-pad" maxLength={2}
                     value={form[key]}
-                    onChangeText={t => setForm(f => ({ ...f, [key]: t }))}
+                    onChangeText={t=>setForm(f=>({...f,[key]:t}))}
                     textAlign="center" />
                 </View>
               ))}
             </View>
 
-            {/* العنصر */}
-            <Text style={S.secLabel}>العنصر</Text>
-            <View style={S.chipRow}>
-              {ELEMENTS.map(e => (
-                <Chip key={e} label={ELEMENT_AR[e]} selected={element === e}
-                  color={ELEMENT_COLORS[e]} onPress={() => setElement(e)} />
-              ))}
-            </View>
+            {/* ✨ قسم الأيقونات — قابل للطي */}
+            <TouchableOpacity
+              style={S.iconsSectionHeader}
+              onPress={()=>setIconsOpen(v=>!v)}
+              activeOpacity={0.75}
+            >
+              <Text style={S.iconsSectionTitle}>🎨 الأيقونات</Text>
+              <Text style={S.iconsPreviewTxt}>{iconsPreview}</Text>
+              <Text style={S.iconsChevron}>{iconsOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
 
-            {/* الجنس */}
-            <Text style={S.secLabel}>الجنس</Text>
-            <View style={S.chipRow}>
-              {RACES.map(r => (
-                <Chip key={r} label={RACE_AR[r]} selected={race === r} onPress={() => setRace(r)} />
-              ))}
-            </View>
+            {iconsOpen && (
+              <View style={S.iconsBody}>
 
-            {/* الفئة */}
-            <Text style={S.secLabel}>الفئة</Text>
-            <View style={S.chipRow}>
-              {CLASSES.map(c => (
-                <Chip key={c} label={CLASS_AR[c]} selected={cls === c} onPress={() => setCls(c)} />
-              ))}
-            </View>
+                {/* العنصر */}
+                <Text style={S.secLabel}>العنصر</Text>
+                <View style={S.iconRow}>
+                  {ELEMENTS.map(e=>(
+                    <IconChip
+                      key={e}
+                      icon={ELEMENT_EMOJI[e]}
+                      label={ELEMENT_AR[e]}
+                      selected={element===e}
+                      color={EL_COLORS[e]}
+                      onPress={()=>setElement(e)}
+                    />
+                  ))}
+                </View>
 
-            {/* التاغات */}
-            <Text style={S.secLabel}>التاغ</Text>
-            <View style={S.chipRow}>
-              {TAGS.map(t => (
-                <Chip key={t} label={TAG_AR[t]} selected={tags.includes(t)} onPress={() => toggleTag(t)} />
-              ))}
-            </View>
+                {/* الجنس / الجنس */}
+                <Text style={S.secLabel}>الجنس (race)</Text>
+                <View style={S.iconRow}>
+                  {RACES.map(r=>(
+                    <IconChip
+                      key={r}
+                      icon={RACE_EMOJI[r]}
+                      label={RACE_AR[r]}
+                      selected={race===r}
+                      color={RACE_COLORS[r]}
+                      onPress={()=>setRace(r)}
+                    />
+                  ))}
+                </View>
 
-            {/* القدرة الخاصة */}
+                {/* الفئة */}
+                <Text style={S.secLabel}>الفئة</Text>
+                <View style={S.iconRow}>
+                  {CLASSES.map(c=>(
+                    <IconChip
+                      key={c}
+                      icon={CLASS_EMOJI[c]}
+                      label={CLASS_AR[c]}
+                      selected={cls===c}
+                      color={CLASS_COLORS[c]}
+                      onPress={()=>setCls(c)}
+                    />
+                  ))}
+                </View>
+
+                {/* التاغات */}
+                <Text style={S.secLabel}>التاغ</Text>
+                <View style={S.iconRow}>
+                  {TAGS.map(t=>(
+                    <IconChip
+                      key={t}
+                      icon={TAG_ICONS[t]}
+                      label={TAG_AR[t]}
+                      selected={tags.includes(t)}
+                      color='#CBD5E1'
+                      onPress={()=>toggleTag(t)}
+                      onClear={()=>setTags(prev=>prev.filter(x=>x!==t))}
+                    />
+                  ))}
+                </View>
+
+              </View>
+            )}
+
             <Text style={S.secLabel}>القدرة الخاصة (اختياري)</Text>
             <TextInput
-              style={[S.input, S.multiline, { borderColor: rarityColor + '33' }]}
+              style={[S.input,S.multiline,{borderColor:rarityColor+'33'}]}
               placeholder="اكتب وصف القدرة..." placeholderTextColor="#444"
               multiline value={form.specialAbility}
-              onChangeText={t => setForm(f => ({ ...f, specialAbility: t }))}
+              onChangeText={t=>setForm(f=>({...f,specialAbility:t}))}
               textAlign="right" />
 
-            {/* زر الحفظ */}
             <TouchableOpacity
-              style={[S.saveBtn, { backgroundColor: rarityColor, opacity: saving ? 0.6 : 1 }]}
+              style={[S.saveBtn,{backgroundColor:rarityColor,opacity:saving?0.6:1}]}
               onPress={handleSave} disabled={saving}>
-              <Text style={S.saveBtnTxt}>{saving ? 'جاري الحفظ...' : '💾 حفظ الكارت'}</Text>
+              <Text style={S.saveBtnTxt}>{saving?'جاري الحفظ...':'💾 حفظ الكارت'}</Text>
             </TouchableOpacity>
 
           </ScrollView>
@@ -357,45 +435,53 @@ export default function AddCardScreen() {
 }
 
 const S = StyleSheet.create({
-  root:          { flex: 1, backgroundColor: '#060610' },
-  topBar:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  backBtn:       { width: 60 },
-  backTxt:       { color: '#6B7280', fontSize: 13, fontWeight: '700' },
-  pageTitle:     { color: '#FFD700', fontSize: 18, fontWeight: '900', textAlign: 'center', flex: 1 },
-  subtitle:      { color: '#6B7280', fontSize: 12, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
+  root:          { flex:1, backgroundColor:'#060610' },
+  topBar:        { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:16, paddingVertical:12, borderBottomWidth:1, borderBottomColor:'rgba(255,255,255,0.06)' },
+  backBtn:       { width:60 },
+  backTxt:       { color:'#6B7280', fontSize:13, fontWeight:'700' },
+  pageTitle:     { color:'#FFD700', fontSize:18, fontWeight:'900', textAlign:'center', flex:1 },
+  subtitle:      { color:'#6B7280', fontSize:12, textAlign:'center', lineHeight:20, marginBottom:16 },
 
-  columns:       { flex: 1, flexDirection: 'row' },
-  leftCol:       { width: 200, paddingHorizontal: 12, paddingTop: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
-  rightCol:      { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
+  columns:       { flex:1, flexDirection:'row' },
+  leftCol:       { width:200, paddingHorizontal:12, paddingTop:16, alignItems:'center', borderRightWidth:1, borderRightColor:'rgba(255,255,255,0.06)' },
+  rightCol:      { flex:1, paddingHorizontal:14, paddingTop:12 },
 
-  previewWrap:   { marginBottom: 12 },
-  mediaButtons:  { flexDirection: 'row', gap: 6, marginBottom: 6 },
-  mediaBtnSmall: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
-  mediaBtnTxt:   { fontSize: 12, fontWeight: '700' },
-  removeMedia:   { alignSelf: 'center', paddingVertical: 4, marginBottom: 8 },
+  previewWrap:   { marginBottom:12 },
+  mediaButtons:  { flexDirection:'row', gap:6, marginBottom:6 },
+  mediaBtnSmall: { flex:1, paddingVertical:7, borderRadius:10, borderWidth:1.5, alignItems:'center', backgroundColor:'rgba(255,255,255,0.04)' },
+  mediaBtnTxt:   { fontSize:12, fontWeight:'700' },
+  removeMedia:   { alignSelf:'center', paddingVertical:4, marginBottom:8 },
 
-  chipCol:       { flexDirection: 'column', gap: 5, width: '100%' },
+  chipCol:       { flexDirection:'column', gap:5, width:'100%' },
 
-  secLabel:      { color: '#9CA3AF', fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 5, textAlign: 'right' },
-  input:         { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 2 },
-  multiline:     { minHeight: 64, textAlignVertical: 'top' },
+  secLabel:      { color:'#9CA3AF', fontSize:11, fontWeight:'700', marginTop:14, marginBottom:5, textAlign:'right' },
+  input:         { backgroundColor:'rgba(255,255,255,0.05)', borderWidth:1, borderRadius:10, color:'#fff', fontSize:14, paddingHorizontal:12, paddingVertical:9, marginBottom:2 },
+  multiline:     { minHeight:64, textAlignVertical:'top' },
 
-  statsRow:      { flexDirection: 'row', gap: 10 },
-  statBox:       { flex: 1, alignItems: 'center' },
-  statLbl:       { fontSize: 12, fontWeight: '700', marginBottom: 4 },
-  statInput:     { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 8, fontSize: 22, fontWeight: '900', paddingVertical: 8, width: '100%' },
+  statsRow:      { flexDirection:'row', gap:10 },
+  statBox:       { flex:1, alignItems:'center' },
+  statLbl:       { fontSize:12, fontWeight:'700', marginBottom:4 },
+  statInput:     { backgroundColor:'rgba(255,255,255,0.05)', borderWidth:1, borderRadius:8, fontSize:22, fontWeight:'900', paddingVertical:8, width:'100%' },
 
-  chipRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
-  chip:          { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)' },
-  chipTxt:       { color: '#6B7280', fontSize: 12, fontWeight: '700' },
+  chipRow:       { flexDirection:'row', flexWrap:'wrap', gap:6, marginBottom:2 },
+  chip:          { paddingHorizontal:11, paddingVertical:5, borderRadius:20, borderWidth:1.5, borderColor:'#2D3748', backgroundColor:'rgba(255,255,255,0.03)' },
+  chipTxt:       { color:'#6B7280', fontSize:12, fontWeight:'700' },
 
-  saveBtn:       { marginTop: 20, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  saveBtnTxt:    { color: '#fff', fontWeight: '900', fontSize: 15 },
+  // ✨ Icons section
+  iconsSectionHeader: { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginTop:14, paddingVertical:10, paddingHorizontal:12, borderRadius:12, borderWidth:1, borderColor:'rgba(255,255,255,0.1)', backgroundColor:'rgba(255,255,255,0.04)' },
+  iconsSectionTitle:  { color:'#E2E8F0', fontSize:13, fontWeight:'800' },
+  iconsPreviewTxt:    { flex:1, textAlign:'center', fontSize:16, letterSpacing:4 },
+  iconsChevron:       { color:'#6B7280', fontSize:12, fontWeight:'700' },
+  iconsBody:          { paddingTop:4, paddingBottom:8 },
+  iconRow:            { flexDirection:'row', flexWrap:'wrap', marginBottom:4 },
 
-  codeBox:       { backgroundColor: '#0d1117', borderRadius: 10, padding: 16, marginVertical: 16, borderWidth: 1, borderColor: '#1F2937' },
-  codeTxt:       { color: '#7DD3FC', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', lineHeight: 20 },
-  btnFull:       { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginBottom: 10 },
-  btnFullTxt:    { color: '#fff', fontWeight: '800', fontSize: 15 },
-  btnOutline:    { borderRadius: 12, borderWidth: 1.5, borderColor: '#374151', paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
-  btnOutlineTxt: { color: '#9CA3AF', fontWeight: '700', fontSize: 14 },
+  saveBtn:       { marginTop:20, borderRadius:12, paddingVertical:14, alignItems:'center' },
+  saveBtnTxt:    { color:'#fff', fontWeight:'900', fontSize:15 },
+
+  codeBox:       { backgroundColor:'#0d1117', borderRadius:10, padding:16, marginVertical:16, borderWidth:1, borderColor:'#1F2937' },
+  codeTxt:       { color:'#7DD3FC', fontSize:12, fontFamily:Platform.OS==='ios'?'Courier New':'monospace', lineHeight:20 },
+  btnFull:       { borderRadius:12, paddingVertical:13, alignItems:'center', marginBottom:10 },
+  btnFullTxt:    { color:'#fff', fontWeight:'800', fontSize:15 },
+  btnOutline:    { borderRadius:12, borderWidth:1.5, borderColor:'#374151', paddingVertical:12, alignItems:'center', marginBottom:8 },
+  btnOutlineTxt: { color:'#9CA3AF', fontWeight:'700', fontSize:14 },
 });
