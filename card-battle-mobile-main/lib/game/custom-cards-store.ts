@@ -8,7 +8,7 @@ import { Card } from './types';
 
 export const CUSTOM_CARDS_KEY = 'custom_cards_v1';
 
-/** حفظ كارت جديد */
+/** حفظ كارت جديد أو تحديث موجود */
 export async function saveCustomCard(card: Card): Promise<void> {
   const existing = await loadCustomCards();
   const updated = [...existing.filter(c => c.id !== card.id), card];
@@ -33,15 +33,12 @@ export async function deleteCustomCard(id: string): Promise<void> {
 
 /** توليد كود TypeScript للكارت — للنسخ إلى cards-batch */
 export function generateCardCode(card: Card): string {
-  const tagsStr = card.tags.map(t => `'${t}'`).join(', ');
+  const tagsStr    = card.tags.map(t => `'${t}'`).join(', ');
   const effectsStr = card.cardEffects?.length
     ? `\n  cardEffects: [${card.cardEffects.map(e => `'${e}'`).join(', ')}],`
     : '';
   const abilityStr = card.specialAbility
     ? `\n  specialAbility: '${card.specialAbility.replace(/'/g, "\\'")}'` + ','
-    : '';
-  const imageStr = card.imageUrl
-    ? `\n  imageUrl: '${card.imageUrl}',`
     : '';
   return `  {
   id: '${card.id}',
@@ -55,6 +52,6 @@ export function generateCardCode(card: Card): string {
   element: '${card.element}',
   tags: [${tagsStr}],
   rarity: '${card.rarity ?? 'common'}',
-  stars: ${card.stars ?? 1},${abilityStr}${imageStr}${effectsStr}
+  stars: ${card.stars ?? 1},${abilityStr}${effectsStr}
 },`;
 }
