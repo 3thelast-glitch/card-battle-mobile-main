@@ -8,7 +8,7 @@
  *   4. Thin elegant rarity-colored border (1px)
  *   5. Top-left sleek badge (stars + Arabic rarity label)
  *   6. Center typography block (Arabic subtitle, English title italic, description box)
- *   7. Bottom corner stat orbs (Attack ⚔️ left, Defense 🛡️ right)
+ *   7. Bottom stat badges — Clean minimal pill style
  *   8. Selected checkmark overlay
  */
 
@@ -44,10 +44,8 @@ export interface EpicCardProps {
     rarity?: 'common' | 'rare' | 'epic' | 'legendary';
     element?: string;
     emoji?: string;
-    /** 1.0 = 350×480, gallery ~0.46, selection ~0.40 */
     scale?: number;
     style?: ViewStyle;
-    /** Whether the card is selected (shows pulsing border) */
     selected?: boolean;
 }
 
@@ -60,13 +58,11 @@ const RARITY = {
     legendary: { stars: 4, color: '#FFD700', glow: '#FCD34D', label: 'أسطوري', borderColor: '#FFD700' },
 } as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function starsString(count: number): string {
     return Array.from({ length: count }, () => '★').join('');
 }
 
-// ─── SVG Overlay (gradient vignette only, no thick borders) ───────────────────
+// ─── SVG Overlay ──────────────────────────────────────────────────────────────
 
 function CardOverlay({ w, h }: { w: number; h: number }) {
     const r = 14;
@@ -88,66 +84,64 @@ function CardOverlay({ w, h }: { w: number; h: number }) {
                     <Stop offset="1" stopColor="#000" stopOpacity="0.95" />
                 </SvgGrad>
             </Defs>
-            {/* Vignette */}
             <Rect x={0} y={0} width={w} height={h} rx={r} ry={r} fill="url(#co_vign)" />
-            {/* Top shadow for badge readability */}
             <Rect x={0} y={0} width={w} height={h * 0.22} rx={r} ry={r} fill="url(#co_top)" />
-            {/* Bottom deep shadow for text area */}
             <Rect x={0} y={h * 0.42} width={w} height={h * 0.58} rx={r} ry={r} fill="url(#co_bot)" />
         </Svg>
     );
 }
 
-// ─── Stat Orb (bottom corner) ─────────────────────────────────────────────────
+// ─── Clean Minimal Stat Badge ─────────────────────────────────────────────────
 
-function StatOrb({
-    value, icon, borderColor, valueColor, scale, position,
+function StatBadge({
+    value, icon, isAttack, scale,
 }: {
     value: number;
     icon: string;
-    borderColor: string;
-    valueColor: string;
+    isAttack: boolean;
     scale: number;
-    position: 'left' | 'right';
 }) {
     const sz = Math.max(scale, 0.4);
-    const orbSize = Math.round(45 * sz);
+    const fs = Math.round(13 * sz);
     return (
         <View
             style={[
-                orbStyles.orb,
+                badgeStyles.badge,
+                isAttack ? badgeStyles.attackBadge : badgeStyles.defenseBadge,
                 {
-                    width: orbSize,
-                    height: orbSize,
-                    borderRadius: Math.round(25 * sz),
-                    borderColor,
                     position: 'absolute',
-                    bottom: Math.round(10 * scale),
-                    [position]: Math.round(10 * scale),
+                    bottom: Math.round(12 * scale),
+                    [isAttack ? 'left' : 'right']: Math.round(12 * scale),
                 },
             ]}
         >
-            <Text style={[orbStyles.icon, { fontSize: Math.round(14 * sz) }]}>{icon}</Text>
-            <Text style={[orbStyles.val, { fontSize: Math.round(14 * sz), color: valueColor }]}>{value}</Text>
+            <Text style={{ fontSize: fs }}>{icon}</Text>
+            <Text style={[badgeStyles.val, { fontSize: fs }, isAttack ? badgeStyles.attackText : badgeStyles.defenseText]}>
+                {value}
+            </Text>
         </View>
     );
 }
 
-const orbStyles = StyleSheet.create({
-    orb: {
-        backgroundColor: 'rgba(10, 10, 10, 0.9)',
-        borderWidth: 1.5,
+const badgeStyles = StyleSheet.create({
+    badge: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 4,
         zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.8,
-        shadowRadius: 6,
-        elevation: 8,
     },
-    icon: {
-        marginBottom: -2,
+    attackBadge: {
+        backgroundColor: 'rgba(20, 12, 0, 0.88)',
+        borderWidth: 1.5,
+        borderColor: '#B8860B',
+    },
+    defenseBadge: {
+        backgroundColor: 'rgba(0, 10, 28, 0.88)',
+        borderWidth: 1.5,
+        borderColor: '#2563EB',
     },
     val: {
         fontWeight: '800',
@@ -155,6 +149,8 @@ const orbStyles = StyleSheet.create({
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 2,
     },
+    attackText: { color: '#FFB830' },
+    defenseText: { color: '#60A5FA' },
 });
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -176,11 +172,9 @@ export function EpicCardTemplate({
     const rCfg = RARITY[rarity] ?? RARITY.common;
     const stars = starsString(rCfg.stars);
     const sz = Math.max(scale, 0.4);
-
     const W = Math.round(350 * scale);
     const H = Math.round(480 * scale);
 
-    // ── Subtle pulsing outer glow ──
     const glowAlpha = useSharedValue(0.3);
     React.useEffect(() => {
         const peak = rarity === 'legendary' ? 0.85
@@ -206,8 +200,7 @@ export function EpicCardTemplate({
         <Animated.View
             style={[
                 {
-                    width: W,
-                    height: H,
+                    width: W, height: H,
                     shadowColor: rCfg.glow,
                     shadowOffset: { width: 0, height: 0 },
                     shadowRadius: rarity === 'legendary' ? 24 : 14,
@@ -217,7 +210,6 @@ export function EpicCardTemplate({
                 style,
             ]}
         >
-            {/* ── Card shell ── */}
             <View
                 style={[
                     s.shell,
@@ -227,7 +219,6 @@ export function EpicCardTemplate({
                     },
                 ]}
             >
-                {/* 1. Full-bleed artwork */}
                 <Image
                     source={imageSrc}
                     style={s.art}
@@ -237,10 +228,9 @@ export function EpicCardTemplate({
                     transition={200}
                 />
 
-                {/* 2. SVG gradient overlays (no thick borders) */}
                 <CardOverlay w={W} h={H} />
 
-                {/* ═══ 3. TOP-LEFT SLEEK BADGE ═══ */}
+                {/* Top-left badge */}
                 <View
                     style={[
                         s.badge,
@@ -251,17 +241,13 @@ export function EpicCardTemplate({
                         },
                     ]}
                 >
-                    <Text
-                        style={[s.badgeText, { fontSize: Math.round(10 * sz), color: rCfg.color }]}
-                        numberOfLines={1}
-                    >
+                    <Text style={[s.badgeText, { fontSize: Math.round(10 * sz), color: rCfg.color }]} numberOfLines={1}>
                         {stars} {rCfg.label}
                     </Text>
                 </View>
 
-                {/* ═══ 4. CENTER TYPOGRAPHY BLOCK ═══ */}
+                {/* Center typography */}
                 <View style={[s.centerBlock, { bottom: Math.round(70 * scale) }]}>
-                    {/* Arabic subtitle (gold, small) */}
                     <Text
                         style={[s.arabicName, { fontSize: Math.round(12 * sz), color: rCfg.color }]}
                         numberOfLines={1}
@@ -270,8 +256,6 @@ export function EpicCardTemplate({
                     >
                         {nameAr}
                     </Text>
-
-                    {/* English main title (large, italic, bold, white) */}
                     <Text
                         style={[s.englishTitle, { fontSize: Math.round(24 * sz) }]}
                         numberOfLines={1}
@@ -280,8 +264,6 @@ export function EpicCardTemplate({
                     >
                         {nameEn}
                     </Text>
-
-                    {/* Frosted glass description box */}
                     <View style={[s.descBox, { borderColor: rCfg.borderColor + '4D' }]}>
                         <Text style={[s.descText, { fontSize: Math.round(10 * sz), lineHeight: Math.round(16 * sz) }]}>
                             {emoji ? `${emoji} ` : ''}بطاقة {nameAr} — قوة الهجوم {attack} ⚔️ ، الدفاع {defense ?? 0} 🛡️
@@ -289,25 +271,10 @@ export function EpicCardTemplate({
                     </View>
                 </View>
 
-                {/* ═══ 5. BOTTOM STAT ORBS (corners) ═══ */}
-                <StatOrb
-                    value={attack}
-                    icon="⚔️"
-                    borderColor={rCfg.borderColor}
-                    valueColor="#FFD700"
-                    scale={scale}
-                    position="left"
-                />
-                <StatOrb
-                    value={defense ?? 0}
-                    icon="🛡️"
-                    borderColor="#60A5FA"
-                    valueColor="#93C5FD"
-                    scale={scale}
-                    position="right"
-                />
+                {/* Clean Minimal Stat Badges */}
+                <StatBadge value={attack} icon="⚔️" isAttack={true} scale={scale} />
+                <StatBadge value={defense ?? 0} icon="🛡️" isAttack={false} scale={scale} />
 
-                {/* ═══ 6. SELECTED OVERLAY ═══ */}
                 {selected && (
                     <View style={s.selectedOverlay}>
                         <Text style={[s.checkmark, { fontSize: Math.round(32 * sz) }]}>✓</Text>
@@ -321,93 +288,45 @@ export function EpicCardTemplate({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-    // Card container — thin elegant border, clean rounded corners
-    shell: {
-        flex: 1,
-        borderRadius: 14,
-        overflow: 'hidden',
-        position: 'relative',
-        backgroundColor: '#0a0a0f',
-    },
-
-    // Full-bleed art
-    art: {
-        ...StyleSheet.absoluteFillObject,
-    },
-
-    // ── Top-left badge ──
+    shell: { flex: 1, borderRadius: 14, overflow: 'hidden', position: 'relative', backgroundColor: '#0a0a0f' },
+    art: { ...StyleSheet.absoluteFillObject },
     badge: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        zIndex: 15,
+        position: 'absolute', top: 0, left: 0, zIndex: 15,
         backgroundColor: 'rgba(20, 20, 20, 0.9)',
-        borderBottomRightRadius: 10,
-        borderWidth: 1,
-        borderTopWidth: 0,
-        borderLeftWidth: 0,
+        borderBottomRightRadius: 10, borderWidth: 1,
+        borderTopWidth: 0, borderLeftWidth: 0,
     },
-    badgeText: {
-        fontWeight: '700',
-        letterSpacing: 1,
-    },
-
-    // ── Center typography block ──
+    badgeText: { fontWeight: '700', letterSpacing: 1 },
     centerBlock: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 10,
-        paddingHorizontal: 12,
+        position: 'absolute', left: 0, right: 0,
+        alignItems: 'center', zIndex: 10, paddingHorizontal: 12,
     },
     arabicName: {
-        fontWeight: '700',
-        textAlign: 'center',
-        letterSpacing: 0.5,
-        marginBottom: 2,
+        fontWeight: '700', textAlign: 'center', letterSpacing: 0.5, marginBottom: 2,
         textShadowColor: 'rgba(0,0,0,0.8)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
     },
     englishTitle: {
-        color: '#FFFFFF',
-        fontWeight: '800',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        letterSpacing: 0.3,
+        color: '#FFFFFF', fontWeight: '800', fontStyle: 'italic',
+        textAlign: 'center', letterSpacing: 0.3,
         textShadowColor: 'rgba(0,0,0,0.8)',
         textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
-        marginBottom: 8,
+        textShadowRadius: 4, marginBottom: 8,
     },
-
-    // ── Description box (frosted glass) ──
     descBox: {
         backgroundColor: 'rgba(15, 15, 15, 0.75)',
-        borderRadius: 6,
-        borderWidth: 1,
-        padding: 10,
-        alignSelf: 'center',
-        width: '90%',
+        borderRadius: 6, borderWidth: 1, padding: 10,
+        alignSelf: 'center', width: '90%',
     },
-    descText: {
-        color: '#e0e0e0',
-        textAlign: 'center',
-        fontWeight: '500',
-    },
-
-    // ── Selected overlay ──
+    descText: { color: '#e0e0e0', textAlign: 'center', fontWeight: '500' },
     selectedOverlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(255,215,0,0.12)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 25,
+        alignItems: 'center', justifyContent: 'center', zIndex: 25,
     },
     checkmark: {
-        color: '#FFD700',
-        fontWeight: '900',
+        color: '#FFD700', fontWeight: '900',
         textShadowColor: '#000',
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 6,

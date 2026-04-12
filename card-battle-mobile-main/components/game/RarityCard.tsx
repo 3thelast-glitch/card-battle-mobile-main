@@ -5,10 +5,10 @@
  * │ 5 ANIMATED VISUAL LAYERS (applied conditionally by rarity):          │
  * │                                                                      │
  * │ LAYER 1 → Holo-Foil Sweep          (Epic + Legendary + Special)      │
- * │ LAYER 2 → Rotating Magic Circles behind stat orbs                    │
+ * │ LAYER 2 → Clean Minimal Stat Badges (all rarities)                   │
  * │ LAYER 3 → Breathing Aura / Pulsing Border  (Legendary + Special)    │
  * │ LAYER 4 → Static SVG Filigree Corners                                │
- * │ LAYER 5 → Premium Stat Orbs         (Epic + Legendary + Special)     │
+ * │ LAYER 5 → Rarity Glow Ring                                           │
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
@@ -166,7 +166,6 @@ const RARITY_CONFIG = {
         circleColor: '#FFD700',
         circleSpeed: 5000,
     },
-    // ✨ Special — ultra-rare cyan prismatic
     special: {
         borderColor: '#06b6d4',
         borderWidth: 3,
@@ -298,139 +297,7 @@ function HoloFoilSweep({
     );
 }
 
-// ─── SUB-COMPONENT B: Magic Circle Ring (Epic + Legendary + Special) ─────────
-
-function MagicCircleRing({
-    size,
-    color,
-    speed,
-    reverse,
-}: {
-    size: number;
-    color: string;
-    speed: number;
-    reverse: boolean;
-}): JSX.Element {
-    const rotation = useSharedValue(0);
-
-    useEffect(() => {
-        rotation.value = withRepeat(
-            withTiming(reverse ? -360 : 360, {
-                duration: speed,
-                easing: Easing.linear,
-            }),
-            -1,
-            false
-        );
-    }, [speed, reverse]);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${rotation.value}deg` }],
-    }));
-
-    const spokeLines = Array.from({ length: 8 }).map((_, i) => {
-        const angle = (i * 45 * Math.PI) / 180;
-        const x1 = 50 + 30 * Math.cos(angle);
-        const y1 = 50 + 30 * Math.sin(angle);
-        const x2 = 50 + 44 * Math.cos(angle);
-        const y2 = 50 + 44 * Math.sin(angle);
-        return (
-            <Line
-                key={i}
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={color} strokeWidth={0.6} opacity={0.6}
-            />
-        );
-    });
-
-    const diamonds = [0, 90, 180, 270].map((angle, i) => {
-        const rad = (angle * Math.PI) / 180;
-        const cx = 50 + 46 * Math.cos(rad);
-        const cy = 50 + 46 * Math.sin(rad);
-        const dSize = 3;
-        return (
-            <Polygon
-                key={i}
-                points={`${cx},${cy - dSize} ${cx + dSize},${cy} ${cx},${cy + dSize} ${cx - dSize},${cy}`}
-                fill={color} opacity={0.9}
-            />
-        );
-    });
-
-    return (
-        <Animated.View
-            style={[styles.magicCircleContainer, { width: size, height: size }, animatedStyle]}
-            pointerEvents="none"
-        >
-            <Svg width={size} height={size} viewBox="0 0 100 100">
-                <Circle cx={50} cy={50} r={46} stroke={color} strokeWidth={0.8} strokeDasharray="4 3" fill="none" opacity={0.5} />
-                <Circle cx={50} cy={50} r={38} stroke={color} strokeWidth={0.5} fill="none" opacity={0.4} />
-                <Circle cx={50} cy={50} r={30} stroke={color} strokeWidth={0.8} strokeDasharray="3 4" fill="none" opacity={0.35} />
-                {spokeLines}
-                {diamonds}
-                <Circle cx={50} cy={50} r={2} fill={color} opacity={0.8} />
-            </Svg>
-        </Animated.View>
-    );
-}
-
-// ─── SUB-COMPONENT C: Premium Stat Orb (Epic + Legendary + Special) ──────────
-
-function PremiumStatOrb({
-    icon,
-    value,
-    color,
-    glowColor,
-    orbSize,
-    fontSize,
-    circleColor,
-    circleSpeed,
-    showMagicCircle,
-}: {
-    icon: string;
-    value: number;
-    color: string;
-    glowColor: string;
-    orbSize: number;
-    fontSize: number;
-    circleColor: string | null;
-    circleSpeed: number;
-    showMagicCircle: boolean;
-}): JSX.Element {
-    const bgColor = color === '#FFD700' ? '#0A0800' : color === '#06b6d4' ? '#001a2e' : '#0D0A1A';
-
-    return (
-        <View style={styles.premiumOrbWrapper}>
-            {showMagicCircle && circleColor && (
-                <>
-                    <MagicCircleRing size={orbSize * 2.2} color={circleColor} speed={circleSpeed} reverse={false} />
-                    <MagicCircleRing size={orbSize * 1.7} color={circleColor} speed={circleSpeed * 0.75} reverse={true} />
-                </>
-            )}
-            <View
-                style={[
-                    styles.premiumOrb,
-                    {
-                        width: orbSize,
-                        height: orbSize,
-                        borderRadius: orbSize / 2,
-                        backgroundColor: bgColor,
-                        borderColor: color,
-                        shadowColor: glowColor,
-                        shadowOpacity: 0.8,
-                        shadowRadius: 8,
-                        elevation: 6,
-                    },
-                ]}
-            >
-                <Text style={[styles.premiumOrbIcon, { fontSize: fontSize * 0.9 }]}>{icon}</Text>
-                <Text style={[styles.premiumOrbValue, { fontSize: fontSize * 0.95, color }]}>{value}</Text>
-            </View>
-        </View>
-    );
-}
-
-// ─── SUB-COMPONENT D: Filigree SVG Corner (Rare + Epic + Legendary + Special) ─
+// ─── SUB-COMPONENT B: Filigree SVG Corner ────────────────────────────────────
 
 type FiligreePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -504,7 +371,7 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
     );
 }
 
-// ─── SUB-COMPONENT E: Breathing Border (Legendary + Special) ────────────────
+// ─── SUB-COMPONENT C: Breathing Border (Legendary + Special) ────────────────
 
 function BreathingBorder({
     width,
@@ -550,13 +417,16 @@ function BreathingBorder({
     );
 }
 
-// ─── StatBadge ─────────────────────────────────────────────────────────────────────
+// ─── SUB-COMPONENT D: Clean Minimal Stat Badge ───────────────────────────────
 
 function StatBadge({ icon, value, fs }: { icon: string; value: number; fs: number }): JSX.Element {
+    const isAttack = icon === '⚔️';
     return (
-        <View style={styles.statBadge}>
+        <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
             <Text style={{ fontSize: fs }}>{icon}</Text>
-            <Text style={[styles.statValue, { fontSize: fs }]}>{value}</Text>
+            <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>
+                {value}
+            </Text>
         </View>
     );
 }
@@ -610,7 +480,6 @@ export function RarityCard({
     const summon = useCardSummonAnimation(entranceDelay);
     const hover = useCardHoverScale(isSelected);
 
-    // ── Resolve card image ─────────────────────────────────────────────
     const cardImage = getCardImage(card);
     const hasImage = !!cardImage;
     const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS['common'];
@@ -635,9 +504,6 @@ export function RarityCard({
         borderWidth: isSelected ? 3 : config.borderWidth,
     };
 
-    const orbSize = dim.w * 0.22;
-    const starSize = dim.stat * 0.75;
-
     return (
         <Animated.View
             style={[
@@ -649,7 +515,6 @@ export function RarityCard({
                 style,
             ]}
         >
-            {/* LAYER 4 – Filigree Corners */}
             {config.filigree && rarity !== 'common' && (
                 <>
                     <FiligreeSVGCorner position="top-left" rarity={rarity} />
@@ -663,12 +528,10 @@ export function RarityCard({
                 </>
             )}
 
-            {/* LAYER 3 – Breathing Border (Legendary + Special) */}
             {(rarity === 'legendary' || rarity === 'special') && (
                 <BreathingBorder width={dim.w} height={dim.h} borderRadius={BORDER_R} rarity={rarity} />
             )}
 
-            {/* Pulsing glow ring (Epic + Legendary + Special) */}
             {hasGlow && glowColor && (
                 <GlowRing color={glowColor} borderRadius={BORDER_R + 2} />
             )}
@@ -684,7 +547,6 @@ export function RarityCard({
                 <Animated.View
                     style={[styles.card, { width: dim.w, height: dim.h }, borderStyle, tap.animatedStyle]}
                 >
-                    {/* ── Background gradient layers ── */}
                     <LinearGradient
                         colors={gradient.base}
                         start={{ x: 0.5, y: 0 }}
@@ -706,7 +568,6 @@ export function RarityCard({
 
                     {rarity !== 'common' && <View style={styles.shimmer} />}
 
-                    {/* LAYER 1 – Holo Foil Sweep (Epic + Legendary + Special) */}
                     {config.foilSweep && (
                         <HoloFoilSweep
                             cardWidth={dim.w}
@@ -716,7 +577,6 @@ export function RarityCard({
                         />
                     )}
 
-                    {/* ── Card Art ── */}
                     {hasImage ? (
                         <Image
                             source={cardImage}
@@ -727,7 +587,6 @@ export function RarityCard({
                         />
                     ) : (
                         <>
-                            {/* Placeholder gradient */}
                             <LinearGradient
                                 colors={placeholderColors}
                                 style={styles.artPlaceholder}
@@ -741,7 +600,6 @@ export function RarityCard({
                         </>
                     )}
 
-                    {/* ── Top badges ── */}
                     <View style={styles.topRow}>
                         <View style={styles.elementPill}>
                             <Text style={[styles.elementEmoji, { fontSize: dim.badge + 2 }]}>{card.emoji}</Text>
@@ -767,63 +625,20 @@ export function RarityCard({
                         )}
                     </View>
 
-                    {/* ── Stats strip (bottom) ── */}
+                    {/* ── Stats strip (bottom) — Clean Minimal Badges ── */}
                     {showStats && (
                         <View style={styles.statsStrip}>
-                            {config.magicCircles ? (
-                                <>
-                                    <View style={styles.premiumStatsRow}>
-                                        <PremiumStatOrb
-                                            icon="⚔️" value={card.attack}
-                                            color={config.borderColor} glowColor={config.glowColor!}
-                                            orbSize={orbSize} fontSize={dim.stat}
-                                            circleColor={config.circleColor} circleSpeed={config.circleSpeed}
-                                            showMagicCircle={config.magicCircles}
-                                        />
-                                        <View style={styles.centerNameBlock}>
-                                            <Text style={[styles.cardName, { fontSize: dim.name }]} numberOfLines={2}>
-                                                {card.nameAr}
-                                            </Text>
-                                            <View style={styles.starsRow}>
-                                                {Array.from({ length: 10 }).map((_, i) => (
-                                                    <Text key={i} style={{ fontSize: starSize }}>⭐</Text>
-                                                ))}
-                                            </View>
-                                        </View>
-                                        <PremiumStatOrb
-                                            icon="❤️" value={card.hp}
-                                            color={config.borderColor} glowColor={config.glowColor!}
-                                            orbSize={orbSize} fontSize={dim.stat}
-                                            circleColor={config.circleColor} circleSpeed={config.circleSpeed}
-                                            showMagicCircle={config.magicCircles}
-                                        />
-                                    </View>
-                                    <View style={{ alignItems: 'center', marginTop: 2 }}>
-                                        <PremiumStatOrb
-                                            icon="🛡️" value={card.defense}
-                                            color={config.borderColor} glowColor={config.glowColor!}
-                                            orbSize={orbSize * 0.85} fontSize={dim.stat * 0.9}
-                                            circleColor={config.circleColor} circleSpeed={config.circleSpeed}
-                                            showMagicCircle={false}
-                                        />
-                                    </View>
-                                </>
-                            ) : (
-                                <>
-                                    <View style={styles.statsRow}>
-                                        <StatBadge icon="⚔️" value={card.attack} fs={dim.stat} />
-                                        <StatBadge icon="🛡️" value={card.defense} fs={dim.stat} />
-                                        <StatBadge icon="❤️" value={card.hp} fs={dim.stat} />
-                                    </View>
-                                    <Text style={[styles.cardName, { fontSize: dim.name }]} numberOfLines={1}>
-                                        {card.nameAr}
-                                    </Text>
-                                </>
-                            )}
+                            <View style={styles.statsRow}>
+                                <StatBadge icon="⚔️" value={card.attack} fs={dim.stat} />
+                                <StatBadge icon="🛡️" value={card.defense} fs={dim.stat} />
+                                <StatBadge icon="❤️" value={card.hp} fs={dim.stat} />
+                            </View>
+                            <Text style={[styles.cardName, { fontSize: dim.name }]} numberOfLines={1}>
+                                {card.nameAr}
+                            </Text>
                         </View>
                     )}
 
-                    {/* ── Effect icons (right side) ── */}
                     {card.cardEffects && card.cardEffects.length > 0 && (
                         <View style={styles.effectColumn}>
                             {card.cardEffects.slice(0, 3).map((fx) => (
@@ -834,12 +649,10 @@ export function RarityCard({
                         </View>
                     )}
 
-                    {/* ── Selected highlight overlay ── */}
                     {isSelected && <View style={styles.selectedOverlay} />}
                 </Animated.View>
             </Pressable>
 
-            {/* ── Fire/Crystal particles (Legendary + Special) ── */}
             {hasParticles && !disabled && (
                 <FireParticles width={dim.w} height={dim.h} />
             )}
@@ -860,9 +673,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         overflow: 'visible',
     },
-    pressable: {
-        borderRadius: BORDER_R,
-    },
+    pressable: { borderRadius: BORDER_R },
     card: {
         borderRadius: BORDER_R,
         overflow: 'hidden',
@@ -872,100 +683,41 @@ const styles = StyleSheet.create({
         borderWidth: 2.5,
         zIndex: 1,
     },
-    bgBase: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    bgMid: {
-        position: 'absolute',
-        top: '30%',
-        left: 0, right: 0, bottom: 0,
-    },
-    bgTop: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0,
-        height: '55%',
-    },
+    bgBase: { ...StyleSheet.absoluteFillObject },
+    bgMid: { position: 'absolute', top: '30%', left: 0, right: 0, bottom: 0 },
+    bgTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '55%' },
     shimmer: {
         position: 'absolute',
-        top: '-20%',
-        left: '-30%',
-        width: '50%',
-        height: '160%',
+        top: '-20%', left: '-30%',
+        width: '50%', height: '160%',
         backgroundColor: 'rgba(255,255,255,0.06)',
         transform: [{ rotate: '35deg' }],
     },
-    art: {
-        width: '100%',
-        height: '76%',
-        position: 'absolute',
-        top: 0,
-    },
-    artPlaceholder: {
-        width: '100%',
-        height: '76%',
-        position: 'absolute',
-        top: 0,
-    },
+    art: { width: '100%', height: '76%', position: 'absolute', top: 0 },
+    artPlaceholder: { width: '100%', height: '76%', position: 'absolute', top: 0 },
     noImageBadge: {
-        position: 'absolute',
-        top: '18%',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 4,
+        position: 'absolute', top: '18%', left: 0, right: 0,
+        alignItems: 'center', zIndex: 4,
     },
-    noImageIcon: {
-        fontSize: 28,
-        opacity: 0.35,
-    },
-    noImageText: {
-        fontSize: 8,
-        color: 'rgba(255,255,255,0.25)',
-        marginTop: 3,
-    },
+    noImageIcon: { fontSize: 28, opacity: 0.35 },
+    noImageText: { fontSize: 8, color: 'rgba(255,255,255,0.25)', marginTop: 3 },
     topRow: {
-        position: 'absolute',
-        top: 6, left: 6, right: 6,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        position: 'absolute', top: 6, left: 6, right: 6,
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     },
     elementPill: {
         backgroundColor: 'rgba(0,0,0,0.55)',
-        borderRadius: 10,
-        paddingHorizontal: 4,
-        paddingVertical: 2,
+        borderRadius: 10, paddingHorizontal: 4, paddingVertical: 2,
     },
-    elementEmoji: {
-        lineHeight: 18,
-    },
-    rarityPill: {
-        width: 20, height: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    rarityPillText: {
-        color: '#fff',
-        fontWeight: '900',
-        lineHeight: 13,
-    },
-    rarityPillPremium: {
-        paddingHorizontal: 7,
-        paddingVertical: 2,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
-    rarityPillPremiumText: {
-        fontSize: 7,
-        fontWeight: '900',
-        letterSpacing: 0.5,
-    },
+    elementEmoji: { lineHeight: 18 },
+    rarityPill: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    rarityPillText: { color: '#fff', fontWeight: '900', lineHeight: 13 },
+    rarityPillPremium: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+    rarityPillPremiumText: { fontSize: 7, fontWeight: '900', letterSpacing: 0.5 },
     statsStrip: {
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
+        paddingHorizontal: 8, paddingVertical: 6,
         backgroundColor: 'rgba(0,0,0,0.82)',
         borderBottomLeftRadius: BORDER_R - 1,
         borderBottomRightRadius: BORDER_R - 1,
@@ -976,105 +728,57 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         marginBottom: 3,
     },
+    // Clean Minimal Stat Badges
     statBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 16,
+        gap: 3,
+        minWidth: 40,
+        justifyContent: 'center',
     },
-    statValue: {
-        color: '#fff',
-        fontWeight: '700',
+    attackBadge: {
+        backgroundColor: 'rgba(20, 12, 0, 0.9)',
+        borderWidth: 1.2,
+        borderColor: '#B8860B',
     },
-    cardName: {
-        color: '#e5e7eb',
-        textAlign: 'center',
-        fontWeight: '600',
-        letterSpacing: 0.3,
+    defenseBadge: {
+        backgroundColor: 'rgba(0, 10, 28, 0.9)',
+        borderWidth: 1.2,
+        borderColor: '#2563EB',
     },
-    effectColumn: {
-        position: 'absolute',
-        bottom: 56, right: 5,
-        alignItems: 'center',
-        gap: 2,
-    },
-    effectIcon: {
-        fontSize: 10,
-    },
+    statValue: { fontWeight: '800', letterSpacing: 0.3 },
+    attackText: { color: '#FFB830' },
+    defenseText: { color: '#60A5FA' },
+    cardName: { color: '#e5e7eb', textAlign: 'center', fontWeight: '600', letterSpacing: 0.3 },
+    effectColumn: { position: 'absolute', bottom: 56, right: 5, alignItems: 'center', gap: 2 },
+    effectIcon: { fontSize: 10 },
     selectedOverlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(255,255,255,0.13)',
         borderRadius: BORDER_R - 1,
     },
     glowRing: {
-        position: 'absolute',
-        top: -4, left: -4, right: -4, bottom: -4,
+        position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
         borderWidth: 2,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 12,
-        elevation: 0,
+        shadowOpacity: 0.9, shadowRadius: 12, elevation: 0,
     },
     holoFoilContainer: {
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        overflow: 'hidden',
-        zIndex: 1,
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        overflow: 'hidden', zIndex: 1,
     },
     holoFoilGradient: {
         position: 'absolute',
         transform: [{ rotate: '-45deg' }],
     },
-    magicCircleContainer: {
-        position: 'absolute',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    premiumOrbWrapper: {
-        position: 'relative',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    premiumOrb: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1.5,
-        zIndex: 1,
-    },
-    premiumOrbIcon: {
-        marginBottom: 2,
-    },
-    premiumOrbValue: {
-        fontWeight: '800',
-    },
-    filigreeCorner: {
-        position: 'absolute',
-        zIndex: 10,
-    },
+    filigreeCorner: { position: 'absolute', zIndex: 10 },
     breathingBorder: {
-        position: 'absolute',
-        borderWidth: 2.5,
+        position: 'absolute', borderWidth: 2.5,
         shadowOffset: { width: 0, height: 0 },
     },
-    premiumStatsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-        paddingVertical: 4,
-    },
-    centerNameBlock: {
-        flex: 1,
-        alignItems: 'center',
-        gap: 3,
-    },
-    starsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: 1,
-    },
 });
-
-// ─── Exports ───────────────────────────────────────────────────────────────────
 
 export default RarityCard;
