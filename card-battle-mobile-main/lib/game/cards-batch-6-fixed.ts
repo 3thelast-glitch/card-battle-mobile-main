@@ -369,4 +369,4 @@ export const CARDS_BATCH_6: Card[] = [
     rarity: 'special', stars: 4,
     animationPreset: 'lightning',
   },
-  ];
+];
