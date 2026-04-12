@@ -4,6 +4,7 @@ import { COMMON_IMAGES, COMMON_VIDEOS } from '@/assets/characters/common';
 import { RARE_IMAGES } from '@/assets/characters/rare';
 import { EPIC_IMAGES } from '@/assets/characters/epic';
 import { LEGENDARY_IMAGES, LEGENDARY_VIDEOS } from '@/assets/characters/legendary';
+import { RAGE_IMAGES, RAGE_VIDEOS } from '@/assets/characters/rage';
 
 // ─── خرائط الفيديو لكل ندرة ──────────────────────────────────────────────────
 const VIDEO_MAPS: Record<string, Record<string, any>> = {
@@ -21,6 +22,21 @@ const VIDEO_MAPS: Record<string, Record<string, any>> = {
 export function getCardImage(
     card: Card & { customImage?: string; finalImage?: ImageSourcePropType }
 ): ImageSourcePropType | null {
+    // ─── اعتراض الغضب كأولوية قصوى متجاوزاً أي صور محفوظة ──────────────────────
+    if ((card as any).isRagedVersion) {
+        const rageFileName = `${card.id}_rage`;
+        const rageVideo = RAGE_VIDEOS[rageFileName];
+        if (rageVideo) {
+            (card as any).videoUrl = rageVideo;
+            return null; // الكمبوننت يعرض الفيديو مباشرة من videoUrl
+        }
+        
+        const rageImage = RAGE_IMAGES[rageFileName];
+        if (rageImage) {
+            return rageImage;
+        }
+    }
+
     // صورة مخصصة من المستخدم تتقدم على الكل
     if ((card as any).customImage) return { uri: (card as any).customImage };
     if (card.finalImage) return card.finalImage;

@@ -52,8 +52,8 @@ export function applyRageToCard(card: Card, rageState: RageState): Card {
 
   return {
     ...card,
-    // تغيير الـ ID قليلاً إذا كان هناك ميديا مؤكدة للغضب لمنع getCardImage من سحب فيديو محلي بالخطأ
-    id: hasRageImageOnly ? `${card.id}_rage` : card.id,
+    // وضع العلامة الدلالية للغضب بدلاً من تعديل الـ id لأنه سيكسر اسم الكرت في الواجهة
+    isRagedVersion: true,
     
     attack:  card.attack  + (rm.rageAttackBoost  ?? 0),
     defense: card.defense + (rm.rageDefenseBoost ?? 0),

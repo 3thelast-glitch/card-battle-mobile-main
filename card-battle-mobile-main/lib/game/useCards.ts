@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_CARDS } from './cards-data-exports';
 import { Card } from './types';
+import { getRageOverrides } from './rage-store';
 
 /** Must match CARD_EDITS_KEY in cards-gallery.tsx */
 export const CARD_EDITS_KEY = 'card_edits_v1';
@@ -31,21 +32,35 @@ function dedup(cards: Card[]): Card[] {
   );
 }
 
-/** Returns unique ALL_CARDS merged with any saved edits from the gallery. */
+/**
+ * Returns unique ALL_CARDS merged with:
+ *  1. Gallery edits (attack, defense, nameAr, rarity, etc.)
+ *  2. Rage mode overrides (rageMode data from rage-store)
+ */
 export async function getCardsWithEdits(): Promise<Card[]> {
   const unique = dedup(ALL_CARDS);
   try {
-    const raw = await AsyncStorage.getItem(CARD_EDITS_KEY);
-    if (!raw) return unique;
-    const map: Record<string, Partial<Card>> = JSON.parse(raw);
-    return unique.map(c => (map[c.id] ? { ...c, ...map[c.id] } : c));
+    const [rawEdits, rageMap] = await Promise.all([
+      AsyncStorage.getItem(CARD_EDITS_KEY),
+      getRageOverrides(),
+    ]);
+
+    const editsMap: Record<string, Partial<Card>> = rawEdits ? JSON.parse(rawEdits) : {};
+
+    return unique.map(c => {
+      let merged = editsMap[c.id] ? { ...c, ...editsMap[c.id] } : c;
+      if (rageMap[c.id]) {
+        merged = { ...merged, rageMode: rageMap[c.id] };
+      }
+      return merged;
+    });
   } catch {
     return unique;
   }
 }
 
 /**
- * React hook — returns unique cards with gallery edits applied.
+ * React hook — returns unique cards with gallery edits + rage overrides applied.
  * @param ids  Optional card IDs to filter. Omit to get all cards.
  */
 export function useCards(ids?: string[]): Card[] {
