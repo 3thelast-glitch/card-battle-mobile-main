@@ -1,7 +1,8 @@
 /**
  * LuxuryCharacterCardAnimated
- * ✨ Stat badges: clean minimal pill badges — no heavy orbs
- * ✨ MetaStrip: element / gender / class / tag shown between name & stats
+ * ✨ MetaStrip: race / cardClass / tags[0]  — anchored just above stats
+ * ✨ Element tints the border glow + bottom gradient
+ * ✨ All sizes scale with sc so small cards stay clean
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -11,8 +12,8 @@ import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
     withSequence, interpolate, Easing, withDelay, cancelAnimation,
 } from 'react-native-reanimated';
-import { Svg, Circle, Line, Ellipse, Path, Defs, RadialGradient, Stop, G, Polygon } from 'react-native-svg';
-import { Card, CardRarity } from '@/lib/game/types';
+import { Svg, Circle, Line, Ellipse, Path, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { Card, CardRarity, Element, ELEMENT_EMOJI, ELEMENT_COLORS, Race, RACE_EMOJI, CardClass, CLASS_EMOJI } from '@/lib/game/types';
 import { getCardImage } from '../../lib/game/get-card-image';
 
 const BASE_W = 220;
@@ -39,117 +40,164 @@ function isAnimatedUri(uri: string): boolean {
 function isLocalAsset(value: any): value is number { return typeof value === 'number'; }
 
 // ─────────────────────────────────────────────
-// META ICONS
+// ELEMENT THEME — drives border tint + bottom gradient + shimmer
 // ─────────────────────────────────────────────
-const ELEMENT_META: Record<string, { icon: string; color: string }> = {
-    fire:      { icon: '🔥', color: '#FF6B35' },
-    ice:       { icon: '❄️', color: '#7DD8F8' },
-    water:     { icon: '💧', color: '#38BDF8' },
-    earth:     { icon: '🌍', color: '#84CC16' },
-    lightning: { icon: '⚡', color: '#FACC15' },
-    wind:      { icon: '💨', color: '#A5F3FC' },
+const ELEMENT_SHIMMER_COLORS: Record<Element, readonly [string,string,string,string,string,string,string]> = {
+    fire:      ['transparent','rgba(255,100,30,0.04)','rgba(255,80,10,0.14)','rgba(255,140,60,0.22)','rgba(255,80,10,0.14)','rgba(255,100,30,0.04)','transparent'],
+    ice:       ['transparent','rgba(100,220,255,0.04)','rgba(60,200,255,0.14)','rgba(180,240,255,0.22)','rgba(60,200,255,0.14)','rgba(100,220,255,0.04)','transparent'],
+    water:     ['transparent','rgba(30,130,255,0.04)','rgba(20,100,240,0.14)','rgba(80,160,255,0.22)','rgba(20,100,240,0.14)','rgba(30,130,255,0.04)','transparent'],
+    earth:     ['transparent','rgba(80,200,30,0.04)','rgba(60,180,20,0.14)','rgba(140,220,80,0.22)','rgba(60,180,20,0.14)','rgba(80,200,30,0.04)','transparent'],
+    lightning: ['transparent','rgba(255,210,20,0.04)','rgba(250,200,0,0.14)','rgba(255,230,80,0.22)','rgba(250,200,0,0.14)','rgba(255,210,20,0.04)','transparent'],
+    wind:      ['transparent','rgba(160,240,255,0.04)','rgba(140,220,255,0.14)','rgba(200,248,255,0.22)','rgba(140,220,255,0.14)','rgba(160,240,255,0.04)','transparent'],
 };
 
-const GENDER_META: Record<string, { icon: string; color: string }> = {
-    male:    { icon: '♂️', color: '#60A5FA' },
-    female:  { icon: '♀️', color: '#F472B6' },
-    unknown: { icon: '✨', color: '#A78BFA' },
-    robot:   { icon: '🤖', color: '#94A3B8' },
-    spirit:  { icon: '👻', color: '#C4B5FD' },
-    beast:   { icon: '🐉', color: '#FB923C' },
-    undead:  { icon: '💀', color: '#6B7280' },
-    elf:     { icon: '🧝', color: '#34D399' },
-    demon:   { icon: '😈', color: '#EF4444' },
-    human:   { icon: '👤', color: '#FCD34D' },
-};
-
-const CLASS_META: Record<string, { icon: string; color: string }> = {
-    warrior:   { icon: '⚔️', color: '#F87171' },
-    knight:    { icon: '🛡️', color: '#60A5FA' },
-    mage:      { icon: '🔮', color: '#C084FC' },
-    archer:    { icon: '🏹', color: '#4ADE80' },
-    berserker: { icon: '🗡️', color: '#FB923C' },
-    paladin:   { icon: '💪', color: '#FBBF24' },
-};
-
-// ─────────────────────────────────────────────
-// MetaStrip Component
-// ─────────────────────────────────────────────
-interface MetaStripProps {
-    card: Card;
-    sc: number;
+// bottom gradient tinted by element
+function elementBottomGradient(el: Element | undefined, isSpecial: boolean): [string,string,string,string] {
+    if (isSpecial) return ['rgba(0,0,0,0.2)','transparent','rgba(0,0,0,0.7)','rgba(0,0,0,0.97)'];
+    if (!el) return ['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)'];
+    const c = ELEMENT_COLORS[el];
+    // parse hex to rgb
+    const r = parseInt(c.slice(1,3),16);
+    const g = parseInt(c.slice(3,5),16);
+    const b = parseInt(c.slice(5,7),16);
+    return [
+        'transparent',
+        'transparent',
+        `rgba(${r},${g},${b},0.18)`,
+        `rgba(0,0,0,0.90)`,
+    ];
 }
 
-const MetaStrip = ({ card, sc }: MetaStripProps) => {
-    const fs = Math.max(7, 9 * sc);
-    const tagFs = Math.max(6, 8 * sc);
-    const padH = Math.max(4, 6 * sc);
-    const padV = Math.max(2, 3 * sc);
-    const gap = Math.max(2, 3 * sc);
+// ─────────────────────────────────────────────
+// ElementGlowBorder — pulse ring tinted by element
+// ─────────────────────────────────────────────
+const ElementGlowBorder = ({ color }: { color: string }) => {
+    const glow = useSharedValue(0);
+    useEffect(() => {
+        glow.value = withRepeat(
+            withSequence(
+                withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+                withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+            ), -1, false
+        );
+        return () => cancelAnimation(glow);
+    }, [color]);
+    const s = useAnimatedStyle(() => ({
+        opacity: interpolate(glow.value, [0,1], [0.3, 0.85]),
+        transform: [{ scale: interpolate(glow.value, [0,1], [1.0, 1.007]) }],
+    }));
+    return (
+        <Animated.View
+            pointerEvents="none"
+            style={[elGlow.ring, { borderColor: color, shadowColor: color }, s]}
+        />
+    );
+};
+const elGlow = StyleSheet.create({
+    ring: {
+        position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
+        borderRadius: 18, borderWidth: 1.5,
+        shadowOffset: { width: 0, height: 0 }, shadowRadius: 12,
+        shadowOpacity: 0.7, zIndex: 18,
+    },
+});
 
-    const elementKey = (card.element as string)?.toLowerCase() ?? '';
-    const genderKey  = (card.gender  as string)?.toLowerCase() ?? '';
-    const classKey   = (card.class   as string)?.toLowerCase() ?? (card as any).cardClass?.toLowerCase() ?? '';
+// ─────────────────────────────────────────────
+// RACE colors (complement RACE_EMOJI from types)
+// ─────────────────────────────────────────────
+const RACE_COLORS: Record<Race, string> = {
+    human:   '#FCD34D',
+    elf:     '#34D399',
+    orc:     '#FB923C',
+    dragon:  '#F87171',
+    demon:   '#EF4444',
+    undead:  '#94A3B8',
+    monster: '#A78BFA',
+    robot:   '#67E8F9',
+};
 
-    const elMeta  = ELEMENT_META[elementKey];
-    const genMeta = GENDER_META[genderKey];
-    const clsMeta = CLASS_META[classKey];
-    const tag     = (card as any).tag as string | undefined;
+const CLASS_COLORS: Record<CardClass, string> = {
+    warrior:   '#F87171',
+    knight:    '#60A5FA',
+    mage:      '#C084FC',
+    archer:    '#4ADE80',
+    berserker: '#FB923C',
+    paladin:   '#FBBF24',
+};
 
-    const chips: { icon: string; label: string; color: string; bg: string }[] = [];
+const TAG_ICONS: Record<string, string> = {
+    sword:  '⚔️',
+    shield: '🛡️',
+    magic:  '✨',
+    bow:    '🏹',
+    crown:  '👑',
+};
 
-    if (elMeta)  chips.push({ icon: elMeta.icon,  label: '', color: elMeta.color,  bg: elMeta.color  + '22' });
-    if (genMeta) chips.push({ icon: genMeta.icon, label: '', color: genMeta.color, bg: genMeta.color + '22' });
-    if (clsMeta) chips.push({ icon: clsMeta.icon, label: '', color: clsMeta.color, bg: clsMeta.color + '22' });
-    if (tag)     chips.push({ icon: '🏷️',         label: tag, color: '#E2E8F0',    bg: 'rgba(255,255,255,0.1)' });
+// ─────────────────────────────────────────────
+// MetaStrip  —  race / class / tag chips
+// ─────────────────────────────────────────────
+const MetaStrip = ({ card, sc }: { card: Card; sc: number }) => {
+    // icon font scales with card, clamped so it never overflows
+    const iconFs  = Math.max(8, Math.min(13, 11 * sc));
+    const padH    = Math.max(4, Math.min(8,  6 * sc));
+    const padV    = Math.max(2, Math.min(5,  3 * sc));
+    const gap     = Math.max(3, Math.min(7,  5 * sc));
+    const radius  = Math.round(8 * sc);
+
+    type Chip = { icon: string; color: string };
+    const chips: Chip[] = [];
+
+    // 1 — element
+    const el = card.element;
+    if (el && ELEMENT_EMOJI[el]) {
+        chips.push({ icon: ELEMENT_EMOJI[el], color: ELEMENT_COLORS[el] });
+    }
+
+    // 2 — race
+    const race = card.race;
+    if (race && RACE_EMOJI[race]) {
+        chips.push({ icon: RACE_EMOJI[race], color: RACE_COLORS[race] });
+    }
+
+    // 3 — class
+    const cls = card.cardClass;
+    if (cls && CLASS_EMOJI[cls]) {
+        chips.push({ icon: CLASS_EMOJI[cls], color: CLASS_COLORS[cls] });
+    }
+
+    // 4 — first tag
+    const tag = card.tags?.[0];
+    if (tag && TAG_ICONS[tag]) {
+        chips.push({ icon: TAG_ICONS[tag], color: '#CBD5E1' });
+    }
 
     if (!chips.length) return null;
 
     return (
-        <View style={[metaStyles.row, { gap }]}>
+        <View style={[ms.row, { gap }]}>
             {chips.map((chip, i) => (
                 <View
                     key={i}
                     style={[
-                        metaStyles.chip,
+                        ms.chip,
                         {
-                            backgroundColor: chip.bg,
-                            borderColor: chip.color + '66',
                             paddingHorizontal: padH,
-                            paddingVertical: padV,
-                            borderRadius: Math.round(10 * sc),
-                            gap: Math.max(2, 3 * sc),
+                            paddingVertical:   padV,
+                            borderRadius:      radius,
+                            backgroundColor:   chip.color + '20',
+                            borderColor:       chip.color + '70',
                         },
                     ]}
                 >
-                    <Text style={{ fontSize: fs }}>{chip.icon}</Text>
-                    {!!chip.label && (
-                        <Text style={[metaStyles.chipLabel, { fontSize: tagFs, color: chip.color }]} numberOfLines={1}>
-                            {chip.label}
-                        </Text>
-                    )}
+                    <Text style={{ fontSize: iconFs, lineHeight: iconFs * 1.25 }}>{chip.icon}</Text>
                 </View>
             ))}
         </View>
     );
 };
-
-const metaStyles = StyleSheet.create({
-    row: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-    },
-    chipLabel: {
-        fontWeight: '700',
-        letterSpacing: 0.2,
-    },
+const ms = StyleSheet.create({
+    row:  { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center' },
+    chip: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
 
 // ─────────────────────────────────────────────
@@ -166,10 +214,8 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(10,10,14,0.88)', 'rgba(20,20,28,0.92)'] as any,
         abilityBorder: '#6B728066', abilityTextColor: '#d1d5db', abilityIconColor: '#9CA3AF',
         bgColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
-        badgeRingColor: '#9CA3AF',
-        badgeBg: ['rgba(18,18,28,0.95)', 'rgba(30,30,42,0.98)'] as any,
-        badgeGlow: 'rgba(156,163,175,0.3)',
-        badgePulse: false,
+        badgeRingColor: '#9CA3AF', badgeBg: ['rgba(18,18,28,0.95)', 'rgba(30,30,42,0.98)'] as any,
+        badgeGlow: 'rgba(156,163,175,0.3)', badgePulse: false,
     },
     rare: {
         label: 'نادر', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
@@ -181,10 +227,8 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(15,10,5,0.9)', 'rgba(30,18,8,0.95)'] as any,
         abilityBorder: '#CD7F3266', abilityTextColor: '#fcd9a0', abilityIconColor: '#CD7F32',
         bgColors: ['#1a1200', '#2d2000', '#1a1200'] as any,
-        badgeRingColor: '#CD7F32',
-        badgeBg: ['rgba(22,14,4,0.96)', 'rgba(38,24,6,0.99)'] as any,
-        badgeGlow: 'rgba(205,127,50,0.45)',
-        badgePulse: false,
+        badgeRingColor: '#CD7F32', badgeBg: ['rgba(22,14,4,0.96)', 'rgba(38,24,6,0.99)'] as any,
+        badgeGlow: 'rgba(205,127,50,0.45)', badgePulse: false,
     },
     epic: {
         label: 'ملحمي', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
@@ -196,10 +240,8 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(30,5,55,0.92)', 'rgba(50,10,80,0.96)'] as any,
         abilityBorder: '#A855F7AA', abilityTextColor: '#e9d5ff', abilityIconColor: '#d8b4fe',
         bgColors: ['#1a0030', '#2d0050', '#1a0030'] as any,
-        badgeRingColor: '#A855F7',
-        badgeBg: ['rgba(18,4,34,0.97)', 'rgba(32,6,58,0.99)'] as any,
-        badgeGlow: 'rgba(168,85,247,0.5)',
-        badgePulse: true,
+        badgeRingColor: '#A855F7', badgeBg: ['rgba(18,4,34,0.97)', 'rgba(32,6,58,0.99)'] as any,
+        badgeGlow: 'rgba(168,85,247,0.5)', badgePulse: true,
     },
     legendary: {
         label: 'أسطوري', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
@@ -211,10 +253,8 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(30,22,0,0.93)', 'rgba(50,36,0,0.97)'] as any,
         abilityBorder: '#FFD700CC', abilityTextColor: '#fef3c7', abilityIconColor: '#FFD700',
         bgColors: ['#110d00', '#1e1700', '#110d00'] as any,
-        badgeRingColor: '#FFD700',
-        badgeBg: ['rgba(24,18,0,0.97)', 'rgba(44,32,0,0.99)'] as any,
-        badgeGlow: 'rgba(255,215,0,0.65)',
-        badgePulse: true,
+        badgeRingColor: '#FFD700', badgeBg: ['rgba(24,18,0,0.97)', 'rgba(44,32,0,0.99)'] as any,
+        badgeGlow: 'rgba(255,215,0,0.65)', badgePulse: true,
     },
     special: {
         label: 'خاصة', color: '#C0C0C0', borderColor: '#1a1a1a', borderWidth: 3,
@@ -226,10 +266,8 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(0,0,0,0.95)', 'rgba(5,5,5,0.98)'] as any,
         abilityBorder: '#C0C0C055', abilityTextColor: '#d4d4d4', abilityIconColor: '#C0C0C0',
         bgColors: ['#000000', '#0a0a0a', '#000000'] as any,
-        badgeRingColor: '#C0C0C0',
-        badgeBg: ['rgba(0,0,0,0.98)', 'rgba(8,8,8,0.99)'] as any,
-        badgeGlow: 'rgba(192,192,192,0.35)',
-        badgePulse: true,
+        badgeRingColor: '#C0C0C0', badgeBg: ['rgba(0,0,0,0.98)', 'rgba(8,8,8,0.99)'] as any,
+        badgeGlow: 'rgba(192,192,192,0.35)', badgePulse: true,
     },
 } as const;
 
@@ -248,12 +286,12 @@ const LegendaryGlowBorder = ({ color }: { color: string }) => {
         return () => cancelAnimation(glow);
     }, []);
     const outerStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(glow.value, [0, 1], [0.55, 1.0]),
-        transform: [{ scale: interpolate(glow.value, [0, 1], [1.0, 1.008]) }],
+        opacity: interpolate(glow.value, [0,1], [0.55, 1.0]),
+        transform: [{ scale: interpolate(glow.value, [0,1], [1.0, 1.008]) }],
     }));
     const innerStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(glow.value, [0, 1], [0.25, 0.7]),
-        transform: [{ scale: interpolate(glow.value, [0, 1], [1.004, 1.012]) }],
+        opacity: interpolate(glow.value, [0,1], [0.25, 0.7]),
+        transform: [{ scale: interpolate(glow.value, [0,1], [1.004, 1.012]) }],
     }));
     return (
         <>
@@ -264,20 +302,23 @@ const LegendaryGlowBorder = ({ color }: { color: string }) => {
 };
 
 // ─────────────────────────────────────────────
-// LegendaryShimmer
+// ElementShimmer — replaces LegendaryShimmer, color driven by element
 // ─────────────────────────────────────────────
-const LegendaryShimmer = ({ cardW, foilDuration }: { cardW: number; foilDuration: number }) => {
+const ElementShimmer = ({ cardW, foilDuration, element }: { cardW: number; foilDuration: number; element?: Element }) => {
     const x = useSharedValue(-cardW * 0.7);
     useEffect(() => {
         x.value = withRepeat(withTiming(cardW * 1.7, { duration: foilDuration, easing: Easing.inOut(Easing.quad) }), -1, false);
         return () => cancelAnimation(x);
     }, [cardW, foilDuration]);
     const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+    const colors = element && ELEMENT_SHIMMER_COLORS[element]
+        ? ELEMENT_SHIMMER_COLORS[element]
+        : ['transparent','rgba(255,230,80,0.06)','rgba(255,215,0,0.18)','rgba(255,255,180,0.28)','rgba(255,215,0,0.18)','rgba(255,230,80,0.06)','transparent'] as any;
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, width: cardW * 0.55 }, animStyle]}>
                 <LinearGradient
-                    colors={['transparent','rgba(255,230,80,0.06)','rgba(255,215,0,0.18)','rgba(255,255,180,0.28)','rgba(255,215,0,0.18)','rgba(255,230,80,0.06)','transparent']}
+                    colors={colors}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     style={{ flex: 1, transform: [{ rotate: '-25deg' }] }}
                 />
@@ -290,12 +331,12 @@ const LegendaryShimmer = ({ cardW, foilDuration }: { cardW: number; foilDuration
 // LegendaryParticles
 // ─────────────────────────────────────────────
 const PARTICLE_CONFIGS = [
-    { x: 28, startY: 240, delay: 0, dur: 2800 },
-    { x: 75, startY: 270, delay: 500, dur: 3200 },
-    { x: 130, startY: 255, delay: 900, dur: 2600 },
-    { x: 170, startY: 265, delay: 300, dur: 3000 },
+    { x: 28, startY: 240, delay: 0,    dur: 2800 },
+    { x: 75, startY: 270, delay: 500,  dur: 3200 },
+    { x: 130,startY: 255, delay: 900,  dur: 2600 },
+    { x: 170,startY: 265, delay: 300,  dur: 3000 },
     { x: 55, startY: 285, delay: 1200, dur: 2400 },
-    { x: 155, startY: 275, delay: 700, dur: 3400 },
+    { x: 155,startY: 275, delay: 700,  dur: 3400 },
 ];
 const SingleParticle = ({ x, startY, delay, dur, color }: { x: number; startY: number; delay: number; dur: number; color: string }) => {
     const p = useSharedValue(0);
@@ -304,11 +345,11 @@ const SingleParticle = ({ x, startY, delay, dur, color }: { x: number; startY: n
         return () => cancelAnimation(p);
     }, []);
     const style = useAnimatedStyle(() => ({
-        opacity: interpolate(p.value, [0, 0.15, 0.75, 1], [0, 0.9, 0.6, 0]),
+        opacity: interpolate(p.value, [0,0.15,0.75,1], [0,0.9,0.6,0]),
         transform: [
             { translateX: x + Math.sin(p.value * Math.PI * 2) * 6 },
             { translateY: startY - p.value * 85 },
-            { scale: interpolate(p.value, [0, 0.3, 1], [0.4, 1.0, 0.6]) },
+            { scale: interpolate(p.value, [0,0.3,1], [0.4,1.0,0.6]) },
         ],
     }));
     return <Animated.View pointerEvents="none" style={[styles.particle, { backgroundColor: color }, style]} />;
@@ -320,21 +361,12 @@ const LegendaryParticles = ({ color }: { color: string }) => (
 );
 
 // ─────────────────────────────────────────────
-// ✨ StatBadge — Clean minimal pill
+// StatBadge
 // ─────────────────────────────────────────────
-interface StatBadgeProps {
-    icon: string;
-    value: number;
-    isAttack: boolean;
-    fs: number;
-}
-
-const StatBadge = ({ icon, value, isAttack, fs }: StatBadgeProps) => (
+const StatBadge = ({ icon, value, isAttack, fs }: { icon: string; value: number; isAttack: boolean; fs: number }) => (
     <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
         <Text style={{ fontSize: fs + 1 }}>{icon}</Text>
-        <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>
-            {value}
-        </Text>
+        <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>{value}</Text>
     </View>
 );
 
@@ -393,7 +425,7 @@ const DarkSmokeEffect = () => {
     const smoke3 = useSharedValue(0);
     useEffect(() => {
         smoke1.value = withRepeat(withTiming(1, { duration: 3200, easing: Easing.out(Easing.quad) }), -1, false);
-        smoke2.value = withDelay(800, withRepeat(withTiming(1, { duration: 2800, easing: Easing.out(Easing.quad) }), -1, false));
+        smoke2.value = withDelay(800,  withRepeat(withTiming(1, { duration: 2800, easing: Easing.out(Easing.quad) }), -1, false));
         smoke3.value = withDelay(1400, withRepeat(withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }), -1, false));
         return () => { cancelAnimation(smoke1); cancelAnimation(smoke2); cancelAnimation(smoke3); };
     }, []);
@@ -406,9 +438,9 @@ const DarkSmokeEffect = () => {
                 { scale: interpolate(sv.value, [0,1], [sc*0.6, sc*1.8]) },
             ],
         }));
-    const s1 = makeStyle(smoke1, 30, 280, 10, 0.9);
+    const s1 = makeStyle(smoke1, 30,  280, 10,  0.9);
     const s2 = makeStyle(smoke2, 160, 260, 185, 1.1);
-    const s3 = makeStyle(smoke3, 90, 300, 70, 0.7);
+    const s3 = makeStyle(smoke3, 90,  300, 70,  0.7);
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
             {[s1,s2,s3].map((st,i) => (
@@ -416,8 +448,8 @@ const DarkSmokeEffect = () => {
                     <Svg width={50} height={50} viewBox="0 0 50 50">
                         <Defs>
                             <RadialGradient id={`sg${i}`} cx="50%" cy="50%" r="50%">
-                                <Stop offset="0%" stopColor="#1a1a1a" stopOpacity={0.9}/>
-                                <Stop offset="60%" stopColor="#0a0a0a" stopOpacity={0.5}/>
+                                <Stop offset="0%"   stopColor="#1a1a1a" stopOpacity={0.9}/>
+                                <Stop offset="60%"  stopColor="#0a0a0a" stopOpacity={0.5}/>
                                 <Stop offset="100%" stopColor="#000000" stopOpacity={0}/>
                             </RadialGradient>
                         </Defs>
@@ -439,8 +471,8 @@ const SpecialBreathingBorder = () => {
         return () => cancelAnimation(pulse);
     }, []);
     const s = useAnimatedStyle(() => ({
-        opacity: interpolate(pulse.value, [0,1], [0.3,0.9]),
-        transform: [{ scale: interpolate(pulse.value, [0,1], [0.997,1.007]) }],
+        opacity: interpolate(pulse.value, [0,1], [0.3, 0.9]),
+        transform: [{ scale: interpolate(pulse.value, [0,1], [0.997, 1.007]) }],
     }));
     return <Animated.View style={[styles.specialBreathingBorder, s]} pointerEvents="none" />;
 };
@@ -455,7 +487,7 @@ const GlowRing = ({ color }: { color: string }) => {
 };
 
 // ─────────────────────────────────────────────
-// Stars
+// StarsRow
 // ─────────────────────────────────────────────
 const StarsRow = ({ count, color, emptyColor, sc }: { count: number; color: string; emptyColor: string; sc: number }) => (
     <View style={styles.starsRow}>
@@ -482,7 +514,7 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
                 <Text style={[styles.dividerGem, { color: theme.color, fontSize: Math.max(7, 10 * sc) }]}>✦</Text>
                 <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
             </View>
-            <LinearGradient colors={theme.abilityBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}>
+            <LinearGradient colors={theme.abilityBg} start={{ x:0, y:0 }} end={{ x:1, y:0 }} style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}>
                 <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>⚜️</Text>
                 <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
             </LinearGradient>
@@ -495,7 +527,7 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
                 <Text style={[styles.dividerGem, { color: theme.color, fontSize: Math.max(7, 10 * sc) }]}>☠️</Text>
                 <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
             </View>
-            <LinearGradient colors={theme.abilityBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}>
+            <LinearGradient colors={theme.abilityBg} start={{ x:0, y:0 }} end={{ x:1, y:0 }} style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}>
                 <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>⚫</Text>
                 <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
             </LinearGradient>
@@ -534,13 +566,15 @@ const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, 
 };
 
 // ─────────────────────────────────────────────
-// Main Export
+// ✨✨ MAIN EXPORT ✨✨
 // ─────────────────────────────────────────────
 export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fitInsideBorder = false, isOpenedView = false }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity] ?? RARITY_THEMES.common;
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
+    const element = card.element;
+    const elementColor = element ? ELEMENT_COLORS[element] : null;
 
     const styleW = (style as any)?.width;
     const styleH = (style as any)?.height;
@@ -548,40 +582,37 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const cardH: number = typeof styleH === 'number' ? styleH : BASE_H;
     const scW = cardW / BASE_W;
     const scH = cardH / BASE_H;
-    const sc = Math.min(scW, scH);
+    const sc  = Math.min(scW, scH);
     const INSET = Math.round(5 * sc);
 
-    const cardImage = getCardImage(card);
-    const rawVideo = card.videoUrl;
+    const cardImage  = getCardImage(card);
+    const rawVideo   = card.videoUrl;
     const videoAsset: any = isLocalAsset(rawVideo) ? rawVideo : undefined;
     const videoUri: string | undefined = typeof rawVideo === 'string' ? rawVideo : undefined;
     const customUri: string | undefined = videoUri || (card as any).customImage || undefined;
-    const hasVideo = !!videoAsset || !!(customUri && isVideoUri(customUri));
-    const hasImage = !!cardImage || !!customUri;
+    const hasVideo   = !!videoAsset || !!(customUri && isVideoUri(customUri));
+    const hasImage   = !!cardImage || !!customUri;
     const isCustomImage = !!customUri;
 
     const statFs = Math.max(11, 14 * sc);
 
-    // ── heights ──────────────────────────────────────────────────────────
+    // ── layout stack (bottom↑) ───────────────────────────────────
     const statsBottom   = Math.round(8 * scH);
     const STAT_AREA_H   = Math.round(38 * scH);
-
-    // MetaStrip sits directly above the stats row
-    const META_H        = Math.round(22 * scH);
-    const META_GAP      = Math.round(4 * scH);
+    const META_H        = Math.round(20 * scH);
+    const META_GAP      = Math.round(5  * scH);
     const metaBottom    = statsBottom + STAT_AREA_H + META_GAP;
-
     const ABILITY_H     = hasAbility ? Math.round((rarity === 'legendary' || rarity === 'special' ? 50 : 42) * scH) : 0;
     const ABILITY_GAP   = hasAbility ? Math.round(4 * scH) : 0;
-    const abilityBottom = metaBottom + META_H + ABILITY_GAP;
+    const abilityBottom = metaBottom  + META_H + ABILITY_GAP;
     const nameBottom    = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4 * scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
 
-    const nameFontSize = Math.max(10, (rarity === 'legendary' || rarity === 'special' ? 18 : 17) * sc);
+    const nameFontSize  = Math.max(10, (rarity === 'legendary' || rarity === 'special' ? 18 : 17) * sc);
     const badgeFontSize = Math.max(7, 10 * sc);
-    const badgePadH = Math.max(5, 10 * sc);
-    const badgePadV = Math.max(2, 3 * sc);
-    const badgeTop = Math.max(4, 9 * scH);
-    const badgeLeft = Math.max(4, 9 * scW);
+    const badgePadH     = Math.max(5, 10 * sc);
+    const badgePadV     = Math.max(2,  3 * sc);
+    const badgeTop      = Math.max(4,  9 * scH);
+    const badgeLeft     = Math.max(4,  9 * scW);
 
     const imgStyle = isCustomImage && fitInsideBorder
         ? { position: 'absolute' as const, top: INSET + imageOffsetY, left: INSET, right: INSET, bottom: INSET }
@@ -590,59 +621,83 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const specialRarityBadgeBg = rarity === 'special' ? 'rgba(0,0,0,0.85)' : rarity === 'legendary' ? 'rgba(30,20,0,0.75)' : rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)';
     const isLegendary = rarity === 'legendary';
 
+    // element-driven border override (adds secondary tint on top of rarity border)
+    const activeBorderColor = elementColor ?? theme.borderColor;
+
     return (
         <Animated.View style={[
             styles.cardContainer,
-            { width: cardW, height: cardH, borderRadius: Math.round(14 * sc), borderColor: theme.borderColor, borderWidth: theme.borderWidth, shadowColor: theme.shadowColor, shadowOpacity: theme.shadowOpacity, shadowRadius: theme.shadowRadius, elevation: theme.elevation },
+            {
+                width: cardW, height: cardH,
+                borderRadius:    Math.round(14 * sc),
+                borderColor:     activeBorderColor,
+                borderWidth:     theme.borderWidth,
+                shadowColor:     elementColor ?? theme.shadowColor,
+                shadowOpacity:   theme.shadowOpacity,
+                shadowRadius:    theme.shadowRadius,
+                elevation:       theme.elevation,
+            },
             rarity === 'special' && styles.specialCardBase,
             style,
         ]}>
+            {/* rarity glow layers */}
             {isLegendary && <LegendaryGlowBorder color={theme.color} />}
             {rarity === 'special' && <SpecialBreathingBorder />}
-            {rarity === 'epic' && <GlowRing color={theme.color} />}
+            {rarity === 'epic'    && <GlowRing color={theme.color} />}
+
+            {/* element glow ring — shown for all rarities when element present */}
+            {elementColor && <ElementGlowBorder color={elementColor} />}
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
-                <LinearGradient colors={theme.bgColors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                <LinearGradient colors={theme.bgColors} style={StyleSheet.absoluteFill} start={{ x:0, y:0 }} end={{ x:1, y:1 }} />
                 {rarity === 'special' && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 1 }]} pointerEvents="none" />}
                 {(hasImage || hasVideo) && <CardMedia cardImage={cardImage} videoAsset={videoAsset} customUri={customUri} isCustomImage={isCustomImage} imgStyle={imgStyle} videoMuted={!isOpenedView} />}
 
                 <View style={styles.contentLayer}>
-                    {theme.hasFoil && <LegendaryShimmer cardW={cardW} foilDuration={theme.foilDuration} />}
-                    <View style={[styles.innerBorder, { borderColor: theme.borderColor + '55', borderRadius: Math.round(9 * sc) }]} pointerEvents="none" />
+                    {/* element-tinted shimmer replaces the old gold-only shimmer */}
+                    {theme.hasFoil && <ElementShimmer cardW={cardW} foilDuration={theme.foilDuration} element={element} />}
+
+                    <View style={[styles.innerBorder, { borderColor: activeBorderColor + '55', borderRadius: Math.round(9 * sc) }]} pointerEvents="none" />
+
                     {(hasImage || hasVideo) && (
                         <LinearGradient
-                            colors={rarity === 'special' ? ['rgba(0,0,0,0.2)','transparent','rgba(0,0,0,0.7)','rgba(0,0,0,0.97)'] : ['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)']}
-                            style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} pointerEvents="none"
+                            colors={elementBottomGradient(element, rarity === 'special')}
+                            style={styles.gradientOverlay} start={{ x:0, y:0 }} end={{ x:0, y:1 }} pointerEvents="none"
                         />
                     )}
+
                     {!hasImage && !hasVideo && (
                         <View style={styles.noImageBadge} pointerEvents="none">
                             <Text style={styles.noImageIcon}>🖼️</Text>
                             <Text style={styles.noImageText}>لا توجد صورة</Text>
                         </View>
                     )}
-                    {isLegendary && theme.hasParticles && <LegendaryParticles color={theme.color} />}
-                    {theme.hasSideVines && <SideVines color={theme.color} />}
+
+                    {isLegendary && theme.hasParticles && <LegendaryParticles color={elementColor ?? theme.color} />}
+                    {theme.hasSideVines && <SideVines color={elementColor ?? theme.color} />}
                     {(theme as any).hasDarkSmoke && <DarkSmokeEffect />}
+
                     {theme.hasFiligree && (
                         <>
-                            <ElvenCorner position="tl" color={theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
-                            <ElvenCorner position="tr" color={theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                            <ElvenCorner position="tl" color={elementColor ?? theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                            <ElvenCorner position="tr" color={elementColor ?? theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
                             {(rarity==='legendary'||rarity==='epic'||rarity==='special') && (
                                 <>
-                                    <ElvenCorner position="bl" color={theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
-                                    <ElvenCorner position="br" color={theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                                    <ElvenCorner position="bl" color={elementColor ?? theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                                    <ElvenCorner position="br" color={elementColor ?? theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
                                 </>
                             )}
                         </>
                     )}
 
+                    {/* rarity badge */}
                     <View style={[styles.rarityBadge, { top: badgeTop, left: badgeLeft, paddingHorizontal: badgePadH, paddingVertical: badgePadV, borderRadius: Math.round(7 * sc), borderColor: theme.color + 'AA', backgroundColor: specialRarityBadgeBg }]}>
                         <Text style={[styles.rarityBadgeText, { color: theme.color, fontSize: badgeFontSize }]}>
                             {rarity==='legendary' ? '✧ ' : rarity==='special' ? '☠️ ' : '✦ '}{theme.label}{rarity==='legendary' ? ' ✧' : rarity==='special' ? ' ☠️' : ' ✦'}
                         </Text>
                     </View>
 
+                    {/* card name + stars */}
                     <View style={[styles.nameContainer, { bottom: nameBottom, paddingHorizontal: Math.max(4, 10 * scW) }]}>
                         {isLegendary && (
                             <View style={styles.legendaryNameBar}>
@@ -654,22 +709,23 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                                 <LinearGradient colors={['transparent','rgba(192,192,192,0.12)','transparent']} start={{ x:0, y:0 }} end={{ x:1, y:0 }} style={StyleSheet.absoluteFill}/>
                             </View>
                         )}
-                        <Text style={[styles.cardName, { textShadowColor: theme.color, fontSize: nameFontSize }]} numberOfLines={1}>{card.nameAr || card.name}</Text>
-                        {stars > 0 && <StarsRow count={stars} color={theme.starColor} emptyColor={theme.starEmpty} sc={sc}/>}
+                        <Text style={[styles.cardName, { textShadowColor: elementColor ?? theme.color, fontSize: nameFontSize }]} numberOfLines={1}>{card.nameAr || card.name}</Text>
+                        {stars > 0 && <StarsRow count={stars} color={elementColor ?? theme.starColor} emptyColor={theme.starEmpty} sc={sc}/>}
                     </View>
 
+                    {/* ability banner */}
                     {hasAbility && (
                         <View style={[styles.abilityContainer, { bottom: abilityBottom, left: Math.max(4,8*scW), right: Math.max(4,8*scW) }]}>
                             <AbilityBanner text={card.specialAbility!} rarity={rarity} theme={theme} sc={sc}/>
                         </View>
                     )}
 
-                    {/* ✨ MetaStrip — Element / Gender / Class / Tag */}
+                    {/* ✨ MetaStrip — race / class / tag — anchored above stats */}
                     <View style={[styles.metaContainer, { bottom: metaBottom, paddingHorizontal: Math.max(4, 8 * scW) }]}>
                         <MetaStrip card={card} sc={sc} />
                     </View>
 
-                    {/* ✨ Stats Row — Clean Minimal Pill Badges */}
+                    {/* stats */}
                     <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 14 * scW) }]}>
                         <StatBadge icon="⚔️" value={card.attack}  isAttack={true}  fs={statFs} />
                         <StatBadge icon="🛡️" value={card.defense} isAttack={false} fs={statFs} />
@@ -681,92 +737,61 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 }
 
 const styles = StyleSheet.create({
-    cardContainer: { backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 } },
-    specialCardBase: { backgroundColor: '#000000' },
-    cardInner: { flex: 1, overflow: 'hidden' },
-    contentLayer: { flex: 1, position: 'relative' },
+    cardContainer:          { backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 } },
+    specialCardBase:        { backgroundColor: '#000000' },
+    cardInner:              { flex: 1, overflow: 'hidden' },
+    contentLayer:           { flex: 1, position: 'relative' },
 
-    legendGlowOuter: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 22, borderWidth: 2.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 20, shadowColor: '#FFD700', zIndex: 20 },
-    legendGlowInner: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 18, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 10, shadowColor: '#FFD700', zIndex: 19 },
-    specialBreathingBorder: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 21, borderWidth: 2, borderColor: '#3a3a3a', shadowOffset: { width: 0, height: 0 }, shadowColor: '#000', zIndex: 20 },
-    glowRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 16, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, zIndex: 19 },
+    legendGlowOuter:        { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 22, borderWidth: 2.5, shadowOffset: { width:0, height:0 }, shadowRadius: 20, shadowColor: '#FFD700', zIndex: 20 },
+    legendGlowInner:        { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 18, borderWidth: 1.5, shadowOffset: { width:0, height:0 }, shadowRadius: 10, shadowColor: '#FFD700', zIndex: 19 },
+    specialBreathingBorder: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 21, borderWidth: 2, borderColor: '#3a3a3a', shadowOffset: { width:0, height:0 }, shadowColor: '#000', zIndex: 20 },
+    glowRing:               { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 16, borderWidth: 1.5, shadowOffset: { width:0, height:0 }, shadowRadius: 14, zIndex: 19 },
 
-    innerBorder: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderWidth: 1, zIndex: 5 },
+    innerBorder:     { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderWidth: 1, zIndex: 5 },
     gradientOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 },
-    filigreeCorner: { position: 'absolute', zIndex: 6, opacity: 0.92 },
+    filigreeCorner:  { position: 'absolute', zIndex: 6, opacity: 0.92 },
 
     noImageBadge: { position: 'absolute', top: '25%', left: 0, right: 0, alignItems: 'center', zIndex: 4 },
-    noImageIcon: { fontSize: 36, opacity: 0.4 },
-    noImageText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4 },
+    noImageIcon:  { fontSize: 36, opacity: 0.4 },
+    noImageText:  { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4 },
 
-    rarityBadge: { position: 'absolute', borderWidth: 1, zIndex: 10 },
+    rarityBadge:     { position: 'absolute', borderWidth: 1, zIndex: 10 },
     rarityBadgeText: { fontWeight: '700', letterSpacing: 0.5 },
 
-    nameContainer: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 8 },
+    nameContainer:    { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 8 },
     legendaryNameBar: { position: 'absolute', top: -4, left: -10, right: -10, bottom: -4 },
-    cardName: { fontWeight: '800', color: '#FFFFFF', textAlign: 'center', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 10, letterSpacing: 0.3 },
+    cardName: { fontWeight: '800', color: '#FFFFFF', textAlign: 'center', textShadowOffset: { width:0, height:1 }, textShadowRadius: 10, letterSpacing: 0.3 },
 
     starsRow: { flexDirection: 'row', gap: 2, marginTop: 3 },
-    star: { fontWeight: 'bold' },
+    star:     { fontWeight: 'bold' },
 
-    abilityContainer: { position: 'absolute', zIndex: 9 },
-    abilityBannerBase: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 6 },
-    abilityBannerSimple: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 6, borderWidth: 0.8 },
+    abilityContainer:      { position: 'absolute', zIndex: 9 },
+    abilityBannerBase:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 6 },
+    abilityBannerSimple:   { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 6, borderWidth: 0.8 },
     abilityWrapperLegendary: { gap: 0 },
-    legendaryDivider: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, paddingHorizontal: 4 },
-    dividerLine: { flex: 1, height: 0.8, opacity: 0.6 },
-    dividerGem: { fontWeight: '800' },
-    abilityWrapperEpic: { flexDirection: 'row', alignItems: 'stretch' },
-    epicAccentBar: { width: 3, borderRadius: 2, marginRight: 0 },
-    abilityIcon: {},
-    abilityText: { flex: 1, fontWeight: '600', writingDirection: 'rtl' },
+    legendaryDivider:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, paddingHorizontal: 4 },
+    dividerLine:           { flex: 1, height: 0.8, opacity: 0.6 },
+    dividerGem:            { fontWeight: '800' },
+    abilityWrapperEpic:    { flexDirection: 'row', alignItems: 'stretch' },
+    epicAccentBar:         { width: 3, borderRadius: 2, marginRight: 0 },
+    abilityIcon:           {},
+    abilityText:           { flex: 1, fontWeight: '600', writingDirection: 'rtl' },
 
-    // ✨ MetaStrip container
-    metaContainer: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 10,
-    },
+    // ✨ MetaStrip
+    metaContainer: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 10 },
 
-    statsRow: {
-        position: 'absolute',
-        left: 0, right: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 10,
-    },
+    // stats
+    statsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 },
+    statBadge:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, gap: 4, minWidth: 48, justifyContent: 'center' },
+    attackBadge:  { backgroundColor: 'rgba(20,12,0,0.88)',  borderWidth: 1.5, borderColor: '#B8860B' },
+    defenseBadge: { backgroundColor: 'rgba(0,10,28,0.88)',  borderWidth: 1.5, borderColor: '#2563EB' },
+    statValue:    { fontWeight: '800', letterSpacing: 0.3 },
+    attackText:   { color: '#FFB830' },
+    defenseText:  { color: '#60A5FA' },
 
-    // ✨ Clean Minimal Stat Badges
-    statBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 20,
-        gap: 4,
-        minWidth: 48,
-        justifyContent: 'center',
-    },
-    attackBadge: {
-        backgroundColor: 'rgba(20, 12, 0, 0.88)',
-        borderWidth: 1.5,
-        borderColor: '#B8860B',
-    },
-    defenseBadge: {
-        backgroundColor: 'rgba(0, 10, 28, 0.88)',
-        borderWidth: 1.5,
-        borderColor: '#2563EB',
-    },
-    statValue: { fontWeight: '800', letterSpacing: 0.3 },
-    attackText: { color: '#FFB830' },
-    defenseText: { color: '#60A5FA' },
-
-    particle: { position: 'absolute', width: 5, height: 5, borderRadius: 3 },
-    smokeBlob: { position: 'absolute', zIndex: 3 },
-    sideVinesWrapper: { position: 'absolute', top: '20%', left: 0, right: 0, bottom: '15%', zIndex: 3 },
-    vineLeft: { position: 'absolute', left: 2 },
-    vineRight: { position: 'absolute', right: 2 },
+    particle:        { position: 'absolute', width: 5, height: 5, borderRadius: 3 },
+    smokeBlob:       { position: 'absolute', zIndex: 3 },
+    sideVinesWrapper:{ position: 'absolute', top: '20%', left: 0, right: 0, bottom: '15%', zIndex: 3 },
+    vineLeft:        { position: 'absolute', left: 2 },
+    vineRight:       { position: 'absolute', right: 2 },
 });
