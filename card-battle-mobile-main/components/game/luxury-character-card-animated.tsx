@@ -14,7 +14,7 @@ import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
     withSequence, interpolate, Easing,
 } from 'react-native-reanimated';
-import { Svg, Circle, Line, Polygon, Ellipse, Path } from 'react-native-svg';
+import { Svg, Circle, Line, Polygon, Ellipse, Path, Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { Card, CardRarity } from '@/lib/game/types';
 import { getCardImage } from '../../lib/game/get-card-image';
 
@@ -60,7 +60,7 @@ const RARITY_THEMES = {
         label: '\u0639\u0627\u062f\u064a', color: '#9CA3AF', borderColor: '#6B7280', borderWidth: 1,
         shadowColor: '#6B7280', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4,
         hasFoil: false, hasRunicRing: false, hasFiligree: false, hasPulse: false,
-        hasEdgeChain: false, hasParticles: false, hasSideVines: false,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: false, hasDarkSmoke: false,
         foilDuration: 0, atkColor: '#9CA3AF', defColor: '#9CA3AF',
         foilColors: ['transparent', 'transparent'] as any,
         starColor: '#9CA3AF', starEmpty: '#3f3f46',
@@ -72,7 +72,7 @@ const RARITY_THEMES = {
         label: '\u0646\u0627\u062f\u0631', color: '#CD7F32', borderColor: '#CD7F32', borderWidth: 1.5,
         shadowColor: '#CD7F32', shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
         hasFoil: false, hasRunicRing: false, hasFiligree: true, hasPulse: false,
-        hasEdgeChain: false, hasParticles: false, hasSideVines: false,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: false, hasDarkSmoke: false,
         foilDuration: 0, atkColor: '#D97706', defColor: '#92C5FD',
         foilColors: ['transparent', 'transparent'] as any,
         starColor: '#CD7F32', starEmpty: '#3f2d1a',
@@ -84,7 +84,7 @@ const RARITY_THEMES = {
         label: '\u0645\u0644\u062d\u0645\u064a', color: '#A855F7', borderColor: '#A855F7', borderWidth: 2,
         shadowColor: '#A855F7', shadowOpacity: 0.65, shadowRadius: 18, elevation: 9,
         hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: false,
-        hasEdgeChain: false, hasParticles: false, hasSideVines: true,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: true, hasDarkSmoke: false,
         foilDuration: 3000, atkColor: '#F0ABFC', defColor: '#93C5FD',
         foilColors: ['transparent', 'rgba(200,100,255,0.12)', 'rgba(150,80,255,0.25)', 'rgba(200,100,255,0.12)', 'transparent'] as any,
         starColor: '#A855F7', starEmpty: '#2d1a3f',
@@ -96,7 +96,7 @@ const RARITY_THEMES = {
         label: '\u0623\u0633\u0637\u0648\u0631\u064a', color: '#FFD700', borderColor: '#FFD700', borderWidth: 2.5,
         shadowColor: '#FFD700', shadowOpacity: 0.9, shadowRadius: 26, elevation: 12,
         hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: true,
-        hasEdgeChain: true, hasParticles: true, hasSideVines: false,
+        hasEdgeChain: true, hasParticles: true, hasSideVines: false, hasDarkSmoke: false,
         foilDuration: 2200, atkColor: '#FDE68A', defColor: '#BAE6FD',
         foilColors: ['transparent', 'rgba(255,215,0,0.1)', 'rgba(255,200,50,0.28)', 'rgba(255,180,0,0.18)', 'rgba(255,215,0,0.1)', 'transparent'] as any,
         starColor: '#FFD700', starEmpty: '#3a2d00',
@@ -104,7 +104,164 @@ const RARITY_THEMES = {
         abilityBorder: '#FFD700CC', abilityTextColor: '#fef3c7', abilityIconColor: '#FFD700',
         bgColors: ['#1a1400', '#2d2400', '#1a1400'] as any,
     },
+    // ✨ الندرة الجديدة: الخاصة — أسود قاتم مع دخان أسود
+    special: {
+        label: '\u062e\u0627\u0635\u0629', color: '#C0C0C0', borderColor: '#1a1a1a', borderWidth: 3,
+        shadowColor: '#000000', shadowOpacity: 1.0, shadowRadius: 32, elevation: 16,
+        hasFoil: true, hasRunicRing: true, hasFiligree: true, hasPulse: true,
+        hasEdgeChain: false, hasParticles: false, hasSideVines: false, hasDarkSmoke: true,
+        foilDuration: 4000, atkColor: '#E5E5E5', defColor: '#B0B0B0',
+        foilColors: ['transparent', 'rgba(255,255,255,0.03)', 'rgba(180,180,180,0.1)', 'rgba(255,255,255,0.03)', 'transparent'] as any,
+        starColor: '#C0C0C0', starEmpty: '#1a1a1a',
+        abilityBg: ['rgba(0,0,0,0.95)', 'rgba(5,5,5,0.98)'] as any,
+        abilityBorder: '#C0C0C055', abilityTextColor: '#d4d4d4', abilityIconColor: '#C0C0C0',
+        bgColors: ['#000000', '#0a0a0a', '#000000'] as any,
+    },
 } as const;
+
+// ---------------------------------------------------------------
+// مكوّن تأثير الدخان الأسود — خاص بالندرة "special"
+// ---------------------------------------------------------------
+const DarkSmokeEffect = () => {
+    // كل سحابة تتحرك بسرعة وتوقيت مختلف
+    const smoke1 = useSharedValue(0);
+    const smoke2 = useSharedValue(0);
+    const smoke3 = useSharedValue(0);
+    const smoke4 = useSharedValue(0);
+
+    useEffect(() => {
+        // سحابة 1: تصعد من اليسار السفل
+        smoke1.value = withRepeat(
+            withTiming(1, { duration: 3200, easing: Easing.out(Easing.quad) }),
+            -1, false
+        );
+        // سحابة 2: متأخرة نوعاً
+        setTimeout(() => {
+            smoke2.value = withRepeat(
+                withTiming(1, { duration: 2800, easing: Easing.out(Easing.quad) }),
+                -1, false
+            );
+        }, 800);
+        // سحابة 3: سريعة
+        setTimeout(() => {
+            smoke3.value = withRepeat(
+                withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }),
+                -1, false
+            );
+        }, 1400);
+        // سحابة 4: بطيئة
+        setTimeout(() => {
+            smoke4.value = withRepeat(
+                withTiming(1, { duration: 3600, easing: Easing.out(Easing.cubic) }),
+                -1, false
+            );
+        }, 300);
+    }, []);
+
+    const makeStyle = (sv: any, fromX: number, fromY: number, toX: number, scale: number) =>
+        useAnimatedStyle(() => ({
+            opacity: interpolate(sv.value, [0, 0.2, 0.7, 1], [0, 0.55, 0.3, 0]),
+            transform: [
+                { translateX: fromX + (toX - fromX) * sv.value },
+                { translateY: fromY + (-60 * sv.value) },
+                { scale: interpolate(sv.value, [0, 1], [scale * 0.6, scale * 1.8]) },
+            ],
+        }));
+
+    const s1Style = makeStyle(smoke1, 30, 280, 10, 0.9);
+    const s2Style = makeStyle(smoke2, 160, 260, 185, 1.1);
+    const s3Style = makeStyle(smoke3, 90, 300, 70, 0.7);
+    const s4Style = makeStyle(smoke4, 130, 270, 155, 1.3);
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {/* سحابة 1 */}
+            <Animated.View style={[styles.smokeBlob, s1Style]}>
+                <Svg width={50} height={50} viewBox="0 0 50 50">
+                    <Defs>
+                        <RadialGradient id="sg1" cx="50%" cy="50%" r="50%">
+                            <Stop offset="0%" stopColor="#1a1a1a" stopOpacity={0.9} />
+                            <Stop offset="60%" stopColor="#0a0a0a" stopOpacity={0.5} />
+                            <Stop offset="100%" stopColor="#000000" stopOpacity={0} />
+                        </RadialGradient>
+                    </Defs>
+                    <Ellipse cx={25} cy={25} rx={22} ry={18} fill="url(#sg1)" />
+                </Svg>
+            </Animated.View>
+
+            {/* سحابة 2 */}
+            <Animated.View style={[styles.smokeBlob, s2Style]}>
+                <Svg width={65} height={65} viewBox="0 0 65 65">
+                    <Defs>
+                        <RadialGradient id="sg2" cx="50%" cy="50%" r="50%">
+                            <Stop offset="0%" stopColor="#222222" stopOpacity={0.85} />
+                            <Stop offset="50%" stopColor="#111111" stopOpacity={0.4} />
+                            <Stop offset="100%" stopColor="#000000" stopOpacity={0} />
+                        </RadialGradient>
+                    </Defs>
+                    <Ellipse cx={32} cy={32} rx={30} ry={24} fill="url(#sg2)" />
+                </Svg>
+            </Animated.View>
+
+            {/* سحابة 3 */}
+            <Animated.View style={[styles.smokeBlob, s3Style]}>
+                <Svg width={42} height={42} viewBox="0 0 42 42">
+                    <Defs>
+                        <RadialGradient id="sg3" cx="50%" cy="50%" r="50%">
+                            <Stop offset="0%" stopColor="#303030" stopOpacity={0.8} />
+                            <Stop offset="70%" stopColor="#0d0d0d" stopOpacity={0.3} />
+                            <Stop offset="100%" stopColor="#000000" stopOpacity={0} />
+                        </RadialGradient>
+                    </Defs>
+                    <Ellipse cx={21} cy={21} rx={19} ry={15} fill="url(#sg3)" />
+                </Svg>
+            </Animated.View>
+
+            {/* سحابة 4 */}
+            <Animated.View style={[styles.smokeBlob, s4Style]}>
+                <Svg width={75} height={75} viewBox="0 0 75 75">
+                    <Defs>
+                        <RadialGradient id="sg4" cx="50%" cy="50%" r="50%">
+                            <Stop offset="0%" stopColor="#1c1c1c" stopOpacity={0.75} />
+                            <Stop offset="55%" stopColor="#080808" stopOpacity={0.35} />
+                            <Stop offset="100%" stopColor="#000000" stopOpacity={0} />
+                        </RadialGradient>
+                    </Defs>
+                    <Ellipse cx={37} cy={37} rx={35} ry={28} fill="url(#sg4)" />
+                </Svg>
+            </Animated.View>
+
+            {/* طبقة دخان ثابتة في الأسفل */}
+            <LinearGradient
+                colors={['transparent', 'transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
+                style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                pointerEvents="none"
+            />
+        </View>
+    );
+};
+
+// ---------------------------------------------------------------
+// حدود نابضة للخاصة — توهج باللون الفضي الداكن
+// ---------------------------------------------------------------
+const SpecialBreathingBorder = () => {
+    const pulse = useSharedValue(0);
+    useEffect(() => {
+        pulse.value = withRepeat(
+            withTiming(1, { duration: 3500, easing: Easing.inOut(Easing.quad) }),
+            -1, true
+        );
+    }, []);
+    const animStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(pulse.value, [0, 1], [0.3, 0.9]),
+        shadowOpacity: interpolate(pulse.value, [0, 1], [0.2, 0.8]),
+        shadowRadius: interpolate(pulse.value, [0, 1], [8, 28]),
+        transform: [{ scale: interpolate(pulse.value, [0, 1], [0.997, 1.007]) }],
+    }));
+    return <Animated.View style={[styles.specialBreathingBorder, animStyle]} pointerEvents="none" />;
+};
 
 const RunicRing = ({ color, size = 64, reverse = false, speed = 10000 }: { color: string; size?: number; reverse?: boolean; speed?: number }) => {
     const rotation = useSharedValue(0);
@@ -254,6 +411,21 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
             </View>
         );
     }
+    if (rarity === 'special') {
+        return (
+            <View style={styles.abilityWrapperLegendary}>
+                <View style={styles.legendaryDivider}>
+                    <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
+                    <Text style={[styles.dividerGem, { color: theme.color, fontSize: Math.max(7, 10 * sc) }]}>\u2620\ufe0f</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: theme.color }]} />
+                </View>
+                <LinearGradient colors={theme.abilityBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.abilityBannerBase, { borderColor: theme.abilityBorder, borderWidth: 1.2, paddingHorizontal: padH, paddingVertical: padV }]}>
+                    <Text style={[styles.abilityIcon, { color: theme.abilityIconColor, fontSize: iconSize }]}>\u26ab</Text>
+                    <Text style={[styles.abilityText, { color: theme.abilityTextColor, fontSize: textSize, lineHeight: textSize * 1.35 }]} numberOfLines={2}>{text}</Text>
+                </LinearGradient>
+            </View>
+        );
+    }
     if (rarity === 'epic') {
         return (
             <View style={styles.abilityWrapperEpic}>
@@ -345,7 +517,7 @@ export function LuxuryCharacterCardAnimated({
     isOpenedView = false,
 }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
-    const theme = RARITY_THEMES[rarity];
+    const theme = RARITY_THEMES[rarity] ?? RARITY_THEMES.common;
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
 
@@ -391,12 +563,12 @@ export function LuxuryCharacterCardAnimated({
 
     const statsBottom = Math.round(6 * scH);
     const STAT_AREA_H = Math.round(62 * scH);
-    const ABILITY_H = hasAbility ? Math.round((rarity === 'legendary' ? 50 : 42) * scH) : 0;
+    const ABILITY_H = hasAbility ? Math.round((rarity === 'legendary' || rarity === 'special' ? 50 : 42) * scH) : 0;
     const ABILITY_GAP = hasAbility ? Math.round(4 * scH) : 0;
     const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
     const nameBottom = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4 * scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
 
-    const nameFontSize = Math.max(10, (rarity === 'legendary' ? 18 : 17) * sc);
+    const nameFontSize = Math.max(10, (rarity === 'legendary' || rarity === 'special' ? 18 : 17) * sc);
     const badgeFontSize = Math.max(7, 10 * sc);
     const statIconSize = Math.max(8, 12 * sc);
     const statValueSize = Math.max(9, 13 * sc);
@@ -409,13 +581,21 @@ export function LuxuryCharacterCardAnimated({
         ? { position: 'absolute' as const, top: INSET + imageOffsetY, left: INSET, right: INSET, bottom: INSET, width: undefined, height: undefined }
         : { position: 'absolute' as const, top: imageOffsetY, left: 0, right: 0, width: '100%' as const, height: '100%' as const };
 
+    // باج الندرة للخاصة
+    const specialRarityBadgeBg = rarity === 'special' ? 'rgba(0,0,0,0.85)' :
+        rarity === 'legendary' ? 'rgba(30,20,0,0.75)' :
+            rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)';
+
     return (
         <Animated.View style={[
             styles.cardContainer,
             { width: cardW, height: cardH, borderRadius: Math.round(14 * sc), borderColor: theme.borderColor, borderWidth: theme.borderWidth, shadowColor: theme.shadowColor, shadowOpacity: theme.shadowOpacity, shadowRadius: theme.shadowRadius, elevation: theme.elevation },
+            // في وضع "special": الخلفية سوداء قاتمة
+            rarity === 'special' && styles.specialCardBase,
             style,
         ]}>
-            {theme.hasPulse && <BreathingBorder />}
+            {theme.hasPulse && rarity !== 'special' && <BreathingBorder />}
+            {rarity === 'special' && <SpecialBreathingBorder />}
             {(rarity === 'epic' || rarity === 'legendary') && <GlowRing color={theme.color} />}
 
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
@@ -425,6 +605,11 @@ export function LuxuryCharacterCardAnimated({
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 />
+
+                {/* للخاصة: طبقة سوداء فوق الصورة تجعلها تبدو مضلمة */}
+                {rarity === 'special' && (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 1 }]} pointerEvents="none" />
+                )}
 
                 {(hasImage || hasVideo) && (
                     <CardMedia
@@ -450,7 +635,10 @@ export function LuxuryCharacterCardAnimated({
 
                     {(hasImage || hasVideo) && (
                         <LinearGradient
-                            colors={['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']}
+                            colors={rarity === 'special'
+                                ? ['rgba(0,0,0,0.2)', 'transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.97)']
+                                : ['transparent', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.94)']
+                            }
                             style={styles.gradientOverlay} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                             pointerEvents="none"
                         />
@@ -467,22 +655,27 @@ export function LuxuryCharacterCardAnimated({
                     {theme.hasParticles && <FloatingParticles color={theme.color} />}
                     {theme.hasSideVines && <SideVines color={theme.color} />}
 
+                    {/* تأثير الدخان للخاصة */}
+                    {(theme as any).hasDarkSmoke && <DarkSmokeEffect />}
+
                     {theme.hasFiligree && (
                         <>
-                            <ElvenCorner position="tl" color={theme.color} rich={rarity === 'legendary'} scale={sc} />
-                            <ElvenCorner position="tr" color={theme.color} rich={rarity === 'legendary'} scale={sc} />
-                            {(rarity === 'legendary' || rarity === 'epic') && (
+                            <ElvenCorner position="tl" color={theme.color} rich={rarity === 'legendary' || rarity === 'special'} scale={sc} />
+                            <ElvenCorner position="tr" color={theme.color} rich={rarity === 'legendary' || rarity === 'special'} scale={sc} />
+                            {(rarity === 'legendary' || rarity === 'epic' || rarity === 'special') && (
                                 <>
-                                    <ElvenCorner position="bl" color={theme.color} rich={rarity === 'legendary'} scale={sc} />
-                                    <ElvenCorner position="br" color={theme.color} rich={rarity === 'legendary'} scale={sc} />
+                                    <ElvenCorner position="bl" color={theme.color} rich={rarity === 'legendary' || rarity === 'special'} scale={sc} />
+                                    <ElvenCorner position="br" color={theme.color} rich={rarity === 'legendary' || rarity === 'special'} scale={sc} />
                                 </>
                             )}
                         </>
                     )}
 
-                    <View style={[styles.rarityBadge, { top: badgeTop, left: badgeLeft, paddingHorizontal: badgePadH, paddingVertical: badgePadV, borderRadius: Math.round(7 * sc), borderColor: theme.color + 'AA', backgroundColor: rarity === 'legendary' ? 'rgba(30,20,0,0.75)' : rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)' }]}>
+                    <View style={[styles.rarityBadge, { top: badgeTop, left: badgeLeft, paddingHorizontal: badgePadH, paddingVertical: badgePadV, borderRadius: Math.round(7 * sc), borderColor: theme.color + 'AA', backgroundColor: specialRarityBadgeBg }]}>
                         <Text style={[styles.rarityBadgeText, { color: theme.color, fontSize: badgeFontSize }]}>
-                            {rarity === 'legendary' ? '\u2747 ' : '\u2726 '}{theme.label}{rarity === 'legendary' ? ' \u2747' : ' \u2726'}
+                            {rarity === 'legendary' ? '\u2747 ' : rarity === 'special' ? '\u2620\ufe0f ' : '\u2726 '}
+                            {theme.label}
+                            {rarity === 'legendary' ? ' \u2747' : rarity === 'special' ? ' \u2620\ufe0f' : ' \u2726'}
                         </Text>
                     </View>
 
@@ -490,6 +683,11 @@ export function LuxuryCharacterCardAnimated({
                         {rarity === 'legendary' && (
                             <View style={styles.legendaryNameBar}>
                                 <LinearGradient colors={['transparent', 'rgba(255,215,0,0.18)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                            </View>
+                        )}
+                        {rarity === 'special' && (
+                            <View style={styles.legendaryNameBar}>
+                                <LinearGradient colors={['transparent', 'rgba(192,192,192,0.12)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                             </View>
                         )}
                         <Text style={[styles.cardName, { textShadowColor: theme.color, fontSize: nameFontSize }]} numberOfLines={1}>
@@ -511,20 +709,25 @@ export function LuxuryCharacterCardAnimated({
                                 <View key={icon} style={styles.statWrapper}>
                                     {theme.hasRunicRing && (
                                         <View style={[styles.ringWrapper, { width: ringSize, height: ringSize }]}>
-                                            <RunicRing color={theme.color} size={ringSize} reverse={rev} speed={rarity === 'legendary' ? 7000 : 10000} />
+                                            <RunicRing color={theme.color} size={ringSize} reverse={rev} speed={rarity === 'legendary' ? 7000 : rarity === 'special' ? 12000 : 10000} />
                                             <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                                                <RunicRing color={theme.color} size={innerRingSize} reverse={!rev} speed={rarity === 'legendary' ? 5000 : 8000} />
+                                                <RunicRing color={theme.color} size={innerRingSize} reverse={!rev} speed={rarity === 'legendary' ? 5000 : rarity === 'special' ? 9000 : 8000} />
                                             </View>
-                                            {rarity === 'legendary' && (
+                                            {(rarity === 'legendary' || rarity === 'special') && (
                                                 <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                                                    <RunicRing color={theme.color} size={innerRing2Size} reverse={rev} speed={3500} />
+                                                    <RunicRing color={theme.color} size={innerRing2Size} reverse={rev} speed={rarity === 'special' ? 6000 : 3500} />
                                                 </View>
                                             )}
                                         </View>
                                     )}
-                                    <View style={[styles.statBadge, { width: statBadgeSize, height: statBadgeSize, borderRadius: statBadgeSize / 2, borderColor: theme.color, shadowColor: theme.color, borderWidth: rarity === 'legendary' ? 2 : 1.5 }]}>
+                                    <View style={[styles.statBadge, { width: statBadgeSize, height: statBadgeSize, borderRadius: statBadgeSize / 2, borderColor: theme.color, shadowColor: theme.color, borderWidth: rarity === 'legendary' || rarity === 'special' ? 2 : 1.5 }]}>
                                         <LinearGradient
-                                            colors={rarity === 'legendary' ? ['rgba(15,10,0,0.9)', 'rgba(40,30,0,0.95)'] : ['rgba(0,0,0,0.82)', 'rgba(20,18,30,0.95)']}
+                                            colors={rarity === 'special'
+                                                ? ['rgba(0,0,0,0.98)', 'rgba(5,5,5,1)']
+                                                : rarity === 'legendary'
+                                                    ? ['rgba(15,10,0,0.9)', 'rgba(40,30,0,0.95)']
+                                                    : ['rgba(0,0,0,0.82)', 'rgba(20,18,30,0.95)']
+                                            }
                                             style={styles.badgeGradient}
                                         >
                                             <Text style={[styles.statIcon, { fontSize: statIconSize }]}>{icon}</Text>
@@ -542,9 +745,11 @@ export function LuxuryCharacterCardAnimated({
 
 const styles = StyleSheet.create({
     cardContainer: { backgroundColor: '#0a0a0e', shadowOffset: { width: 0, height: 0 } },
+    specialCardBase: { backgroundColor: '#000000' },
     cardInner: { flex: 1, overflow: 'hidden' },
     contentLayer: { flex: 1, position: 'relative' },
     breathingBorder: { position: 'absolute', top: -6, left: -6, right: -6, bottom: -6, borderRadius: 19, borderWidth: 2.5, borderColor: '#FFD700', shadowOffset: { width: 0, height: 0 }, zIndex: 20 },
+    specialBreathingBorder: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 21, borderWidth: 2, borderColor: '#3a3a3a', shadowOffset: { width: 0, height: 0 }, shadowColor: '#000', zIndex: 20 },
     glowRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 16, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, zIndex: 19 },
     foilContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1, overflow: 'hidden' },
     foilGradient: { flex: 1, transform: [{ rotate: '-45deg' }] },
@@ -587,4 +792,5 @@ const styles = StyleSheet.create({
     badgeGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     statIcon: { marginBottom: 1 },
     statValue: { fontWeight: 'bold' },
+    smokeBlob: { position: 'absolute', zIndex: 3 },
 });
