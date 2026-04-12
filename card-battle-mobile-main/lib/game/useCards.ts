@@ -1,29 +1,20 @@
 /**
  * useCards — Single source of truth for card data.
  *
- * Merges ALL_CARDS (static) + custom cards (AsyncStorage) + gallery edits + rage overrides.
- * Every screen that needs cards should call useCards() instead of
- * reading ALL_CARDS directly, so gallery changes propagate everywhere.
- *
- * Usage:
- *   const cards = useCards();           // all cards, edits applied
- *   const cards = useCards([id1,id2]);  // filtered subset
+ * Merges ALL_CARDS (static) + custom cards (AsyncStorage)
+ * + gallery edits + custom images (IndexedDB) + rage overrides.
  */
 
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_CARDS } from './cards-data-exports';
 import { loadCustomCards } from './custom-cards-store';
+import { loadImage } from './image-storage';
 import { Card } from './types';
 import { getRageOverrides } from './rage-store';
 
-/** Must match CARD_EDITS_KEY in cards-gallery.tsx */
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
-/**
- * Deduplicate cards by id — last occurrence wins.
- * custom cards override base cards with the same id.
- */
 function dedup(cards: Card[]): Card[] {
   return Object.values(
     cards.reduce<Record<string, Card>>((acc, card) => {
@@ -33,10 +24,17 @@ function dedup(cards: Card[]): Card[] {
   );
 }
 
+function isVideoUri(uri: string): boolean {
+  const lower = uri.toLowerCase();
+  return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov')
+    || lower.startsWith('data:video/');
+}
+
 /**
  * Returns ALL_CARDS + custom cards merged with:
  *  1. Gallery edits (attack, defense, nameAr, rarity, etc.)
- *  2. Rage mode overrides
+ *  2. Custom images / videos from IndexedDB
+ *  3. Rage mode overrides
  */
 export async function getCardsWithEdits(): Promise<Card[]> {
   try {
@@ -46,12 +44,32 @@ export async function getCardsWithEdits(): Promise<Card[]> {
       getRageOverrides(),
     ]);
 
-    // custom cards تغلب على base cards بنفس الكي
     const unique = dedup([...ALL_CARDS, ...customCards]);
-    const editsMap: Record<string, Partial<Card>> = rawEdits ? JSON.parse(rawEdits) : {};
+    const editsMap: Record<string, any> = rawEdits ? JSON.parse(rawEdits) : {};
+
+    // تحميل الصور من IndexedDB لكل كارت عنده hasCustomImage
+    const imageEntries = await Promise.all(
+      unique
+        .filter(c => editsMap[c.id]?.hasCustomImage)
+        .map(async c => {
+          const img = await loadImage(`card_img_${c.id}`);
+          return [c.id, img] as [string, string | undefined];
+        })
+    );
+    const imageMap = Object.fromEntries(
+      imageEntries.filter(([, img]) => !!img)
+    );
 
     return unique.map(c => {
-      let merged = editsMap[c.id] ? { ...c, ...editsMap[c.id] } : c;
+      const edit = editsMap[c.id];
+      let merged: Card = edit ? { ...c, ...edit } : { ...c };
+
+      // ربط الصورة / الفيديو
+      if (imageMap[c.id]) {
+        (merged as any).customImage = imageMap[c.id];
+        (merged as any).isVideo = edit?.isVideo ?? isVideoUri(imageMap[c.id]!);
+      }
+
       if (rageMap[c.id]) merged = { ...merged, rageMode: rageMap[c.id] };
       return merged;
     });
@@ -61,16 +79,14 @@ export async function getCardsWithEdits(): Promise<Card[]> {
 }
 
 /**
- * React hook — returns all cards (base + custom) with edits + rage overrides applied.
- * @param ids  Optional card IDs to filter. Omit to get all cards.
+ * React hook — returns all cards (base + custom) with edits + images + rage applied.
+ * @param ids  Optional card IDs to filter.
  */
 export function useCards(ids?: string[]): Card[] {
-  const [cards, setCards] = useState<Card[]>(
-    () => {
-      const unique = dedup(ALL_CARDS);
-      return ids ? unique.filter(c => ids.includes(c.id)) : unique;
-    }
-  );
+  const [cards, setCards] = useState<Card[]>(() => {
+    const unique = dedup(ALL_CARDS);
+    return ids ? unique.filter(c => ids.includes(c.id)) : unique;
+  });
 
   useEffect(() => {
     let cancelled = false;
