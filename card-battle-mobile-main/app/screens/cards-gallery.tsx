@@ -17,15 +17,16 @@ import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout'
 import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap } from 'lucide-react-native';
 import { saveImage, loadImage, deleteImage } from '@/lib/game/image-storage';
 import { getRageOverrides, saveRageOverride, RageOverridesMap } from '@/lib/game/rage-store';
+import { loadCustomCards } from '@/lib/game/custom-cards-store';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
-const UNIQUE_CARDS: Card[] = Object.values(
-  ALL_CARDS.reduce<Record<string, Card>>((acc, card) => {
-    acc[card.id] = card;
-    return acc;
-  }, {})
-);
+function buildUniqueCards(base: Card[], custom: Card[]): Card[] {
+  const map: Record<string, Card> = {};
+  for (const c of base)   map[c.id] = c;
+  for (const c of custom) map[c.id] = c;   // custom يتغلب على base
+  return Object.values(map);
+}
 
 const RARITY_ORDER: Record<string, number> = {
   special: 0, legendary: 1, epic: 2, rare: 3, common: 4,
@@ -290,14 +291,12 @@ function RageModeSection({ cardId, data, onChange }: {
 
   return (
     <View style={rgs.container}>
-      {/* — عنوان القسم — */}
       <View style={rgs.headerRow}>
         <Zap size={14} color={RAGE_COLOR} />
         <RNText style={[rgs.sectionTitle, { color: RAGE_COLOR }]}>وضع الغضب</RNText>
         <Zap size={14} color={RAGE_COLOR} />
       </View>
 
-      {/* — تفعيل / تعطيل — */}
       <View style={ep.switchRow}>
         <Switch
           value={data.enabled}
@@ -310,7 +309,6 @@ function RageModeSection({ cardId, data, onChange }: {
 
       {data.enabled && (
         <>
-          {/* — اسم وضع الغضب — */}
           <RNText style={[ep.label, { marginTop: 10 }]}>⚡ اسم وضع الغضب</RNText>
           <TextInput
             style={[ep.nameArInput, { borderColor: RAGE_COLOR + '55', color: RAGE_COLOR }]}
@@ -322,51 +320,27 @@ function RageModeSection({ cardId, data, onChange }: {
             writingDirection="rtl"
           />
 
-          {/* — زيادة الطاقات — */}
           <RNText style={[ep.label, { marginTop: 10 }]}>⚡ زيادة الطاقات عند الغضب</RNText>
           <View style={ep.steppers}>
-            <StatStepper
-              icon="⚔️"
-              label="هجوم +"
-              value={data.rageAttackBoost}
-              color="#f87171"
-              onChange={v => onChange({ rageAttackBoost: clamp(v, 0, 999) })}
-            />
-            <StatStepper
-              icon="🛡️"
-              label="دفاع +"
-              value={data.rageDefenseBoost}
-              color="#60a5fa"
-              onChange={v => onChange({ rageDefenseBoost: clamp(v, 0, 999) })}
-            />
+            <StatStepper icon="⚔️" label="هجوم +" value={data.rageAttackBoost}  color="#f87171" onChange={v => onChange({ rageAttackBoost: clamp(v, 0, 999) })} />
+            <StatStepper icon="🛡️" label="دفاع +" value={data.rageDefenseBoost} color="#60a5fa" onChange={v => onChange({ rageDefenseBoost: clamp(v, 0, 999) })} />
           </View>
 
-          {/* — تكرار التفعيل — */}
           <RNText style={[ep.label, { marginTop: 10 }]}>🔁 تكرار التفعيل</RNText>
           <View style={rgs.onceRow}>
             {(['match', 'unlimited'] as const).map(opt => (
-              <TouchableOpacity
-                key={opt}
-                onPress={() => onChange({ oncePer: opt })}
-                activeOpacity={0.75}
-                style={[
-                  rgs.onceBtn,
-                  data.oncePer === opt
-                    ? { backgroundColor: RAGE_COLOR + '22', borderColor: RAGE_COLOR }
-                    : { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: '#333' },
-                ]}
+              <TouchableOpacity key={opt} onPress={() => onChange({ oncePer: opt })} activeOpacity={0.75}
+                style={[rgs.onceBtn, data.oncePer === opt
+                  ? { backgroundColor: RAGE_COLOR + '22', borderColor: RAGE_COLOR }
+                  : { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: '#333' }]}
               >
-                <RNText style={[
-                  rgs.onceBtnTxt,
-                  { color: data.oncePer === opt ? RAGE_COLOR : '#666' },
-                ]}>
+                <RNText style={[rgs.onceBtnTxt, { color: data.oncePer === opt ? RAGE_COLOR : '#666' }]}>
                   {opt === 'match' ? 'مرة واحدة بالمباراة' : 'كل خسارة'}
                 </RNText>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* — صورة وضع الغضب — */}
           <RNText style={[ep.label, { marginTop: 10 }]}>🖼️ صورة وضع الغضب</RNText>
           <View style={ep.imgSection}>
             {data.rageImageUrl ? (
@@ -378,18 +352,13 @@ function RageModeSection({ cardId, data, onChange }: {
               </View>
             ) : null}
             <View style={ep.mediaPickRow}>
-              <TouchableOpacity
-                style={[ep.mediaPickBtn, { borderColor: RAGE_COLOR + '66', flex: 1 }]}
-                onPress={handlePickRageImage}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[ep.mediaPickBtn, { borderColor: RAGE_COLOR + '66', flex: 1 }]} onPress={handlePickRageImage} activeOpacity={0.8}>
                 <ImageIcon size={13} color={RAGE_COLOR} />
                 <RNText style={[ep.imgPickTxt, { color: RAGE_COLOR }]}>صورة الغضب</RNText>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* — فيديو وضع الغضب — */}
           <RNText style={[ep.label, { marginTop: 10 }]}>🎥 فيديو التحول (اختياري)</RNText>
           <View style={ep.imgSection}>
             {data.rageVideoUrl ? (
@@ -404,11 +373,7 @@ function RageModeSection({ cardId, data, onChange }: {
               </View>
             ) : null}
             <View style={ep.mediaPickRow}>
-              <TouchableOpacity
-                style={[ep.mediaPickBtn, { borderColor: '#a78bfa66', flex: 1 }]}
-                onPress={handlePickRageVideo}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[ep.mediaPickBtn, { borderColor: '#a78bfa66', flex: 1 }]} onPress={handlePickRageVideo} activeOpacity={0.8}>
                 <Film size={13} color="#a78bfa" />
                 <RNText style={[ep.imgPickTxt, { color: '#a78bfa' }]}>فيديو التحول</RNText>
               </TouchableOpacity>
@@ -420,7 +385,6 @@ function RageModeSection({ cardId, data, onChange }: {
   );
 }
 
-// ── DEFAULT للبيانات الغضب ──────────────────────────────────────────────────
 const DEFAULT_RAGE: RageModeData = {
   enabled: false,
   rageAttackBoost: 0,
@@ -431,14 +395,13 @@ const DEFAULT_RAGE: RageModeData = {
 export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
-  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean })[]>(UNIQUE_CARDS);
+  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean })[]>([]);
   const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<any | null>(null);
   const { isLandscape, size } = useLandscapeLayout();
   const [activeFilter, setActiveFilter] = useState('All');
 
-  // ── Rage Mode state ──
   const [rageMap, setRageMap] = useState<RageOverridesMap>({});
   const [rageEdits, setRageEdits] = useState<RageModeData>(DEFAULT_RAGE);
 
@@ -447,12 +410,19 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // تحميل التعديلات المحفوظة
+  // تحميل الكروت: base + custom + edits
   useEffect(() => {
-    AsyncStorage.getItem(CARD_EDITS_KEY).then(async raw => {
-      if (!raw) return;
+    async function load() {
+      const customCards = await loadCustomCards();
+      const UNIQUE = buildUniqueCards(ALL_CARDS, customCards);
+
+      const rawEdits = await AsyncStorage.getItem(CARD_EDITS_KEY);
+      const rageOverrides = await getRageOverrides();
+      setRageMap(rageOverrides);
+
+      if (!rawEdits) { setCards(UNIQUE); return; }
       try {
-        const map: Record<string, any> = JSON.parse(raw);
+        const map: Record<string, any> = JSON.parse(rawEdits);
         const entries = await Promise.all(
           Object.entries(map).map(async ([id, data]) => {
             const safeCopy = toStoreSafe({ ...data });
@@ -465,12 +435,10 @@ export default function CardsGalleryScreen() {
         );
         const fullMap = Object.fromEntries(entries);
         setSavedMap(Object.fromEntries(entries.map(([id, d]) => [id, toStoreSafe(d)])));
-        setCards(UNIQUE_CARDS.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
-      } catch {}
-    });
-
-    // تحميل إعدادات وضع الغضب
-    getRageOverrides().then(map => setRageMap(map));
+        setCards(UNIQUE.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
+      } catch { setCards(UNIQUE); }
+    }
+    load();
   }, []);
 
   useEffect(() => {
@@ -493,7 +461,6 @@ export default function CardsGalleryScreen() {
   const handleCardPress = (card: any) => {
     setSelectedCard(card);
     setEdits(toEdits(card));
-    // تحميل بيانات الغضب الخاصة بهذا الكرت
     setRageEdits(rageMap[card.id] ?? { ...DEFAULT_RAGE });
   };
 
@@ -522,10 +489,7 @@ export default function CardsGalleryScreen() {
       fitInsideBorder: edits.fitInsideBorder,
     };
 
-    const memRecord: Record<string, any> = {
-      ...storeSafe,
-      customImage: edits.customImage,
-    };
+    const memRecord: Record<string, any> = { ...storeSafe, customImage: edits.customImage };
 
     const newStoredMap: Record<string, Record<string, any>> = {};
     for (const [id, data] of Object.entries(savedMap)) {
@@ -534,20 +498,13 @@ export default function CardsGalleryScreen() {
     newStoredMap[selectedCard.id] = storeSafe;
 
     setSavedMap(newStoredMap);
-    try {
-      await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newStoredMap));
-    } catch (e) {
-      console.warn('AsyncStorage save failed:', e);
-    }
+    await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newStoredMap));
 
-    // ─ حفظ بيانات وضع الغضب ─
     await saveRageOverride(selectedCard.id, rageEdits);
     setRageMap(prev => ({ ...prev, [selectedCard.id]: rageEdits }));
 
     setCards(prev => prev.map(c =>
-      c.id === selectedCard.id
-        ? { ...c, ...memRecord, rageMode: rageEdits }
-        : c
+      c.id === selectedCard.id ? { ...c, ...memRecord, rageMode: rageEdits } : c
     ));
     handleClose();
   };
@@ -566,11 +523,8 @@ export default function CardsGalleryScreen() {
     if (activeFilter === 'All') return true;
     const rarity = (card.rarity ?? 'common').toLowerCase();
     const filterMap: Record<string, string> = {
-      'Common': 'common',
-      'Rare': 'rare',
-      'ملحمية': 'epic',
-      'أسطورية': 'legendary',
-      'خاص': 'special',
+      'Common': 'common', 'Rare': 'rare',
+      'ملحمية': 'epic', 'أسطورية': 'legendary', 'خاص': 'special',
     };
     return rarity === (filterMap[activeFilter] ?? activeFilter.toLowerCase());
   });
@@ -599,6 +553,7 @@ export default function CardsGalleryScreen() {
     <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.bg}><LuxuryBackground /></View>
 
+      {/* زر رجوع */}
       <TouchableOpacity
         onPress={() => router.back()}
         className="absolute top-6 left-6 z-50 flex-row items-center gap-2 px-4 py-2 bg-slate-800/80 backdrop-blur-md rounded-xl border border-white/10"
@@ -606,6 +561,15 @@ export default function CardsGalleryScreen() {
       >
         <ArrowLeft size={16} color="#fff" />
         <Text className="text-white text-sm font-bold">رجوع</Text>
+      </TouchableOpacity>
+
+      {/* ✚ زر إضافة كارت جديد */}
+      <TouchableOpacity
+        onPress={() => router.push('/screens/add-card')}
+        style={styles.fab}
+        activeOpacity={0.8}
+      >
+        <RNText style={styles.fabTxt}>＋ كارت</RNText>
       </TouchableOpacity>
 
       <View style={styles.container} className="pt-4 pb-2">
@@ -618,7 +582,9 @@ export default function CardsGalleryScreen() {
           {FILTER_TABS.map(tab => {
             const active = activeFilter === tab.label;
             return (
-              <TouchableOpacity key={tab.label} onPress={() => setActiveFilter(tab.label)} className={`px-4 py-1.5 rounded-full border border-white/10 bg-[#0f172a]/80 ${active ? tab.cls.split(' ').slice(0, 3).join(' ') : ''}`} activeOpacity={0.7}>
+              <TouchableOpacity key={tab.label} onPress={() => setActiveFilter(tab.label)}
+                className={`px-4 py-1.5 rounded-full border border-white/10 bg-[#0f172a]/80 ${active ? tab.cls.split(' ').slice(0, 3).join(' ') : ''}`}
+                activeOpacity={0.7}>
                 <Text className={`text-sm font-bold ${active ? tab.cls.split(' ')[1] : 'text-gray-400'}`}>{tab.label}</Text>
               </TouchableOpacity>
             );
@@ -706,7 +672,7 @@ export default function CardsGalleryScreen() {
 
                   <RNText style={ep.label}>⚙️ الطاقات</RNText>
                   <View style={ep.steppers}>
-                    <StatStepper icon="⚔️" label="هجوم" value={edits.attack}   color="#f87171" onChange={v => patch({ attack: v })} />
+                    <StatStepper icon="⚔️" label="هجوم" value={edits.attack}  color="#f87171" onChange={v => patch({ attack: v })} />
                     <StatStepper icon="🛡️" label="درع"  value={edits.defense} color="#60a5fa" onChange={v => patch({ defense: v })} />
                   </View>
                   <View style={ep.divider} />
@@ -737,14 +703,8 @@ export default function CardsGalleryScreen() {
                     </>
                   )}
 
-                  {/* ════ قسم وضع الغضب ════ */}
                   <View style={ep.divider} />
-                  <RageModeSection
-                    cardId={selectedCard.id}
-                    data={rageEdits}
-                    onChange={patchRage}
-                  />
-
+                  <RageModeSection cardId={selectedCard.id} data={rageEdits} onChange={patchRage} />
                   <View style={ep.divider} />
 
                   <View style={ep.actionRow}>
@@ -771,7 +731,6 @@ const rp = StyleSheet.create({
   txt: { fontSize: 11, fontWeight: '800' },
 });
 
-// ─ styles وضع الغضب
 const rgs = StyleSheet.create({
   container:    { borderTopWidth: 1, borderTopColor: 'rgba(245,158,11,0.2)', paddingTop: 12, marginTop: 4 },
   headerRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 },
@@ -788,18 +747,7 @@ const ep = StyleSheet.create({
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
   label:   { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
   hint:    { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
-  nameArInput: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: 2,
-  },
+  nameArInput: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl', marginBottom: 2 },
   starRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginBottom: 2 },
   starBtn: { padding: 3 },
   starIcon: { fontSize: 26 },
@@ -848,4 +796,14 @@ const styles = StyleSheet.create({
   grid:          { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1100 },
   overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
   modalRow:      { flexDirection: 'row', alignItems: 'center', gap: 26 },
+  // زر إضافة كارت
+  fab: {
+    position: 'absolute', top: 20, right: 20, zIndex: 50,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 9,
+    backgroundColor: 'rgba(217,119,6,0.90)',
+    borderRadius: 16, borderWidth: 1.5, borderColor: '#f59e0b',
+    shadowColor: '#f59e0b', shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+  },
+  fabTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });
