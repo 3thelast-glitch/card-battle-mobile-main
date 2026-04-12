@@ -55,6 +55,11 @@ const TAGS: Tag[] = ['sword','shield','magic','bow','crown'];
 
 const defaultForm = { nameAr: '', nameEn: '', attack: '18', defense: '16', specialAbility: '' };
 
+/** تحويل الاسم الإنجليزي إلى id آمن */
+function nameToId(name: string): string {
+  return name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+}
+
 function pickFileAsBase64(accept: string): Promise<{ base64: string; isVideo: boolean } | null> {
   return new Promise(resolve => {
     if (Platform.OS !== 'web') { resolve(null); return; }
@@ -71,7 +76,7 @@ function pickFileAsBase64(accept: string): Promise<{ base64: string; isVideo: bo
   });
 }
 
-// ─ Chip ──────────────────────────────────────────────────────────────────
+// ─ Chip ──────────────────────────────────────────────────────
 const Chip = ({ label, selected, color, onPress }: {
   label: string; selected: boolean; color?: string; onPress: () => void;
 }) => (
@@ -81,7 +86,7 @@ const Chip = ({ label, selected, color, onPress }: {
   </TouchableOpacity>
 );
 
-// ─ معاينة الكارت ─────────────────────────────────────────────────────────
+// ─ معاينة الكارت ───────────────────────────────────────────────────
 function CardPreview({ card, mediaB64, isVideo }: { card: Partial<Card>; mediaB64?: string; isVideo: boolean }) {
   const previewCard: Card = {
     id: 'preview',
@@ -113,7 +118,7 @@ function CardPreview({ card, mediaB64, isVideo }: { card: Partial<Card>; mediaB6
   );
 }
 
-// ─ Main ──────────────────────────────────────────────────────────────────
+// ─ Main ──────────────────────────────────────────────────────────────
 export default function AddCardScreen() {
   const router   = useRouter();
   const [form, setForm]       = useState(defaultForm);
@@ -142,7 +147,8 @@ export default function AddCardScreen() {
     if (!form.nameEn.trim()) { Alert.alert('أدخل الاسم الإنجليزي'); return; }
     setSaving(true);
     try {
-      const id = `custom_${Date.now()}`;
+      // ⭐ id = الاسم الإنجليزي (مسافات تصبح underscore)
+      const id = nameToId(form.nameEn);
       const card: Card = {
         id,
         name:    form.nameEn.trim(),
@@ -178,7 +184,7 @@ export default function AddCardScreen() {
     Alert.alert('✅ تم النسخ');
   };
 
-  // ── شاشة الكود الناتج ─────────────────────────────────────────────
+  // ── شاشة الكود الناتج ─────────────────────────────────────────
   if (generatedCode) {
     return (
       <SafeAreaView style={S.root}>
@@ -201,7 +207,7 @@ export default function AddCardScreen() {
     );
   }
 
-  // ── شاشة الإدخال ────────────────────────────────────────────────
+  // ── شاشة الإدخال ──────────────────────────────────────────
   const previewCardData: Partial<Card> = {
     nameAr:    form.nameAr   || 'كارت جديد',
     name:      form.nameEn   || 'New Card',
@@ -358,22 +364,18 @@ const S = StyleSheet.create({
   pageTitle:     { color: '#FFD700', fontSize: 18, fontWeight: '900', textAlign: 'center', flex: 1 },
   subtitle:      { color: '#6B7280', fontSize: 12, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
 
-  // عمودان
   columns:       { flex: 1, flexDirection: 'row' },
   leftCol:       { width: 200, paddingHorizontal: 12, paddingTop: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
   rightCol:      { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
 
-  // معاينة الكارت
   previewWrap:   { marginBottom: 12 },
   mediaButtons:  { flexDirection: 'row', gap: 6, marginBottom: 6 },
   mediaBtnSmall: { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   mediaBtnTxt:   { fontSize: 12, fontWeight: '700' },
   removeMedia:   { alignSelf: 'center', paddingVertical: 4, marginBottom: 8 },
 
-  // ندرة عمودية
   chipCol:       { flexDirection: 'column', gap: 5, width: '100%' },
 
-  // تسميات
   secLabel:      { color: '#9CA3AF', fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 5, textAlign: 'right' },
   input:         { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 2 },
   multiline:     { minHeight: 64, textAlignVertical: 'top' },
@@ -390,7 +392,6 @@ const S = StyleSheet.create({
   saveBtn:       { marginTop: 20, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   saveBtnTxt:    { color: '#fff', fontWeight: '900', fontSize: 15 },
 
-  // كود
   codeBox:       { backgroundColor: '#0d1117', borderRadius: 10, padding: 16, marginVertical: 16, borderWidth: 1, borderColor: '#1F2937' },
   codeTxt:       { color: '#7DD3FC', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', lineHeight: 20 },
   btnFull:       { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginBottom: 10 },
