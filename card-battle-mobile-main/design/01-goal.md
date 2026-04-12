@@ -1,23 +1,29 @@
-# Goal
+# 🎯 Goal
 
-Build a fast card battler that feels good to pick up and hard to put down.
+> Build a fast card battler that feels good to pick up and hard to put down.
 
-**Loop:** Pick → Fight → Win or lose → Go again.
-
----
-
-## What it needs to feel like
-
-- Instant to understand.
-- Satisfying to play.
-- Premium but not heavy.
-- Dark, sharp, and focused.
+```
+Loop:  Pick  →  Fight  →  Win or Lose  →  Go Again
+```
 
 ---
 
-## What it must never feel like
+### ✅ Must Feel Like
 
-- Slow.
-- Cluttered.
-- Generic.
-- Hard to read during a fight.
+| | |
+|---|---|
+| ⚡ | Instant to understand |
+| 🎮 | Satisfying to play |
+| 💎 | Premium but not heavy |
+| 🌑 | Dark, sharp, and focused |
+
+---
+
+### ❌ Must Never Feel Like
+
+| | |
+|---|---|
+| 🐌 | Slow |
+| 🗑️ | Cluttered |
+| 📦 | Generic |
+| 🔍 | Hard to read during a fight |

@@ -1,29 +1,35 @@
-# Layout
+# 📐 Layout
 
 ---
 
-## Rules
+### Priority Order
 
-- Battle state is always the most visible thing on screen.
-- Stats stay readable at every HP level.
-- Actions live at the bottom. Always reachable.
-- Score never disappears during a fight.
-- Spacing is generous. Never cramped.
+> What the player sees first matters most.
 
----
-
-## Priority Order (top to bottom)
-
-1. Round and score.
-2. Active cards.
-3. HP bars.
-4. Result and action.
+```
+ 1 ──  Round number + Score
+ 2 ──  Active cards
+ 3 ──  HP bars
+ 4 ──  Result + Action button
+```
 
 ---
 
-## What to avoid
+### Rules
 
-- Hiding the score.
-- Overlapping text and art.
-- Moving actions around between rounds.
-- Making the player search for the next button.
+| # | Rule |
+|---|---|
+| 1 | Battle state is always the most visible thing on screen |
+| 2 | Stats stay readable at every HP level |
+| 3 | Actions live at the bottom — always reachable |
+| 4 | Score never disappears during a fight |
+| 5 | Spacing is generous — never cramped |
+
+---
+
+### ❌ Never Do This
+
+- Hide the score.
+- Overlap text and card art.
+- Move actions between rounds.
+- Make the player search for the next button.

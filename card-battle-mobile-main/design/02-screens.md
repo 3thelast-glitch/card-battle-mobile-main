@@ -1,38 +1,85 @@
-# Screens
+# 📱 Screens
 
-Three screens. That’s it.
+> Three screens. That's it.
 
----
-
-## Main Menu
-
-Where the player builds their deck.
-
-- Title at the top.
-- Card grid in the middle.
-- Selected deck at the bottom.
-- One button to start. Only shows when the deck is ready.
+```
+Main Menu  →  Battle Arena  →  Results
+```
 
 ---
 
-## Battle Arena
+### 01 — Main Menu
+> Where the player builds their deck.
 
-Where the fight happens. Must feel dramatic.
+```
+┌─────────────────────────┐
+│      🎴 Card Clash       │
+│   [ Solo ]  [ Multi ]    │
+├─────────────────────────┤
+│   ┌────┐ ┌────┐ ┌────┐  │
+│   │    │ │    │ │    │  │
+│   └────┘ └────┘ └────┘  │
+│   ┌────┐ ┌────┐ ┌────┐  │
+│   │    │ │    │ │    │  │
+│   └────┘ └────┘ └────┘  │
+├─────────────────────────┤
+│  Deck  [■ ■ ■ □ □]      │
+├─────────────────────────┤
+│     ⚔️  Start Battle     │
+└─────────────────────────┘
+```
 
-- Score always visible at the top.
-- Bot card above. Player card below.
-- VS separator in the middle.
-- HP bars on both cards.
-- Round result appears after each exchange.
+- Card grid in the middle — scrollable.
+- Deck slots at the bottom — always visible.
+- Start button appears only when deck is ready.
+
+---
+
+### 02 — Battle Arena
+> Where the fight happens. Must feel dramatic.
+
+```
+┌─────────────────────────┐
+│  Round 1/3    P:0  B:0  │
+├─────────────────────────┤
+│        [ BOT CARD ]     │
+│        ATK 28  DEF 18   │
+│        HP ████████░░    │
+├─────────────────────────┤
+│           ⚔️ VS ⚔️        │
+├─────────────────────────┤
+│       [ PLAYER CARD ]   │
+│        ATK 32  DEF 12   │
+│        HP ██████████    │
+├─────────────────────────┤
+│  ✅ Player Wins!         │
+│      [ Next Round → ]   │
+└─────────────────────────┘
+```
+
+- Score pinned at the top — never hidden.
+- Bot card above, player card below.
 - One button to continue.
 
 ---
 
-## Results
+### 03 — Results
+> Where the match ends.
 
-Where the match ends.
+```
+┌─────────────────────────┐
+│       🏆  Victory  🏆    │
+│      Player 2  —  1 Bot │
+├─────────────────────────┤
+│  Round 1   Player  ✓    │
+│  Round 2   Bot     ✗    │
+│  Round 3   Player  ✓    │
+├─────────────────────────┤
+│    [ 🔄 Play Again ]    │
+│    [ 🏠 Main Menu  ]    │
+└─────────────────────────┘
+```
 
-- Big clear outcome: win, lose, or draw.
-- Final score.
-- Round-by-round summary.
-- Two buttons: play again or go back.
+- Big clear outcome at the top.
+- Round summary below.
+- Two actions — replay is always first.

@@ -1,8 +1,8 @@
-# Colors
+# 🎨 Colors
 
 ---
 
-## Base Palette
+### Base Palette
 
 | Token | Value | Use |
 |---|---|---|
@@ -19,19 +19,21 @@
 
 ---
 
-## Rarity
+### Rarity Borders
 
-| Rarity | Border |
-|---|---|
-| Common | `#64748b` |
-| Rare | `#3b82f6` |
-| Epic | `#a855f7` |
-| Legendary | `#f59e0b` |
+| Rarity | Color | Glow |
+|---|---|---|
+| Common ★☆☆☆☆ | `#64748b` | None |
+| Rare ★★★☆☆ | `#3b82f6` | Blue |
+| Epic ★★★★☆ | `#a855f7` | Purple |
+| Legendary ★★★★★ | `#f59e0b` | Gold |
 
 ---
 
-## Rules
+### Rules
 
-- Win is always green. Loss is always red. Never swap them.
-- Legendary gold must always stand out on dark surfaces.
-- Accent colors are for meaning, not decoration.
+```
+✦  Win is always green.  Loss is always red.  Never swap.
+✦  Legendary gold must stand out on any dark surface.
+✦  Accent colors carry meaning — not decoration.
+```

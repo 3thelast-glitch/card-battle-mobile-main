@@ -1,10 +1,11 @@
-# Feedback
+# ⚡ Feedback
 
-Every action gets a response. Every outcome gets felt.
+> Every action gets a response.
+> Every outcome gets felt.
 
 ---
 
-## Events
+### Events
 
 | Event | Visual | Haptic |
 |---|---|---|
@@ -19,9 +20,11 @@ Every action gets a response. Every outcome gets felt.
 
 ---
 
-## Rules
+### Rules
 
-- Haptic weight must match the emotional weight of the event.
-- Never animate something the player didn’t cause.
-- Win feels bigger than a round win.
-- Loss must feel real, not ignored.
+```
+✦  Haptic weight must match the emotional weight of the event.
+✦  Never animate something the player didn't cause.
+✦  A match win feels bigger than a round win.
+✦  A loss must feel real — not ignored.
+```
