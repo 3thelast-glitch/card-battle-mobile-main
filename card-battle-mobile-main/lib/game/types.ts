@@ -19,7 +19,7 @@ export type Element = 'fire' | 'ice' | 'water' | 'earth' | 'lightning' | 'wind';
 export type Tag = 'sword' | 'shield' | 'magic' | 'bow' | 'crown';
 
 /** Rarity tier for a card */
-export type CardRarity = 'common' | 'rare' | 'epic' | 'legendary';
+export type CardRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
 
 /** Special in-game effects a card can carry */
 export type CardEffect = 'taunt' | 'divine_shield' | 'poison' | 'stealth' | 'charge';
