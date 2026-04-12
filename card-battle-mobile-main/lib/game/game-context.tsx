@@ -26,11 +26,11 @@ const initialState: GameState = {
 const initialDifficulty: DifficultyLevel = 2;
 
 // ── نسب الندرة ──────────────────────────────────────────────────────────────
-export type RarityKey = 'common' | 'rare' | 'epic' | 'legendary';
+export type RarityKey = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
 export type RarityWeights = Record<RarityKey, number>;
 
 export const DEFAULT_RARITY_WEIGHTS: RarityWeights = {
-  common: 55, rare: 25, epic: 15, legendary: 5,
+  common: 52, rare: 25, epic: 14, legendary: 7, special: 2,
 };
 
 const RARITY_WEIGHTS_KEY = '@game_rarity_weights';
@@ -479,7 +479,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [difficulty, setDifficultyState] = useState<DifficultyLevel>(initialDifficulty);
   const [rarityWeights, setRarityWeightsState] = useState<RarityWeights>({ ...DEFAULT_RARITY_WEIGHTS });
 
-  // تحميل نسب الندرة من AsyncStorage عند البدء
   useEffect(() => {
     loadRarityWeights().then(setRarityWeightsState);
   }, []);
