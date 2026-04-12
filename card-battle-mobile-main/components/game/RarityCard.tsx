@@ -4,11 +4,11 @@
  * ┌──────────────────────────────────────────────────────────────────────┐
  * │ 5 ANIMATED VISUAL LAYERS (applied conditionally by rarity):          │
  * │                                                                      │
- * │ LAYER 1 → Holo-Foil Sweep          (Epic + Legendary)                │
+ * │ LAYER 1 → Holo-Foil Sweep          (Epic + Legendary + Special)      │
  * │ LAYER 2 → Rotating Magic Circles behind stat orbs                    │
- * │ LAYER 3 → Breathing Aura / Pulsing Border  (Legendary ONLY)         │
+ * │ LAYER 3 → Breathing Aura / Pulsing Border  (Legendary + Special)    │
  * │ LAYER 4 → Static SVG Filigree Corners                                │
- * │ LAYER 5 → Premium Stat Orbs         (Epic + Legendary)               │
+ * │ LAYER 5 → Premium Stat Orbs         (Epic + Legendary + Special)     │
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
@@ -70,6 +70,7 @@ const PLACEHOLDER_COLORS: Record<CardRarityName, readonly [string, string, strin
     rare:      ['#1a1200', '#2d2000', '#1a1200'],
     epic:      ['#1a0030', '#2d0050', '#1a0030'],
     legendary: ['#1a1400', '#2d2400', '#1a1400'],
+    special:   ['#001a2e', '#012e40', '#001a2e'],
 };
 
 // ─── Rarity Configuration ─────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ const ELVEN_GRADIENTS: Record<CardRarityName, string[]> = {
     rare: [ELVEN.bgMid, '#071A0C', ELVEN.forest],
     epic: ['#080F06', '#0E2610', '#0A1A08'],
     legendary: ['#050F04', '#0C1E0A', '#112510', '#050F04'],
+    special: ['#001a2e', '#003344', '#004455', '#001a2e'],
 };
 
 const ELVEN_BORDERS: Record<CardRarityName, string> = {
@@ -100,6 +102,7 @@ const ELVEN_BORDERS: Record<CardRarityName, string> = {
     rare: 'rgba(200,168,75,0.45)',
     epic: 'rgba(200,168,75,0.65)',
     legendary: ELVEN.goldMid,
+    special: 'rgba(6,182,212,0.85)',
 };
 
 const ELVEN_GLOW: Record<CardRarityName, string> = {
@@ -107,6 +110,7 @@ const ELVEN_GLOW: Record<CardRarityName, string> = {
     rare: ELVEN.leaf,
     epic: ELVEN.goldMid,
     legendary: ELVEN.gold,
+    special: '#06b6d4',
 };
 
 const RARITY_CONFIG = {
@@ -161,6 +165,20 @@ const RARITY_CONFIG = {
         foilOpacity: 0.65,
         circleColor: '#FFD700',
         circleSpeed: 5000,
+    },
+    // ✨ Special — ultra-rare cyan prismatic
+    special: {
+        borderColor: '#06b6d4',
+        borderWidth: 3,
+        glowColor: '#22d3ee',
+        filigree: true,
+        foilSweep: true,
+        magicCircles: true,
+        breathingAura: true,
+        foilDuration: 2500,
+        foilOpacity: 0.75,
+        circleColor: '#06b6d4',
+        circleSpeed: 4000,
     },
 } as const;
 
@@ -225,7 +243,7 @@ export interface RarityCardProps {
     style?: ViewStyle;
 }
 
-// ─── SUB-COMPONENT A: Holo-Foil Sweep (Epic + Legendary) ────────────────────
+// ─── SUB-COMPONENT A: Holo-Foil Sweep (Epic + Legendary + Special) ──────────
 
 function HoloFoilSweep({
     cardWidth,
@@ -280,7 +298,7 @@ function HoloFoilSweep({
     );
 }
 
-// ─── SUB-COMPONENT B: Magic Circle Ring (Epic + Legendary) ──────────────────
+// ─── SUB-COMPONENT B: Magic Circle Ring (Epic + Legendary + Special) ─────────
 
 function MagicCircleRing({
     size,
@@ -356,7 +374,7 @@ function MagicCircleRing({
     );
 }
 
-// ─── SUB-COMPONENT C: Premium Stat Orb (Epic + Legendary) ─────────────────
+// ─── SUB-COMPONENT C: Premium Stat Orb (Epic + Legendary + Special) ──────────
 
 function PremiumStatOrb({
     icon,
@@ -379,7 +397,7 @@ function PremiumStatOrb({
     circleSpeed: number;
     showMagicCircle: boolean;
 }): JSX.Element {
-    const bgColor = color === '#FFD700' ? '#0A0800' : '#0D0A1A';
+    const bgColor = color === '#FFD700' ? '#0A0800' : color === '#06b6d4' ? '#001a2e' : '#0D0A1A';
 
     return (
         <View style={styles.premiumOrbWrapper}>
@@ -412,7 +430,7 @@ function PremiumStatOrb({
     );
 }
 
-// ─── SUB-COMPONENT D: Filigree SVG Corner (Rare + Epic + Legendary) ─────────
+// ─── SUB-COMPONENT D: Filigree SVG Corner (Rare + Epic + Legendary + Special) ─
 
 type FiligreePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -427,6 +445,7 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
         legendary: { stroke: '#FFD700', gemFill: '#FFD700' },
         epic: { stroke: '#A855F7', gemFill: '#C084FC' },
         rare: { stroke: '#B87333', gemFill: '#CD7F32' },
+        special: { stroke: '#06b6d4', gemFill: '#22d3ee' },
     };
 
     const { stroke, gemFill } = colorMap[rarity] ?? { stroke: '#FFF', gemFill: '#FFF' };
@@ -485,31 +504,37 @@ function FiligreeSVGCorner({ position, rarity, size = 80 }: FiligreeSVGCornerPro
     );
 }
 
-// ─── SUB-COMPONENT E: Breathing Border (Legendary ONLY) ─────────────────────
+// ─── SUB-COMPONENT E: Breathing Border (Legendary + Special) ────────────────
 
 function BreathingBorder({
     width,
     height,
     borderRadius,
+    rarity,
 }: {
     width: number;
     height: number;
     borderRadius: number;
+    rarity: CardRarityName;
 }): JSX.Element {
     const pulse = useSharedValue(0);
 
     useEffect(() => {
         pulse.value = withRepeat(
-            withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.quad) }),
+            withTiming(1, { duration: rarity === 'special' ? 2000 : 3000, easing: Easing.inOut(Easing.quad) }),
             -1,
             true
         );
-    }, []);
+    }, [rarity]);
+
+    const [colorFrom, colorTo, shadowCol] = rarity === 'special'
+        ? ['#0e4a5e', '#67e8f9', '#06b6d4']
+        : ['#7C5B1A', '#FFE087', '#FFD700'];
 
     const animatedStyle = useAnimatedStyle(() => ({
-        borderColor: interpolateColor(pulse.value, [0, 1], ['#7C5B1A', '#FFE087']),
-        shadowOpacity: interpolate(pulse.value, [0, 1], [0.3, 0.85]),
-        shadowRadius: interpolate(pulse.value, [0, 1], [8, 28]),
+        borderColor: interpolateColor(pulse.value, [0, 1], [colorFrom, colorTo]),
+        shadowOpacity: interpolate(pulse.value, [0, 1], [0.3, 0.9]),
+        shadowRadius: interpolate(pulse.value, [0, 1], [8, 30]),
         transform: [{ scale: interpolate(pulse.value, [0, 1], [0.995, 1.008]) }],
     }));
 
@@ -517,7 +542,7 @@ function BreathingBorder({
         <Animated.View
             style={[
                 styles.breathingBorder,
-                { width: width + 6, height: height + 6, borderRadius: borderRadius + 2 },
+                { width: width + 6, height: height + 6, borderRadius: borderRadius + 2, shadowColor: shadowCol },
                 animatedStyle,
             ]}
             pointerEvents="none"
@@ -557,28 +582,29 @@ export function RarityCard({
         rarityOverride ?? (card.rarity as CardRarityName) ?? 'common';
 
     const dim = SIZES[size];
-    const config = RARITY_CONFIG[rarity];
+    const config = RARITY_CONFIG[rarity] ?? RARITY_CONFIG['common'];
 
     const isElven = theme === 'elven';
     const baseBorderColor = isElven ? ELVEN_BORDERS[rarity] : config.borderColor;
     const baseGlowColor = isElven ? ELVEN_GLOW[rarity] : CARD_GLOWS[rarity];
 
+    const elvenGrad = ELVEN_GRADIENTS[rarity] ?? ELVEN_GRADIENTS['common'];
     const gradient = isElven
         ? {
-            base: ELVEN_GRADIENTS[rarity].length >= 3
-                ? [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1], ELVEN_GRADIENTS[rarity][2]] as const
-                : [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0]] as const,
-            mid: [ELVEN_GRADIENTS[rarity][0], ELVEN_GRADIENTS[rarity][1] ?? ELVEN_GRADIENTS[rarity][0], 'transparent'] as const,
+            base: elvenGrad.length >= 3
+                ? [elvenGrad[0], elvenGrad[1], elvenGrad[2]] as const
+                : [elvenGrad[0], elvenGrad[1] ?? elvenGrad[0], elvenGrad[1] ?? elvenGrad[0]] as const,
+            mid: [elvenGrad[0], elvenGrad[1] ?? elvenGrad[0], 'transparent'] as const,
             top: [ELVEN.mist, 'rgba(255,255,255,0.05)', 'transparent'] as const,
         }
-        : CARD_GRADIENTS[rarity];
+        : CARD_GRADIENTS[rarity] ?? CARD_GRADIENTS['common'];
 
     const glowColor = baseGlowColor;
-    const shadowCfg = CARD_SHADOWS[rarity];
+    const shadowCfg = CARD_SHADOWS[rarity] ?? CARD_SHADOWS['common'];
     const hasGlow = CARD_HAS_GLOW[rarity] || (isElven && rarity !== 'common');
     const hasParticles = CARD_HAS_PARTICLES[rarity];
-    const badgeColor = CARD_BADGE_COLORS[rarity];
-    const rarityLabel = CARD_RARITY_LABELS[rarity];
+    const badgeColor = CARD_BADGE_COLORS[rarity] ?? CARD_BADGE_COLORS['common'];
+    const rarityLabel = CARD_RARITY_LABELS[rarity] ?? CARD_RARITY_LABELS['common'];
 
     const tap = useCardTapAnimation();
     const summon = useCardSummonAnimation(entranceDelay);
@@ -587,7 +613,7 @@ export function RarityCard({
     // ── Resolve card image ─────────────────────────────────────────────
     const cardImage = getCardImage(card);
     const hasImage = !!cardImage;
-    const placeholderColors = PLACEHOLDER_COLORS[rarity];
+    const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS['common'];
 
     useEffect(() => {
         if (playEntrance) {
@@ -628,7 +654,7 @@ export function RarityCard({
                 <>
                     <FiligreeSVGCorner position="top-left" rarity={rarity} />
                     <FiligreeSVGCorner position="top-right" rarity={rarity} />
-                    {rarity === 'legendary' && (
+                    {(rarity === 'legendary' || rarity === 'special') && (
                         <>
                             <FiligreeSVGCorner position="bottom-left" rarity={rarity} />
                             <FiligreeSVGCorner position="bottom-right" rarity={rarity} />
@@ -637,12 +663,12 @@ export function RarityCard({
                 </>
             )}
 
-            {/* LAYER 3 – Breathing Border (Legendary ONLY) */}
-            {rarity === 'legendary' && (
-                <BreathingBorder width={dim.w} height={dim.h} borderRadius={BORDER_R} />
+            {/* LAYER 3 – Breathing Border (Legendary + Special) */}
+            {(rarity === 'legendary' || rarity === 'special') && (
+                <BreathingBorder width={dim.w} height={dim.h} borderRadius={BORDER_R} rarity={rarity} />
             )}
 
-            {/* Pulsing glow ring (Epic + Legendary) */}
+            {/* Pulsing glow ring (Epic + Legendary + Special) */}
             {hasGlow && glowColor && (
                 <GlowRing color={glowColor} borderRadius={BORDER_R + 2} />
             )}
@@ -680,7 +706,7 @@ export function RarityCard({
 
                     {rarity !== 'common' && <View style={styles.shimmer} />}
 
-                    {/* LAYER 1 – Holo Foil Sweep (Epic + Legendary) */}
+                    {/* LAYER 1 – Holo Foil Sweep (Epic + Legendary + Special) */}
                     {config.foilSweep && (
                         <HoloFoilSweep
                             cardWidth={dim.w}
@@ -813,7 +839,7 @@ export function RarityCard({
                 </Animated.View>
             </Pressable>
 
-            {/* ── Fire particles (Legendary only) ── */}
+            {/* ── Fire/Crystal particles (Legendary + Special) ── */}
             {hasParticles && !disabled && (
                 <FireParticles width={dim.w} height={dim.h} />
             )}
@@ -1027,7 +1053,6 @@ const styles = StyleSheet.create({
     breathingBorder: {
         position: 'absolute',
         borderWidth: 2.5,
-        shadowColor: '#FFD700',
         shadowOffset: { width: 0, height: 0 },
     },
     premiumStatsRow: {

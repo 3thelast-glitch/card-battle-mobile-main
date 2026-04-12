@@ -31,20 +31,6 @@ export interface CardGradientLayers {
 
 // ─── Layered Gradients ────────────────────────────────────────────────────────
 
-export interface CardGradientLayers {
-    base: readonly [string, string, string];
-    mid: readonly [string, string, string];
-    top: readonly [string, string, string];
-    flat: string;
-}
-
-export interface CardGradientLayers {
-    base: readonly [string, string, string];
-    mid: readonly [string, string, string];
-    top: readonly [string, string, string];
-    flat: string;
-}
-
 export const CARD_GRADIENTS: Record<CardRarityName, CardGradientLayers> = {
     common: {
         flat: '#1e3a8a',
@@ -70,6 +56,13 @@ export const CARD_GRADIENTS: Record<CardRarityName, CardGradientLayers> = {
         mid: ['#b91c1c', '#dc2626', '#7f1d1d'],
         top: ['#f87171', '#ef4444', 'transparent'],
     },
+    // ✨ Special — cyan/teal prismatic theme (ultra-rare)
+    special: {
+        flat: '#0c4a6e',
+        base: ['#001a2e', '#0c4a6e', '#0e7490'],
+        mid: ['#0891b2', '#06b6d4', '#0c4a6e'],
+        top: ['#67e8f9', '#22d3ee', 'transparent'],
+    },
 } as const;
 
 
@@ -81,6 +74,7 @@ export const CARD_BORDERS: Record<CardRarityName, string> = {
     rare: '#F59E0B',
     epic: '#8B5CF6',
     legendary: '#EF4444',
+    special: '#06b6d4',
 } as const;
 
 // ─── Glow Colors ──────────────────────────────────────────────────────────────
@@ -90,6 +84,7 @@ export const CARD_GLOWS: Record<CardRarityName, string | null> = {
     rare: '#fbbf24',
     epic: '#8B5CF6',
     legendary: '#ef4444',
+    special: '#06b6d4',
 } as const;
 
 // ─── Badge Colors ─────────────────────────────────────────────────────────────
@@ -99,6 +94,7 @@ export const CARD_BADGE_COLORS: Record<CardRarityName, string> = {
     rare: '#f59e0b',
     epic: '#8b5cf6',
     legendary: '#ef4444',
+    special: '#06b6d4',
 } as const;
 
 // ─── Rarity Labels ────────────────────────────────────────────────────────────
@@ -108,6 +104,7 @@ export const CARD_RARITY_LABELS: Record<CardRarityName, { en: string; ar: string
     rare: { en: 'Rare', ar: 'نادر' },
     epic: { en: 'Epic', ar: 'ملحمي' },
     legendary: { en: 'Legendary', ar: 'أسطوري' },
+    special: { en: 'Special', ar: 'خاص' },
 } as const;
 
 // ─── Shadow Configuration ─────────────────────────────────────────────────────
@@ -122,6 +119,7 @@ export const CARD_SHADOWS: Record<CardRarityName, CardShadowConfig> = {
     rare: { shadowRadius: 14, shadowOpacity: 0.5 },
     epic: { shadowRadius: 18, shadowOpacity: 0.6 },
     legendary: { shadowRadius: 24, shadowOpacity: 0.7 },
+    special: { shadowRadius: 28, shadowOpacity: 0.75 },
 } as const;
 
 // ─── Feature Flags ────────────────────────────────────────────────────────────
@@ -131,6 +129,7 @@ export const CARD_HAS_GLOW: Record<CardRarityName, boolean> = {
     rare: false,
     epic: true,
     legendary: true,
+    special: true,
 } as const;
 
 export const CARD_HAS_PARTICLES: Record<CardRarityName, boolean> = {
@@ -138,6 +137,7 @@ export const CARD_HAS_PARTICLES: Record<CardRarityName, boolean> = {
     rare: false,
     epic: false,
     legendary: true,
+    special: true,
 } as const;
 
 // ─── Rarity Order ─────────────────────────────────────────────────────────────
@@ -147,9 +147,10 @@ export const RARITY_ORDER: Record<CardRarityName, number> = {
     rare: 1,
     epic: 2,
     legendary: 3,
+    special: 4,
 } as const;
 
-/** Sort cards by rarity descending (Legendary first) */
+/** Sort cards by rarity descending (Special → Legendary first) */
 export function sortByRarity<T extends { rarity: CardRarityName }>(cards: T[]): T[] {
     return [...cards].sort((a, b) => RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity]);
 }

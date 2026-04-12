@@ -5,7 +5,7 @@
 
 // ─── Rarity ──────────────────────────────────────────────────────────────────
 
-export type CardRarityName = 'common' | 'rare' | 'epic' | 'legendary';
+export type CardRarityName = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
 
 export interface CardRarity {
     name: CardRarityName;
