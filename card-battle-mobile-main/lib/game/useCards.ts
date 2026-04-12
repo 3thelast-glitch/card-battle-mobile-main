@@ -1,7 +1,7 @@
 /**
  * useCards — Single source of truth for card data.
  *
- * cards-gallery saves edits to AsyncStorage under CARD_EDITS_KEY.
+ * Merges ALL_CARDS (static) + custom cards (AsyncStorage) + gallery edits + rage overrides.
  * Every screen that needs cards should call useCards() instead of
  * reading ALL_CARDS directly, so gallery changes propagate everywhere.
  *
@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALL_CARDS } from './cards-data-exports';
+import { loadCustomCards } from './custom-cards-store';
 import { Card } from './types';
 import { getRageOverrides } from './rage-store';
 
@@ -20,8 +21,8 @@ import { getRageOverrides } from './rage-store';
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
 /**
- * Deduplicate cards by id — last occurrence wins (same as gallery).
- * This removes duplicates coming from CARDS_BATCH_* + ANIME_CARDS.
+ * Deduplicate cards by id — last occurrence wins.
+ * custom cards override base cards with the same id.
  */
 function dedup(cards: Card[]): Card[] {
   return Object.values(
@@ -33,34 +34,34 @@ function dedup(cards: Card[]): Card[] {
 }
 
 /**
- * Returns unique ALL_CARDS merged with:
+ * Returns ALL_CARDS + custom cards merged with:
  *  1. Gallery edits (attack, defense, nameAr, rarity, etc.)
- *  2. Rage mode overrides (rageMode data from rage-store)
+ *  2. Rage mode overrides
  */
 export async function getCardsWithEdits(): Promise<Card[]> {
-  const unique = dedup(ALL_CARDS);
   try {
-    const [rawEdits, rageMap] = await Promise.all([
+    const [customCards, rawEdits, rageMap] = await Promise.all([
+      loadCustomCards(),
       AsyncStorage.getItem(CARD_EDITS_KEY),
       getRageOverrides(),
     ]);
 
+    // custom cards تغلب على base cards بنفس الكي
+    const unique = dedup([...ALL_CARDS, ...customCards]);
     const editsMap: Record<string, Partial<Card>> = rawEdits ? JSON.parse(rawEdits) : {};
 
     return unique.map(c => {
       let merged = editsMap[c.id] ? { ...c, ...editsMap[c.id] } : c;
-      if (rageMap[c.id]) {
-        merged = { ...merged, rageMode: rageMap[c.id] };
-      }
+      if (rageMap[c.id]) merged = { ...merged, rageMode: rageMap[c.id] };
       return merged;
     });
   } catch {
-    return unique;
+    return dedup(ALL_CARDS);
   }
 }
 
 /**
- * React hook — returns unique cards with gallery edits + rage overrides applied.
+ * React hook — returns all cards (base + custom) with edits + rage overrides applied.
  * @param ids  Optional card IDs to filter. Omit to get all cards.
  */
 export function useCards(ids?: string[]): Card[] {
