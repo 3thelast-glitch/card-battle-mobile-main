@@ -359,4 +359,14 @@ export const CARDS_BATCH_6: Card[] = [
     rarity: 'common', stars: 2,
     animationPreset: 'lightning',
   },
-];
+ {
+    id: 'Turin_Turambar',
+    name: 'Turin',
+    nameAr: 'تورين تورامبار',
+    attack: 0, defense: 0,
+    race: 'human', cardClass: 'warrior', element: 'lightning',
+    tags: ["sword"],
+    rarity: 'special', stars: 4,
+    animationPreset: 'lightning',
+  },
+  ];
