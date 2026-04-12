@@ -1,6 +1,7 @@
 /**
  * LuxuryCharacterCardAnimated
  * ✨ Stat badges: clean minimal pill badges — no heavy orbs
+ * ✨ MetaStrip: element / gender / class / tag shown between name & stats
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -36,6 +37,120 @@ function isAnimatedUri(uri: string): boolean {
     return l.includes('.gif') || l.includes('.webp') || l.startsWith('data:image/gif') || l.startsWith('data:image/webp');
 }
 function isLocalAsset(value: any): value is number { return typeof value === 'number'; }
+
+// ─────────────────────────────────────────────
+// META ICONS
+// ─────────────────────────────────────────────
+const ELEMENT_META: Record<string, { icon: string; color: string }> = {
+    fire:      { icon: '🔥', color: '#FF6B35' },
+    ice:       { icon: '❄️', color: '#7DD8F8' },
+    water:     { icon: '💧', color: '#38BDF8' },
+    earth:     { icon: '🌍', color: '#84CC16' },
+    lightning: { icon: '⚡', color: '#FACC15' },
+    wind:      { icon: '💨', color: '#A5F3FC' },
+};
+
+const GENDER_META: Record<string, { icon: string; color: string }> = {
+    male:    { icon: '♂️', color: '#60A5FA' },
+    female:  { icon: '♀️', color: '#F472B6' },
+    unknown: { icon: '✨', color: '#A78BFA' },
+    robot:   { icon: '🤖', color: '#94A3B8' },
+    spirit:  { icon: '👻', color: '#C4B5FD' },
+    beast:   { icon: '🐉', color: '#FB923C' },
+    undead:  { icon: '💀', color: '#6B7280' },
+    elf:     { icon: '🧝', color: '#34D399' },
+    demon:   { icon: '😈', color: '#EF4444' },
+    human:   { icon: '👤', color: '#FCD34D' },
+};
+
+const CLASS_META: Record<string, { icon: string; color: string }> = {
+    warrior:   { icon: '⚔️', color: '#F87171' },
+    knight:    { icon: '🛡️', color: '#60A5FA' },
+    mage:      { icon: '🔮', color: '#C084FC' },
+    archer:    { icon: '🏹', color: '#4ADE80' },
+    berserker: { icon: '🗡️', color: '#FB923C' },
+    paladin:   { icon: '💪', color: '#FBBF24' },
+};
+
+// ─────────────────────────────────────────────
+// MetaStrip Component
+// ─────────────────────────────────────────────
+interface MetaStripProps {
+    card: Card;
+    sc: number;
+}
+
+const MetaStrip = ({ card, sc }: MetaStripProps) => {
+    const fs = Math.max(7, 9 * sc);
+    const tagFs = Math.max(6, 8 * sc);
+    const padH = Math.max(4, 6 * sc);
+    const padV = Math.max(2, 3 * sc);
+    const gap = Math.max(2, 3 * sc);
+
+    const elementKey = (card.element as string)?.toLowerCase() ?? '';
+    const genderKey  = (card.gender  as string)?.toLowerCase() ?? '';
+    const classKey   = (card.class   as string)?.toLowerCase() ?? (card as any).cardClass?.toLowerCase() ?? '';
+
+    const elMeta  = ELEMENT_META[elementKey];
+    const genMeta = GENDER_META[genderKey];
+    const clsMeta = CLASS_META[classKey];
+    const tag     = (card as any).tag as string | undefined;
+
+    const chips: { icon: string; label: string; color: string; bg: string }[] = [];
+
+    if (elMeta)  chips.push({ icon: elMeta.icon,  label: '', color: elMeta.color,  bg: elMeta.color  + '22' });
+    if (genMeta) chips.push({ icon: genMeta.icon, label: '', color: genMeta.color, bg: genMeta.color + '22' });
+    if (clsMeta) chips.push({ icon: clsMeta.icon, label: '', color: clsMeta.color, bg: clsMeta.color + '22' });
+    if (tag)     chips.push({ icon: '🏷️',         label: tag, color: '#E2E8F0',    bg: 'rgba(255,255,255,0.1)' });
+
+    if (!chips.length) return null;
+
+    return (
+        <View style={[metaStyles.row, { gap }]}>
+            {chips.map((chip, i) => (
+                <View
+                    key={i}
+                    style={[
+                        metaStyles.chip,
+                        {
+                            backgroundColor: chip.bg,
+                            borderColor: chip.color + '66',
+                            paddingHorizontal: padH,
+                            paddingVertical: padV,
+                            borderRadius: Math.round(10 * sc),
+                            gap: Math.max(2, 3 * sc),
+                        },
+                    ]}
+                >
+                    <Text style={{ fontSize: fs }}>{chip.icon}</Text>
+                    {!!chip.label && (
+                        <Text style={[metaStyles.chipLabel, { fontSize: tagFs, color: chip.color }]} numberOfLines={1}>
+                            {chip.label}
+                        </Text>
+                    )}
+                </View>
+            ))}
+        </View>
+    );
+};
+
+const metaStyles = StyleSheet.create({
+    row: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    chipLabel: {
+        fontWeight: '700',
+        letterSpacing: 0.2,
+    },
+});
 
 // ─────────────────────────────────────────────
 // RARITY THEMES
@@ -205,7 +320,7 @@ const LegendaryParticles = ({ color }: { color: string }) => (
 );
 
 // ─────────────────────────────────────────────
-// ✨ StatBadge — Clean minimal pill (replaces heavy StatRing)
+// ✨ StatBadge — Clean minimal pill
 // ─────────────────────────────────────────────
 interface StatBadgeProps {
     icon: string;
@@ -447,12 +562,19 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 
     const statFs = Math.max(11, 14 * sc);
 
-    const statsBottom = Math.round(8 * scH);
-    const STAT_AREA_H = Math.round(38 * scH);
-    const ABILITY_H = hasAbility ? Math.round((rarity === 'legendary' || rarity === 'special' ? 50 : 42) * scH) : 0;
-    const ABILITY_GAP = hasAbility ? Math.round(4 * scH) : 0;
-    const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
-    const nameBottom = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4 * scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
+    // ── heights ──────────────────────────────────────────────────────────
+    const statsBottom   = Math.round(8 * scH);
+    const STAT_AREA_H   = Math.round(38 * scH);
+
+    // MetaStrip sits directly above the stats row
+    const META_H        = Math.round(22 * scH);
+    const META_GAP      = Math.round(4 * scH);
+    const metaBottom    = statsBottom + STAT_AREA_H + META_GAP;
+
+    const ABILITY_H     = hasAbility ? Math.round((rarity === 'legendary' || rarity === 'special' ? 50 : 42) * scH) : 0;
+    const ABILITY_GAP   = hasAbility ? Math.round(4 * scH) : 0;
+    const abilityBottom = metaBottom + META_H + ABILITY_GAP;
+    const nameBottom    = abilityBottom + (hasAbility ? ABILITY_H + Math.round(4 * scH) : 0) + Math.round((stars > 0 ? 4 : 6) * scH);
 
     const nameFontSize = Math.max(10, (rarity === 'legendary' || rarity === 'special' ? 18 : 17) * sc);
     const badgeFontSize = Math.max(7, 10 * sc);
@@ -542,6 +664,11 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                         </View>
                     )}
 
+                    {/* ✨ MetaStrip — Element / Gender / Class / Tag */}
+                    <View style={[styles.metaContainer, { bottom: metaBottom, paddingHorizontal: Math.max(4, 8 * scW) }]}>
+                        <MetaStrip card={card} sc={sc} />
+                    </View>
+
                     {/* ✨ Stats Row — Clean Minimal Pill Badges */}
                     <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 14 * scW) }]}>
                         <StatBadge icon="⚔️" value={card.attack}  isAttack={true}  fs={statFs} />
@@ -593,6 +720,15 @@ const styles = StyleSheet.create({
     epicAccentBar: { width: 3, borderRadius: 2, marginRight: 0 },
     abilityIcon: {},
     abilityText: { flex: 1, fontWeight: '600', writingDirection: 'rtl' },
+
+    // ✨ MetaStrip container
+    metaContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 10,
+    },
 
     statsRow: {
         position: 'absolute',
