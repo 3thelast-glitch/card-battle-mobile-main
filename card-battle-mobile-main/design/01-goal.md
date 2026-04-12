@@ -1,12 +1,23 @@
 # Goal
 
-Build a fast, polished mobile card battler.
+Build a fast card battler that feels good to pick up and hard to put down.
 
-**Core loop:** Pick cards → Fight rounds → Show result → Replay.
+**Loop:** Pick → Fight → Win or lose → Go again.
 
-## Product Feel
-- Dark
-- Sharp
-- Premium
-- Easy to read
-- Fast to play
+---
+
+## What it needs to feel like
+
+- Instant to understand.
+- Satisfying to play.
+- Premium but not heavy.
+- Dark, sharp, and focused.
+
+---
+
+## What it must never feel like
+
+- Slow.
+- Cluttered.
+- Generic.
+- Hard to read during a fight.
