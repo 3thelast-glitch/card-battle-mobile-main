@@ -33,6 +33,8 @@ export function getCardImage(
         
         const rageImage = RAGE_IMAGES[rageFileName];
         if (rageImage) {
+            // إبطال أي فيديو للكرت الأصلي حتى تظهر الصورة بوضوح
+            (card as any).videoUrl = null;
             return rageImage;
         }
     }

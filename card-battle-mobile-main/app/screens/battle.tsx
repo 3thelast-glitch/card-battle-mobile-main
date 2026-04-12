@@ -26,7 +26,7 @@ import {
   useWindowDimensions, Alert,
 } from 'react-native';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -57,6 +57,7 @@ import { COLOR, SPACE, RADIUS, FONT, GLASS_PANEL, SHADOW } from '@/components/ui
 import {
   decideBotAbility, updateBotMemory, resetBotMemory,
 } from '@/lib/game/bot-ai';
+import { getCardsWithEdits } from '@/lib/game/useCards';
 import type { DifficultyLevel } from '@/app/screens/difficulty';
 // ✅ Step 1: settings hook + timings
 import { useSettings, BATTLE_TIMINGS } from '@/lib/game/hooks/useSettings';
@@ -422,7 +423,7 @@ export default function BattleScreen() {
   const {
     state, playRound, isGameOver, currentPlayerCard, currentBotCard,
     lastRoundResult, expectedRoundResult, useAbility,
-    resetGame, nextRound, startBattle, setPlayerDeck,
+    resetGame, nextRound, startBattle, setPlayerDeck, syncDecks,
   } = useGame();
 
   const [phase, setPhase] = useState<BattlePhase>('selection');
@@ -499,6 +500,38 @@ export default function BattleScreen() {
   useEffect(() => {
     resetBotMemory();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // مزامنة التعديلات المحفوظة (من شاشة المجموعة) مع الكروت الحالية في المعركة
+      getCardsWithEdits().then(mergedCards => {
+        let pChanged = false;
+        let bChanged = false;
+
+        const newPlayerDeck = state.playerDeck.map(pc => {
+          const updated = mergedCards.find(mc => mc.id === pc.id);
+          if (updated && (updated.attack !== pc.attack || updated.defense !== pc.defense || JSON.stringify(updated.rageMode) !== JSON.stringify(pc.rageMode) || updated.isRagedVersion !== pc.isRagedVersion || updated.videoUrl !== pc.videoUrl)) {
+            pChanged = true;
+            return { ...pc, ...updated };
+          }
+          return pc;
+        });
+
+        const newBotDeck = state.botDeck.map(bc => {
+          const updated = mergedCards.find(mc => mc.id === bc.id);
+          if (updated && (updated.attack !== bc.attack || updated.defense !== bc.defense || JSON.stringify(updated.rageMode) !== JSON.stringify(bc.rageMode) || updated.isRagedVersion !== bc.isRagedVersion || updated.videoUrl !== bc.videoUrl)) {
+            bChanged = true;
+            return { ...bc, ...updated };
+          }
+          return bc;
+        });
+
+        if (pChanged || bChanged) {
+          syncDecks(newPlayerDeck, newBotDeck);
+        }
+      });
+    }, [state.playerDeck, state.botDeck, syncDecks])
+  );
 
   useEffect(() => {
     if (state.currentRound < state.totalRounds && !currentPlayerCard && !currentBotCard)

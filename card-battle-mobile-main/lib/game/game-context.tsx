@@ -94,7 +94,8 @@ type GameAction =
   | { type: 'REMOVE_EFFECTS'; payload: { targetSide?: Side | 'all'; sourceSide?: Side | 'all' } }
   | { type: 'SET_DIFFICULTY'; payload: DifficultyLevel }
   | { type: 'SET_ABILITIES_ENABLED'; payload: boolean }
-  | { type: 'USE_ABILITY'; payload: { abilityType: AbilityType; isPlayer: boolean; data?: Record<string, unknown> } };
+  | { type: 'USE_ABILITY'; payload: { abilityType: AbilityType; isPlayer: boolean; data?: Record<string, unknown> } }
+  | { type: 'SYNC_DECKS'; payload: { playerDeck: Card[]; botDeck: Card[] } };
 
 // ─────────────────────────────────────────────────────────────────────────────
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -105,6 +106,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_BOT_DECK':
       return { ...state, botDeck: action.payload };
+
+    case 'SYNC_DECKS':
+      return { ...state, playerDeck: action.payload.playerDeck, botDeck: action.payload.botDeck };
 
     case 'SET_TOTAL_ROUNDS':
       return { ...state, totalRounds: action.payload };
@@ -450,6 +454,7 @@ interface GameContextType {
   rarityWeights: RarityWeights;
   setRarityWeights: (w: RarityWeights) => void;
   setPlayerDeck: (cards: Card[]) => void;
+  syncDecks: (playerDeck: Card[], botDeck: Card[]) => void;
   setTotalRounds: (rounds: number) => void;
   startBattle: (playerDeck?: Card[], playerAbilities?: AbilityType[]) => void;
   playRound: () => void;
@@ -485,6 +490,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   };
 
   const setPlayerDeck = (cards: Card[]) => dispatch({ type: 'SET_PLAYER_DECK', payload: cards });
+  const syncDecks = (playerDeck: Card[], botDeck: Card[]) => dispatch({ type: 'SYNC_DECKS', payload: { playerDeck, botDeck } });
   const setTotalRounds = (rounds: number) => dispatch({ type: 'SET_TOTAL_ROUNDS', payload: rounds });
   const playRound = () => dispatch({ type: 'PLAY_ROUND' });
   const nextRound = () => dispatch({ type: 'NEXT_ROUND' });
@@ -530,7 +536,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={{
       state, difficulty, rarityWeights, setRarityWeights,
-      setPlayerDeck, setTotalRounds, startBattle, playRound, nextRound,
+      setPlayerDeck, syncDecks, setTotalRounds, startBattle, playRound, nextRound,
       addEffect, removeEffects, useAbility, resetGame, setDifficulty, setAbilitiesEnabled,
       isGameOver, currentPlayerCard, currentBotCard, lastRoundResult, expectedRoundResult,
     }}>
