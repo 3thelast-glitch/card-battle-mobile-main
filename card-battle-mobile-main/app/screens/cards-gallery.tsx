@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
-  TextInput, Switch, Text as RNText, Image, Platform,
+  TextInput, Switch, Text as RNText, Image, Platform, Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
@@ -14,17 +14,17 @@ import { ALL_CARDS } from '@/lib/game/cards-data-exports';
 import { Card, CardRarity, RageModeData } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
-import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap } from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap, Trash2 } from 'lucide-react-native';
 import { saveImage, loadImage, deleteImage } from '@/lib/game/image-storage';
 import { getRageOverrides, saveRageOverride, RageOverridesMap } from '@/lib/game/rage-store';
-import { loadCustomCards } from '@/lib/game/custom-cards-store';
+import { loadCustomCards, deleteCustomCard } from '@/lib/game/custom-cards-store';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
 
 function buildUniqueCards(base: Card[], custom: Card[]): Card[] {
   const map: Record<string, Card> = {};
   for (const c of base)   map[c.id] = c;
-  for (const c of custom) map[c.id] = c;   // custom يتغلب على base
+  for (const c of custom) map[c.id] = c;
   return Object.values(map);
 }
 
@@ -245,7 +245,6 @@ function ImageOffsetAdjuster({ value, rarityColor, onChange }: {
   );
 }
 
-// ── مكوّن قسم وضع الغضب ────────────────────────────────────────────────────
 function RageModeSection({ cardId, data, onChange }: {
   cardId: string;
   data: RageModeData;
@@ -395,8 +394,8 @@ const DEFAULT_RAGE: RageModeData = {
 export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
-  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean })[]>([]);
-  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean }) | null>(null);
+  const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean })[]>([]);
+  const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<any | null>(null);
   const { isLandscape, size } = useLandscapeLayout();
@@ -410,17 +409,20 @@ export default function CardsGalleryScreen() {
   const padding = LAYOUT_PADDING[size];
   const gridGap = size === 'sm' ? 10 : size === 'md' ? 14 : size === 'lg' ? 18 : 22;
 
-  // تحميل الكروت: base + custom + edits
   useEffect(() => {
     async function load() {
       const customCards = await loadCustomCards();
       const UNIQUE = buildUniqueCards(ALL_CARDS, customCards);
+      const customIds = new Set(customCards.map(c => c.id));
 
       const rawEdits = await AsyncStorage.getItem(CARD_EDITS_KEY);
       const rageOverrides = await getRageOverrides();
       setRageMap(rageOverrides);
 
-      if (!rawEdits) { setCards(UNIQUE); return; }
+      if (!rawEdits) {
+        setCards(UNIQUE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
+        return;
+      }
       try {
         const map: Record<string, any> = JSON.parse(rawEdits);
         const entries = await Promise.all(
@@ -435,8 +437,14 @@ export default function CardsGalleryScreen() {
         );
         const fullMap = Object.fromEntries(entries);
         setSavedMap(Object.fromEntries(entries.map(([id, d]) => [id, toStoreSafe(d)])));
-        setCards(UNIQUE.map((c: Card) => fullMap[c.id] ? { ...c, ...fullMap[c.id] } : c));
-      } catch { setCards(UNIQUE); }
+        setCards(UNIQUE.map((c: Card) => ({
+          ...c,
+          ...(fullMap[c.id] ?? {}),
+          _isCustom: customIds.has(c.id),
+        })));
+      } catch {
+        setCards(UNIQUE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
+      }
     }
     load();
   }, []);
@@ -509,6 +517,39 @@ export default function CardsGalleryScreen() {
     handleClose();
   };
 
+  // ── حذف الكارت المخصص ──────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!selectedCard) return;
+    const cardName = selectedCard.nameAr || selectedCard.name;
+
+    Alert.alert(
+      '🗑️ حذف الكارت',
+      `هل أنت متأكد من حذف "${cardName}"؟\nسيتم حذف جميع بيانات الكارت نهائياً.`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: async () => {
+            const id = selectedCard.id;
+            // 1. حذف من custom-cards-store
+            await deleteCustomCard(id);
+            // 2. حذف الصورة
+            await deleteImage(`card_img_${id}`);
+            // 3. حذف من CARD_EDITS_KEY
+            const newMap = { ...savedMap };
+            delete newMap[id];
+            setSavedMap(newMap);
+            await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
+            // 4. إزالة من الشاشة
+            setCards(prev => prev.filter(c => c.id !== id));
+            handleClose();
+          },
+        },
+      ]
+    );
+  };
+
   const handleClose = () => { setSelectedCard(null); setEdits(null); setPreviewCard(null); };
   const patch = (p: Partial<CardEdits>) => setEdits(prev => prev ? { ...prev, ...p } : prev);
 
@@ -549,11 +590,12 @@ export default function CardsGalleryScreen() {
     ? getRarityConfig(edits.rarity).badgeColor
     : selectedCard ? getRarityConfig(selectedCard.rarity).badgeColor : '#d4af37';
 
+  const isCustomCard = selectedCard?._isCustom === true;
+
   return (
     <ScreenContainer edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.bg}><LuxuryBackground /></View>
 
-      {/* زر رجوع */}
       <TouchableOpacity
         onPress={() => router.back()}
         className="absolute top-6 left-6 z-50 flex-row items-center gap-2 px-4 py-2 bg-slate-800/80 backdrop-blur-md rounded-xl border border-white/10"
@@ -563,7 +605,6 @@ export default function CardsGalleryScreen() {
         <Text className="text-white text-sm font-bold">رجوع</Text>
       </TouchableOpacity>
 
-      {/* ✚ زر إضافة كارت جديد */}
       <TouchableOpacity
         onPress={() => router.push('/screens/add-card')}
         style={styles.fab}
@@ -595,12 +636,20 @@ export default function CardsGalleryScreen() {
           <View style={[styles.grid, { gap: gridGap, paddingHorizontal: padding }]}>
             {sortedCards.map(card => (
               <TouchableOpacity key={card.id} onPress={() => handleCardPress(card)} activeOpacity={0.85}>
-                <LuxuryCharacterCardAnimated
-                  card={card}
-                  imageOffsetY={card.imageOffsetY ?? 0}
-                  fitInsideBorder={card.fitInsideBorder ?? false}
-                  style={{ width: galleryCardW, height: galleryCardH }}
-                />
+                <View>
+                  <LuxuryCharacterCardAnimated
+                    card={card}
+                    imageOffsetY={card.imageOffsetY ?? 0}
+                    fitInsideBorder={card.fitInsideBorder ?? false}
+                    style={{ width: galleryCardW, height: galleryCardH }}
+                  />
+                  {/* شارة "مخصص" على الكروت المضافة */}
+                  {card._isCustom && (
+                    <View style={styles.customBadge}>
+                      <RNText style={styles.customBadgeTxt}>✦</RNText>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -623,6 +672,15 @@ export default function CardsGalleryScreen() {
 
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+                  {/* زر الحذف — للكروت المخصصة فقط */}
+                  {isCustomCard && (
+                    <TouchableOpacity style={ep.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+                      <Trash2 size={13} color="#f87171" />
+                      <RNText style={ep.deleteBtnTxt}>حذف الكارت</RNText>
+                    </TouchableOpacity>
+                  )}
+
                   <RNText style={[ep.title, { color: rarityColor }]}>{edits.nameAr || selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
                   <View style={ep.divider} />
@@ -784,6 +842,9 @@ const ep = StyleSheet.create({
   offsetHint:      { fontSize: 9, color: '#555' },
   offsetResetBtn:  { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
   offsetResetTxt:  { fontSize: 10, color: '#666', fontWeight: '600' },
+  // زر الحذف
+  deleteBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#f8717155', backgroundColor: 'rgba(248,113,113,0.08)', marginBottom: 10 },
+  deleteBtnTxt: { color: '#f87171', fontWeight: '800', fontSize: 12 },
 });
 
 const styles = StyleSheet.create({
@@ -796,7 +857,6 @@ const styles = StyleSheet.create({
   grid:          { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1100 },
   overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
   modalRow:      { flexDirection: 'row', alignItems: 'center', gap: 26 },
-  // زر إضافة كارت
   fab: {
     position: 'absolute', top: 20, right: 20, zIndex: 50,
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -806,4 +866,11 @@ const styles = StyleSheet.create({
     shadowColor: '#f59e0b', shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
   },
   fabTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  // شارة الكروت المخصصة
+  customBadge: {
+    position: 'absolute', top: 4, left: 4,
+    backgroundColor: 'rgba(217,119,6,0.85)',
+    borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
+  },
+  customBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '900' },
 });
