@@ -1,6 +1,6 @@
 /**
  * LuxuryCharacterCardAnimated
- * ✨ Stat badges: multi-layer RPG gem rings — clean native-thread animations
+ * ✨ Stat badges: clean minimal pill badges — no heavy orbs
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -10,7 +10,7 @@ import Animated, {
     useSharedValue, useAnimatedStyle, withRepeat, withTiming,
     withSequence, interpolate, Easing, withDelay, cancelAnimation,
 } from 'react-native-reanimated';
-import { Svg, Circle, Line, Polygon, Ellipse, Path, Defs, RadialGradient, Stop, G } from 'react-native-svg';
+import { Svg, Circle, Line, Ellipse, Path, Defs, RadialGradient, Stop, G, Polygon } from 'react-native-svg';
 import { Card, CardRarity } from '@/lib/game/types';
 import { getCardImage } from '../../lib/game/get-card-image';
 
@@ -51,7 +51,6 @@ const RARITY_THEMES = {
         abilityBg: ['rgba(10,10,14,0.88)', 'rgba(20,20,28,0.92)'] as any,
         abilityBorder: '#6B728066', abilityTextColor: '#d1d5db', abilityIconColor: '#9CA3AF',
         bgColors: ['#1a1a2e', '#2d2d44', '#1a1a2e'] as any,
-        // stat badge
         badgeRingColor: '#9CA3AF',
         badgeBg: ['rgba(18,18,28,0.95)', 'rgba(30,30,42,0.98)'] as any,
         badgeGlow: 'rgba(156,163,175,0.3)',
@@ -206,231 +205,23 @@ const LegendaryParticles = ({ color }: { color: string }) => (
 );
 
 // ─────────────────────────────────────────────
-// ✨ StatRing — حلقة الإحصائية الجديدة الاحترافية
-//    طبقات: glow ambient → حلقة خارجية نبضة → حلقة دوارة بشرطات → جوهرة → دائرة داخلية
+// ✨ StatBadge — Clean minimal pill (replaces heavy StatRing)
 // ─────────────────────────────────────────────
-interface StatRingProps {
+interface StatBadgeProps {
     icon: string;
     value: number;
-    valueColor: string;
-    ringColor: string;
-    bgColors: readonly string[];
-    glowColor: string;
-    hasPulse: boolean;
-    hasRunicRing: boolean;
-    size: number;
-    reverse?: boolean;
-    rarity: CardRarity;
+    isAttack: boolean;
+    fs: number;
 }
 
-const StatRing = ({
-    icon, value, valueColor, ringColor, bgColors, glowColor,
-    hasPulse, hasRunicRing, size, reverse = false, rarity,
-}: StatRingProps) => {
-    // Pulse animation
-    const pulse = useSharedValue(0);
-    // Spin animation
-    const spin = useSharedValue(0);
-    // Inner glow
-    const glow = useSharedValue(0);
-
-    useEffect(() => {
-        if (hasPulse) {
-            pulse.value = withRepeat(
-                withSequence(
-                    withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-                    withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-                ), -1, false
-            );
-        }
-        if (hasRunicRing) {
-            const speed = rarity === 'legendary' ? 8000 : rarity === 'epic' ? 10000 : 13000;
-            spin.value = withRepeat(
-                withTiming(reverse ? -360 : 360, { duration: speed, easing: Easing.linear }),
-                -1, false
-            );
-        }
-        glow.value = withRepeat(
-            withSequence(
-                withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-                withTiming(0.3, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-            ), -1, false
-        );
-        return () => { cancelAnimation(pulse); cancelAnimation(spin); cancelAnimation(glow); };
-    }, [hasPulse, hasRunicRing, rarity, reverse]);
-
-    // Outer ambient glow layer
-    const glowStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(glow.value, [0, 1], [0.3, 0.85]),
-        transform: [{ scale: interpolate(glow.value, [0, 1], [0.94, 1.06]) }],
-    }));
-
-    // Outer ring pulse
-    const outerRingStyle = useAnimatedStyle(() => ({
-        opacity: hasPulse ? interpolate(pulse.value, [0, 1], [0.55, 1.0]) : 1,
-        transform: hasPulse ? [{ scale: interpolate(pulse.value, [0, 1], [1.0, 1.04]) }] : [],
-    }));
-
-    // Rotating dashed ring
-    const spinStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${spin.value}deg` }],
-    }));
-
-    const half = size / 2;
-    const outerR = half - 2.5;       // حلقة الإطار الخارجية
-    const midR = half - 7;           // الحلقة الدوارة
-    const innerR = half - 13;        // الدائرة الداخلية
-    const gemR = 3.5;                // الجواهر على الحلقة الدوارة
-    const gemPositions = [0, 90, 180, 270]; // 4 جواهر على المحاور
-
-    const isLegend = rarity === 'legendary';
-    const isEpic   = rarity === 'epic';
-    const isSpec   = rarity === 'special';
-    const isRare   = rarity === 'rare';
-
-    return (
-        <View style={[styles.statRingContainer, { width: size, height: size }]}>
-
-            {/* طبقة 1: Ambient glow ناعم */}
-            <Animated.View
-                pointerEvents="none"
-                style={[
-                    StyleSheet.absoluteFill,
-                    { borderRadius: size / 2, backgroundColor: glowColor, zIndex: 0 },
-                    glowStyle,
-                ]}
-            />
-
-            {/* طبقة 2: SVG — الحلقة الخارجية + الحلقة الدوارة */}
-            <Animated.View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFill, { zIndex: 1 }, outerRingStyle]}
-            >
-                <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                    <Defs>
-                        <RadialGradient id={`bg_${icon}`} cx="50%" cy="35%" r="65%">
-                            <Stop offset="0%"  stopColor={ringColor} stopOpacity={isLegend ? 0.18 : isEpic ? 0.14 : 0.1} />
-                            <Stop offset="100%" stopColor="#000" stopOpacity={0} />
-                        </RadialGradient>
-                    </Defs>
-                    {/* ambient fill */}
-                    <Circle cx={half} cy={half} r={half - 1} fill={`url(#bg_${icon})`} />
-
-                    {/* حلقة خارجية: مزدوجة للـ legendary */}
-                    {isLegend && (
-                        <Circle
-                            cx={half} cy={half} r={outerR + 3}
-                            stroke={ringColor} strokeWidth={1.0}
-                            strokeDasharray="2 4"
-                            fill="none" opacity={0.35}
-                        />
-                    )}
-                    <Circle
-                        cx={half} cy={half} r={outerR}
-                        stroke={ringColor}
-                        strokeWidth={isLegend ? 2.2 : isEpic || isSpec ? 1.8 : isRare ? 1.5 : 1.2}
-                        fill="none" opacity={0.95}
-                    />
-                    {/* خطوط عمودية/أفقية (صليب التعشيق) */}
-                    {(isLegend || isEpic || isSpec) && [0, 90, 180, 270].map((deg, i) => {
-                        const rad = (deg * Math.PI) / 180;
-                        const x1 = half + (outerR - 2) * Math.cos(rad);
-                        const y1 = half + (outerR - 2) * Math.sin(rad);
-                        const x2 = half + (outerR + 5) * Math.cos(rad);
-                        const y2 = half + (outerR + 5) * Math.sin(rad);
-                        return <Line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={ringColor} strokeWidth={1.5} opacity={0.7} />;
-                    })}
-                </Svg>
-            </Animated.View>
-
-            {/* طبقة 3: الحلقة الدوارة بالجواهر */}
-            {hasRunicRing && (
-                <Animated.View
-                    pointerEvents="none"
-                    style={[StyleSheet.absoluteFill, { zIndex: 2 }, spinStyle]}
-                >
-                    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                        {/* الحلقة الدوارة */}
-                        <Circle
-                            cx={half} cy={half} r={midR}
-                            stroke={ringColor}
-                            strokeWidth={isLegend ? 1.4 : 1.1}
-                            strokeDasharray={isLegend ? '5 3.5' : isEpic ? '4 4' : '3 5'}
-                            fill="none" opacity={isLegend ? 0.75 : 0.55}
-                        />
-                        {/* الجواهر على الحلقة */}
-                        {gemPositions.map((deg, i) => {
-                            const rad = (deg * Math.PI) / 180;
-                            const gx = half + midR * Math.cos(rad);
-                            const gy = half + midR * Math.sin(rad);
-                            return (
-                                <G key={i}>
-                                    {isLegend || isSpec ? (
-                                        // معين للـ legendary/special
-                                        <Polygon
-                                            points={`${gx},${gy - gemR} ${gx + gemR * 0.7},${gy} ${gx},${gy + gemR} ${gx - gemR * 0.7},${gy}`}
-                                            fill={ringColor} opacity={0.95}
-                                        />
-                                    ) : (
-                                        // دائرة صغيرة للـ epic/rare
-                                        <Circle cx={gx} cy={gy} r={isEpic ? 2.8 : 2.2} fill={ringColor} opacity={0.85} />
-                                    )}
-                                </G>
-                            );
-                        })}
-                    </Svg>
-                </Animated.View>
-            )}
-
-            {/* طبقة 4: الدائرة الداخلية (الخلفية) */}
-            <View
-                pointerEvents="none"
-                style={[
-                    styles.statInnerCircle,
-                    {
-                        width: innerR * 2 + 4,
-                        height: innerR * 2 + 4,
-                        borderRadius: innerR + 2,
-                        borderColor: ringColor + (isLegend ? 'DD' : 'AA'),
-                        borderWidth: isLegend ? 1.8 : 1.4,
-                        zIndex: 3,
-                    },
-                ]}
-            >
-                <LinearGradient
-                    colors={bgColors as any}
-                    start={{ x: 0.3, y: 0 }}
-                    end={{ x: 0.7, y: 1 }}
-                    style={styles.statInnerGradient}
-                >
-                    {/* نقطة ضوء داخلية علوية */}
-                    <View
-                        style={[
-                            styles.statInnerHighlight,
-                            { backgroundColor: ringColor + '30', width: innerR * 1.1, height: 3, borderRadius: 2, marginBottom: 2 },
-                        ]}
-                    />
-                    <Text style={[styles.statIcon, { fontSize: Math.max(9, innerR * 0.8) }]}>{icon}</Text>
-                    <Text
-                        style={[
-                            styles.statValue,
-                            {
-                                color: valueColor,
-                                fontSize: Math.max(10, innerR * 0.82),
-                                textShadowColor: ringColor,
-                                textShadowRadius: isLegend ? 8 : isEpic ? 6 : 3,
-                                textShadowOffset: { width: 0, height: 0 },
-                            },
-                        ]}
-                    >
-                        {value}
-                    </Text>
-                </LinearGradient>
-            </View>
-
-        </View>
-    );
-};
+const StatBadge = ({ icon, value, isAttack, fs }: StatBadgeProps) => (
+    <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
+        <Text style={{ fontSize: fs + 1 }}>{icon}</Text>
+        <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>
+            {value}
+        </Text>
+    </View>
+);
 
 // ─────────────────────────────────────────────
 // ElvenCorner
@@ -654,11 +445,10 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
     const hasImage = !!cardImage || !!customUri;
     const isCustomImage = !!customUri;
 
-    // ✨ حجم دائرة الإحصاء — أكبر وأوضح
-    const statRingSize = Math.round(72 * sc);
+    const statFs = Math.max(11, 14 * sc);
 
-    const statsBottom = Math.round(6 * scH);
-    const STAT_AREA_H = Math.round(72 * scH);
+    const statsBottom = Math.round(8 * scH);
+    const STAT_AREA_H = Math.round(38 * scH);
     const ABILITY_H = hasAbility ? Math.round((rarity === 'legendary' || rarity === 'special' ? 50 : 42) * scH) : 0;
     const ABILITY_GAP = hasAbility ? Math.round(4 * scH) : 0;
     const abilityBottom = statsBottom + STAT_AREA_H + ABILITY_GAP;
@@ -677,11 +467,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
 
     const specialRarityBadgeBg = rarity === 'special' ? 'rgba(0,0,0,0.85)' : rarity === 'legendary' ? 'rgba(30,20,0,0.75)' : rarity === 'epic' ? 'rgba(20,0,30,0.75)' : 'rgba(0,0,0,0.65)';
     const isLegendary = rarity === 'legendary';
-
-    const statItems = [
-        { icon: '⚔️', value: card.attack,  valueColor: theme.atkColor, reverse: false },
-        { icon: '🛡️', value: card.defense, valueColor: theme.defColor, reverse: true  },
-    ];
 
     return (
         <Animated.View style={[
@@ -757,24 +542,10 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY = 0, fit
                         </View>
                     )}
 
-                    {/* ✨ Stats Row — دوائر الإحصائيات الاحترافية */}
-                    <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 10 * scW) }]}>
-                        {statItems.map(({ icon, value, valueColor, reverse }) => (
-                            <StatRing
-                                key={icon}
-                                icon={icon}
-                                value={value}
-                                valueColor={valueColor}
-                                ringColor={theme.badgeRingColor}
-                                bgColors={theme.badgeBg}
-                                glowColor={theme.badgeGlow}
-                                hasPulse={theme.badgePulse}
-                                hasRunicRing={theme.hasRunicRing}
-                                size={statRingSize}
-                                reverse={reverse}
-                                rarity={rarity}
-                            />
-                        ))}
+                    {/* ✨ Stats Row — Clean Minimal Pill Badges */}
+                    <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(6, 14 * scW) }]}>
+                        <StatBadge icon="⚔️" value={card.attack}  isAttack={true}  fs={statFs} />
+                        <StatBadge icon="🛡️" value={card.defense} isAttack={false} fs={statFs} />
                     </View>
                 </View>
             </View>
@@ -823,19 +594,39 @@ const styles = StyleSheet.create({
     abilityIcon: {},
     abilityText: { flex: 1, fontWeight: '600', writingDirection: 'rtl' },
 
-    statsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 },
-
-    // ✨ StatRing styles
-    statRingContainer: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-    statInnerCircle: {
-        overflow: 'hidden',
-        alignItems: 'center', justifyContent: 'center',
-        shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, elevation: 8,
+    statsRow: {
+        position: 'absolute',
+        left: 0, right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        zIndex: 10,
     },
-    statInnerGradient: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
-    statInnerHighlight: { position: 'absolute', top: 4, alignSelf: 'center', opacity: 0.6 },
-    statIcon: { marginBottom: 1 },
-    statValue: { fontWeight: '800', letterSpacing: -0.3 },
+
+    // ✨ Clean Minimal Stat Badges
+    statBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 20,
+        gap: 4,
+        minWidth: 48,
+        justifyContent: 'center',
+    },
+    attackBadge: {
+        backgroundColor: 'rgba(20, 12, 0, 0.88)',
+        borderWidth: 1.5,
+        borderColor: '#B8860B',
+    },
+    defenseBadge: {
+        backgroundColor: 'rgba(0, 10, 28, 0.88)',
+        borderWidth: 1.5,
+        borderColor: '#2563EB',
+    },
+    statValue: { fontWeight: '800', letterSpacing: 0.3 },
+    attackText: { color: '#FFB830' },
+    defenseText: { color: '#60A5FA' },
 
     particle: { position: 'absolute', width: 5, height: 5, borderRadius: 3 },
     smokeBlob: { position: 'absolute', zIndex: 3 },
