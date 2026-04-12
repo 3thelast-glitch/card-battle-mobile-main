@@ -28,7 +28,7 @@ const UNIQUE_CARDS: Card[] = Object.values(
 );
 
 const RARITY_ORDER: Record<string, number> = {
-  legendary: 0, epic: 1, rare: 2, common: 3,
+  special: 0, legendary: 1, epic: 2, rare: 3, common: 4,
 };
 
 type CardEdits = {
@@ -80,6 +80,7 @@ const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars
   { value: 'rare',      labelAr: 'نادر',    color: '#f59e0b', stars: 3 },
   { value: 'epic',      labelAr: 'ملحمي',   color: '#8b5cf6', stars: 4 },
   { value: 'legendary', labelAr: 'أسطوري',  color: '#ef4444', stars: 5 },
+  { value: 'special',   labelAr: 'خاص',     color: '#ec4899', stars: 5 },
 ];
 
 function RarityPicker({ value, onChange }: { value: CardRarity; onChange: (r: CardRarity) => void }) {
@@ -564,13 +565,19 @@ export default function CardsGalleryScreen() {
   const filteredCards = cards.filter(card => {
     if (activeFilter === 'All') return true;
     const rarity = (card.rarity ?? 'common').toLowerCase();
-    const filterMap: Record<string, string> = { 'Common': 'common', 'Rare': 'rare', 'ملحمية': 'epic', 'أسطورية': 'legendary' };
+    const filterMap: Record<string, string> = {
+      'Common': 'common',
+      'Rare': 'rare',
+      'ملحمية': 'epic',
+      'أسطورية': 'legendary',
+      'خاص': 'special',
+    };
     return rarity === (filterMap[activeFilter] ?? activeFilter.toLowerCase());
   });
 
   const sortedCards = [...filteredCards].sort((a, b) => {
-    const ra = RARITY_ORDER[a.rarity ?? 'common'] ?? 4;
-    const rb = RARITY_ORDER[b.rarity ?? 'common'] ?? 4;
+    const ra = RARITY_ORDER[a.rarity ?? 'common'] ?? 5;
+    const rb = RARITY_ORDER[b.rarity ?? 'common'] ?? 5;
     if (ra !== rb) return ra - rb;
     return (a.nameAr || a.name).localeCompare(b.nameAr || b.name, 'ar');
   });
@@ -581,6 +588,7 @@ export default function CardsGalleryScreen() {
     { label: 'Rare',     cls: 'border-blue-500 text-blue-500 bg-blue-500/10' },
     { label: 'ملحمية',  cls: 'border-purple-500 text-purple-500 bg-purple-500/10' },
     { label: 'أسطورية', cls: 'border-amber-500 text-amber-500 bg-amber-500/10' },
+    { label: 'خاص',     cls: 'border-pink-500 text-pink-500 bg-pink-500/10' },
   ];
 
   const rarityColor = edits
