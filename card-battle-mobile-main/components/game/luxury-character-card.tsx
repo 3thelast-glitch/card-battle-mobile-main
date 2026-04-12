@@ -6,7 +6,7 @@
  * - Top-left badge with rarity name
  * - Centered titles (Arabic + English)
  * - Frosted glass description box
- * - Bottom stat orbs (Defense: Blue, Attack: Red)
+ * - Bottom stat badges (Attack: Gold, Defense: Blue) — Clean minimal style
  */
 import React from 'react';
 import { View, Text, StyleSheet, ImageBackground, ViewStyle } from 'react-native';
@@ -19,7 +19,6 @@ interface LuxuryCharacterCardProps {
     style?: ViewStyle;
 }
 
-// Rarity theme configuration with visual effects
 const RARITY_THEMES = {
     common: {
         label: 'عادي',
@@ -90,7 +89,6 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
 
     const cardContent = (
         <>
-            {/* Placeholder gradient background when no image */}
             {!cardImage && (
                 <LinearGradient
                     colors={theme.placeholderColors}
@@ -100,7 +98,6 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 />
             )}
 
-            {/* Glass Shine Overlay - Epic & Legendary only */}
             {theme.hasShine && (
                 <LinearGradient
                     colors={['rgba(255,255,255, 0.0)', 'rgba(255,255,255, 0.15)', 'rgba(255,255,255, 0.0)']}
@@ -110,10 +107,8 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 />
             )}
 
-            {/* Elegant Thin Border */}
             <View style={[styles.innerBorder, { borderColor: theme.borderColor }]} />
 
-            {/* Gradient Overlay for Text Readability — only when image exists */}
             {cardImage && (
                 <LinearGradient
                     colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
@@ -123,7 +118,6 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 />
             )}
 
-            {/* No-image icon indicator */}
             {!cardImage && (
                 <View style={styles.noImageBadge}>
                     <Text style={styles.noImageIcon}>🖼️</Text>
@@ -131,14 +125,12 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 </View>
             )}
 
-            {/* Top-Left Sleek Badge */}
             <View style={[styles.rarityBadge, { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder }]}>
                 <Text style={[styles.rarityBadgeText, { color: theme.badgeText }]}>
                     {theme.label} ✦
                 </Text>
             </View>
 
-            {/* Center Typography - Lower Half */}
             <View style={styles.titlesContainer}>
                 <Text style={styles.subtitle} numberOfLines={1}>
                     {card.nameAr}
@@ -151,47 +143,21 @@ export function LuxuryCharacterCard({ card, style }: LuxuryCharacterCardProps) {
                 </Text>
             </View>
 
-            {/* Frosted Glass Description Box */}
             <View style={styles.descriptionBox}>
                 <Text style={styles.descriptionText} numberOfLines={3}>
                     {card.nameAr} - {card.race} {card.cardClass}
                 </Text>
             </View>
 
-            {/* Bottom Stat Orbs - Embedded in Corners */}
+            {/* ─ Clean Minimal Stat Badges ─ */}
             <View style={styles.statsContainer}>
-                {/* Left Orb - Defense */}
-                <View style={[styles.statOrb, styles.defenseOrb, {
-                    borderColor: theme.borderColor,
-                    shadowColor: theme.color,
-                    shadowOpacity: theme.shadowOpacity * 0.6,
-                }]}>
-                    <LinearGradient
-                        colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
-                        style={styles.orbGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Text style={styles.statOrbIcon}>🛡️</Text>
-                        <Text style={styles.statOrbValue}>{card.defense}</Text>
-                    </LinearGradient>
+                <View style={[styles.statBadge, styles.attackBadge]}>
+                    <Text style={styles.statIcon}>⚔️</Text>
+                    <Text style={[styles.statValue, styles.attackText]}>{card.attack}</Text>
                 </View>
-
-                {/* Right Orb - Attack */}
-                <View style={[styles.statOrb, styles.attackOrb, {
-                    borderColor: theme.borderColor,
-                    shadowColor: theme.color,
-                    shadowOpacity: theme.shadowOpacity * 0.6,
-                }]}>
-                    <LinearGradient
-                        colors={['rgba(10, 10, 10, 0.9)', 'rgba(30, 30, 40, 0.7)', 'rgba(10, 10, 10, 0.9)']}
-                        style={styles.orbGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Text style={styles.statOrbIcon}>⚔️</Text>
-                        <Text style={[styles.statOrbValue, styles.attackValue]}>{card.attack}</Text>
-                    </LinearGradient>
+                <View style={[styles.statBadge, styles.defenseBadge]}>
+                    <Text style={styles.statIcon}>🛡️</Text>
+                    <Text style={[styles.statValue, styles.defenseText]}>{card.defense}</Text>
                 </View>
             </View>
         </>
@@ -227,117 +193,53 @@ const styles = StyleSheet.create({
         borderWidth: 1.5, backgroundColor: '#111',
         shadowOffset: { width: 0, height: 0 },
     },
-    cardBackground: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'space-between',
-    },
-    shineOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1,
-    },
+    cardBackground: { width: '100%', height: '100%', justifyContent: 'space-between' },
+    shineOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 },
     innerBorder: {
-        position: 'absolute',
-        top: 4,
-        left: 4,
-        right: 4,
-        bottom: 4,
-        borderRadius: 8,
-        borderWidth: 1,
-        zIndex: 5,
+        position: 'absolute', top: 4, left: 4, right: 4, bottom: 4,
+        borderRadius: 8, borderWidth: 1, zIndex: 5,
     },
-    gradientOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 2,
-    },
+    gradientOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2 },
     noImageBadge: {
-        position: 'absolute',
-        top: '25%',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 4,
+        position: 'absolute', top: '25%', left: 0, right: 0,
+        alignItems: 'center', zIndex: 4,
     },
-    noImageIcon: {
-        fontSize: 36,
-        opacity: 0.4,
-    },
-    noImageText: {
-        fontSize: 10,
-        color: 'rgba(255,255,255,0.3)',
-        marginTop: 4,
-    },
+    noImageIcon: { fontSize: 36, opacity: 0.4 },
+    noImageText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4 },
     rarityBadge: {
-        position: 'absolute',
-        top: 8,
-        left: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderBottomRightRadius: 10,
-        borderWidth: 1,
-        zIndex: 10,
+        position: 'absolute', top: 8, left: 8,
+        paddingHorizontal: 12, paddingVertical: 4,
+        borderBottomRightRadius: 10, borderWidth: 1, zIndex: 10,
     },
-    rarityBadgeText: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
+    rarityBadgeText: { fontSize: 11, fontWeight: '600' },
     titlesContainer: {
-        position: 'absolute',
-        top: '40%',
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        zIndex: 5,
+        position: 'absolute', top: '40%', left: 0, right: 0,
+        alignItems: 'center', paddingHorizontal: 16, zIndex: 5,
     },
     subtitle: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: '#FFD700',
-        marginBottom: 4,
-        textAlign: 'center',
+        fontSize: 12, fontWeight: '500', color: '#FFD700',
+        marginBottom: 4, textAlign: 'center',
         textShadowColor: 'rgba(0,0,0,0.8)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 2,
     },
     title: {
-        fontSize: 24,
-        fontWeight: '900',
-        fontStyle: 'italic',
-        color: '#FFFFFF',
-        textAlign: 'center',
+        fontSize: 24, fontWeight: '900', fontStyle: 'italic',
+        color: '#FFFFFF', textAlign: 'center',
         textShadowColor: 'rgba(0,0,0,0.8)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
     },
     descriptionBox: {
-        position: 'absolute',
-        top: '58%',
-        left: 16,
-        right: 16,
+        position: 'absolute', top: '58%', left: 16, right: 16,
         backgroundColor: 'rgba(15, 15, 15, 0.75)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 215, 0, 0.3)',
-        borderRadius: 6,
-        padding: 10,
-        alignSelf: 'center',
-        marginBottom: 60,
-        zIndex: 5,
+        borderWidth: 1, borderColor: 'rgba(255, 215, 0, 0.3)',
+        borderRadius: 6, padding: 10, alignSelf: 'center',
+        marginBottom: 60, zIndex: 5,
     },
-    descriptionText: {
-        fontSize: 10,
-        color: '#FFF',
-        lineHeight: 16,
-        textAlign: 'center',
-    },
+    descriptionText: { fontSize: 10, color: '#FFF', lineHeight: 16, textAlign: 'center' },
+
+    // Stat Badges
     statsContainer: {
         position: 'absolute',
         bottom: 10,
@@ -345,39 +247,31 @@ const styles = StyleSheet.create({
         right: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         zIndex: 10,
     },
-    statOrb: {
-        width: 45,
-        height: 45,
-        borderRadius: 25,
+    statBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 4,
+        minWidth: 52,
+        justifyContent: 'center',
+    },
+    attackBadge: {
+        backgroundColor: 'rgba(20, 12, 0, 0.88)',
         borderWidth: 1.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        shadowOffset: { width: 0, height: 0 },
-        shadowRadius: 8,
-        elevation: 6,
+        borderColor: '#B8860B',
     },
-    defenseOrb: {},
-    attackOrb: {},
-    orbGradient: {
-        width: '100%',
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
+    defenseBadge: {
+        backgroundColor: 'rgba(0, 10, 28, 0.88)',
+        borderWidth: 1.5,
+        borderColor: '#2563EB',
     },
-    statOrbIcon: {
-        fontSize: 14,
-        marginBottom: 1,
-    },
-    statOrbValue: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#87CEEB',
-    },
-    attackValue: {
-        color: '#FFD700',
-    },
+    statIcon: { fontSize: 13 },
+    statValue: { fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
+    attackText: { color: '#FFB830' },
+    defenseText: { color: '#60A5FA' },
 });
