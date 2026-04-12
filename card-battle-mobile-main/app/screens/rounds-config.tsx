@@ -37,9 +37,10 @@ const RARITY_CONFIG: { key: RarityKey; labelAr: string; color: string; emoji: st
   { key: 'rare',      labelAr: 'نادر',    color: '#f59e0b', emoji: '🔵' },
   { key: 'epic',      labelAr: 'ملحمي',   color: '#a855f7', emoji: '🟣' },
   { key: 'legendary', labelAr: 'أسطوري', color: '#FFD700', emoji: '🟡' },
+  { key: 'special',   labelAr: 'خاص',    color: '#ff4da6', emoji: '💎' },
 ];
 
-const DEFAULT_WEIGHTS: RarityWeights = { common: 55, rare: 25, epic: 15, legendary: 5 };
+const DEFAULT_WEIGHTS: RarityWeights = { common: 50, rare: 25, epic: 14, legendary: 9, special: 2 };
 
 // ── Rarity Slider ─────────────────────────────────────────────────────────────
 function RaritySliderRow({ cfg, value, onChange }: { cfg: typeof RARITY_CONFIG[0]; value: number; onChange: (v: number) => void }) {
@@ -91,7 +92,7 @@ function RarityWeightsPanel({ weights, onChange }: { weights: RarityWeights; onC
       </View>
       <Text style={styles.panelDesc}>حدّد احتمالية ظهور كل ندرة</Text>
       {RARITY_CONFIG.map(cfg => (
-        <RaritySliderRow key={cfg.key} cfg={cfg} value={weights[cfg.key]} onChange={v => handleChange(cfg.key, v)} />
+        <RaritySliderRow key={cfg.key} cfg={cfg} value={weights[cfg.key] ?? 0} onChange={v => handleChange(cfg.key, v)} />
       ))}
       <View style={[rs.totalRow, { borderColor: balanced ? '#4ade8066' : '#f8717166' }]}>
         <RNText style={[rs.totalLabel, { color: balanced ? '#4ade80' : '#f87171' }]}>
