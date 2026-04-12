@@ -5,11 +5,11 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, Alert, Platform, KeyboardAvoidingView, Clipboard,
+  StyleSheet, Alert, Platform, KeyboardAvoidingView,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { saveCustomCard, generateCardCode } from '@/lib/game/custom-cards-store';
 import { Card, CardRarity, Race, CardClass, Element, Tag } from '@/lib/game/types';
@@ -63,18 +63,6 @@ export default function AddCardScreen() {
   const toggleTag = (t: Tag) =>
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('يلزم إذن المعرض'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8, base64: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setForm(f => ({ ...f, imageUrl: result.assets[0].uri }));
-    }
-  };
-
   const handleSave = useCallback(async () => {
     if (!form.nameAr.trim()) { Alert.alert('أدخل اسم الكارت بالعربي'); return; }
     if (!form.nameEn.trim()) { Alert.alert('أدخل اسم الكارت بالإنجليزي'); return; }
@@ -82,8 +70,8 @@ export default function AddCardScreen() {
     const id = `custom_${Date.now()}`;
     const card: Card = {
       id,
-      name: form.nameEn.trim(),
-      nameAr: form.nameAr.trim(),
+      name:    form.nameEn.trim(),
+      nameAr:  form.nameAr.trim(),
       attack:  Math.max(1, Math.min(99, parseInt(form.attack)  || 18)),
       defense: Math.max(1, Math.min(99, parseInt(form.defense) || 16)),
       hp:      Math.max(1, Math.min(99, parseInt(form.hp)      || 16)),
@@ -92,11 +80,10 @@ export default function AddCardScreen() {
       rarity,
       stars: Math.max(1, Math.min(5, parseInt(form.stars) || 3)),
       specialAbility: form.specialAbility.trim() || undefined,
-      imageUrl: form.imageUrl || undefined,
+      imageUrl: form.imageUrl.trim() || undefined,
     };
     await saveCustomCard(card);
-    const code = generateCardCode(card);
-    setGeneratedCode(code);
+    setGeneratedCode(generateCardCode(card));
     setSaving(false);
   }, [form, rarity, race, cls, element, tags]);
 
@@ -113,14 +100,19 @@ export default function AddCardScreen() {
         <LinearGradient colors={['#0a0a0e', '#111827']} style={StyleSheet.absoluteFill} />
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
           <Text style={styles.title}>✅ تم حفظ الكارت!</Text>
-          <Text style={styles.subtitle}>كود الكارت جاهز — انسخه والصقه في أي ملف cards-batch:</Text>
+          <Text style={styles.subtitle}>
+            الكارت محفوظ في التطبيق.{`\n`}كود TypeScript جاهز — انسخه والصقه في cards-batch:
+          </Text>
           <View style={styles.codeBox}>
             <Text style={styles.codeText} selectable>{generatedCode}</Text>
           </View>
           <TouchableOpacity style={styles.btnPrimary} onPress={copyCode}>
-            <Text style={styles.btnText}>📋 نسخ الكود</Text>
+            <LinearGradient colors={['#1d4ed8', '#1e40af']} style={styles.btnGrad}>
+              <Text style={styles.btnText}>📋 نسخ الكود</Text>
+            </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btnSecondary} onPress={() => { setGeneratedCode(null); setForm(defaultForm); }}>
+          <TouchableOpacity style={styles.btnSecondary}
+            onPress={() => { setGeneratedCode(null); setForm(defaultForm); }}>
             <Text style={styles.btnTextSec}>➕ إضافة كارت آخر</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.btnSecondary, { marginTop: 8 }]} onPress={() => router.back()}>
@@ -154,6 +146,7 @@ export default function AddCardScreen() {
             onChangeText={t => setForm(f => ({ ...f, nameAr: t }))}
             textAlign="right"
           />
+
           <Text style={styles.sectionLabel}>الاسم بالإنجليزي *</Text>
           <TextInput
             style={styles.input} placeholder="e.g. Naruto Uzumaki"
@@ -162,19 +155,20 @@ export default function AddCardScreen() {
           />
 
           {/* الإحصائيات */}
+          <Text style={styles.sectionLabel}>الإحصائيات</Text>
           <View style={styles.statsRow}>
-            {[
-              { label: '⚔️ هجوم', key: 'attack' },
+            {([
+              { label: '⚔️ هجوم', key: 'attack'  },
               { label: '🛡️ دفاع', key: 'defense' },
-              { label: '❤️ HP',   key: 'hp' },
-              { label: '⭐ نجوم', key: 'stars' },
-            ].map(({ label, key }) => (
+              { label: '❤️ HP',   key: 'hp'      },
+              { label: '⭐ نجوم', key: 'stars'   },
+            ] as const).map(({ label, key }) => (
               <View key={key} style={styles.statBox}>
                 <Text style={styles.statLabel}>{label}</Text>
                 <TextInput
                   style={styles.statInput}
                   keyboardType="number-pad" maxLength={2}
-                  value={(form as any)[key]}
+                  value={form[key]}
                   onChangeText={t => setForm(f => ({ ...f, [key]: t }))}
                   textAlign="center"
                 />
@@ -225,7 +219,7 @@ export default function AddCardScreen() {
           {/* القدرة الخاصة */}
           <Text style={styles.sectionLabel}>القدرة الخاصة (اختياري)</Text>
           <TextInput
-            style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
+            style={[styles.input, { minHeight: 64, textAlignVertical: 'top' }]}
             placeholder="اكتب وصف القدرة..."
             placeholderTextColor="#555" multiline
             value={form.specialAbility}
@@ -233,28 +227,28 @@ export default function AddCardScreen() {
             textAlign="right"
           />
 
-          {/* الصورة */}
-          <Text style={styles.sectionLabel}>صورة الكارت (اختياري)</Text>
-          <View style={styles.imageRow}>
-            <TouchableOpacity style={styles.pickImgBtn} onPress={pickImage}>
-              <Text style={styles.pickImgTxt}>🖼️ اختر صورة من الجهاز</Text>
-            </TouchableOpacity>
-            {form.imageUrl ? <Text style={styles.imgSelected} numberOfLines={1}>✅ تم اختيار صورة</Text> : null}
-          </View>
-          <Text style={styles.orText}>— أو —</Text>
+          {/* الصورة — URL فقط */}
+          <Text style={styles.sectionLabel}>رابط صورة الكارت (اختياري)</Text>
           <TextInput
-            style={styles.input} placeholder="رابط صورة URL (اختياري)"
-            placeholderTextColor="#555" value={form.imageUrl}
+            style={styles.input}
+            placeholder="https://example.com/image.jpg"
+            placeholderTextColor="#555"
+            value={form.imageUrl}
             onChangeText={t => setForm(f => ({ ...f, imageUrl: t }))}
+            autoCapitalize="none"
+            keyboardType="url"
           />
 
           {/* زر الحفظ */}
           <TouchableOpacity
             style={[styles.btnPrimary, saving && { opacity: 0.6 }]}
-            onPress={handleSave} disabled={saving}
+            onPress={handleSave}
+            disabled={saving}
           >
             <LinearGradient colors={['#d97706', '#b45309']} style={styles.btnGrad}>
-              <Text style={styles.btnText}>{saving ? 'جاري الحفظ...' : '💾 حفظ الكارت وتوليد الكود'}</Text>
+              <Text style={styles.btnText}>
+                {saving ? 'جاري الحفظ...' : '💾 حفظ الكارت وتوليد الكود'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -272,24 +266,41 @@ const styles = StyleSheet.create({
   title:        { color: '#FFD700', fontSize: 20, fontWeight: '800', flex: 1, textAlign: 'center' },
   subtitle:     { color: '#9CA3AF', fontSize: 13, textAlign: 'center', marginBottom: 14, lineHeight: 20 },
   sectionLabel: { color: '#E5E7EB', fontSize: 13, fontWeight: '700', marginTop: 16, marginBottom: 6, textAlign: 'right' },
-  input:        { backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#374151', borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 2 },
-  statsRow:     { flexDirection: 'row', gap: 8, marginTop: 12 },
-  statBox:      { flex: 1, alignItems: 'center' },
-  statLabel:    { color: '#9CA3AF', fontSize: 11, marginBottom: 4 },
-  statInput:    { backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#374151', borderRadius: 8, color: '#FFD700', fontSize: 18, fontWeight: '800', paddingVertical: 8, width: '100%' },
-  chipRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 4 },
-  chip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: '#374151', backgroundColor: 'rgba(255,255,255,0.04)' },
-  chipText:     { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
-  imageRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  pickImgBtn:   { backgroundColor: '#1F2937', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#374151' },
-  pickImgTxt:   { color: '#D1D5DB', fontSize: 13 },
-  imgSelected:  { color: '#10B981', fontSize: 12, flex: 1 },
-  orText:       { color: '#4B5563', textAlign: 'center', marginVertical: 6, fontSize: 12 },
+  input: {
+    backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#374151',
+    borderRadius: 10, color: '#fff', fontSize: 14,
+    paddingHorizontal: 14, paddingVertical: 11, marginBottom: 2,
+  },
+  statsRow:   { flexDirection: 'row', gap: 8, marginTop: 4 },
+  statBox:    { flex: 1, alignItems: 'center' },
+  statLabel:  { color: '#9CA3AF', fontSize: 11, marginBottom: 4 },
+  statInput: {
+    backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#374151',
+    borderRadius: 8, color: '#FFD700', fontSize: 18, fontWeight: '800',
+    paddingVertical: 8, width: '100%',
+  },
+  chipRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 4 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#374151',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  chipText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
   btnPrimary:   { marginTop: 28, borderRadius: 12, overflow: 'hidden' },
   btnGrad:      { paddingVertical: 15, alignItems: 'center' },
   btnText:      { color: '#fff', fontWeight: '800', fontSize: 16 },
-  btnSecondary: { marginTop: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#374151', paddingVertical: 13, alignItems: 'center' },
-  btnTextSec:   { color: '#9CA3AF', fontWeight: '700', fontSize: 15 },
-  codeBox:      { backgroundColor: '#0d1117', borderRadius: 10, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#374151' },
-  codeText:     { color: '#7DD3FC', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', lineHeight: 20 },
+  btnSecondary: {
+    marginTop: 14, borderRadius: 12, borderWidth: 1.5,
+    borderColor: '#374151', paddingVertical: 13, alignItems: 'center',
+  },
+  btnTextSec: { color: '#9CA3AF', fontWeight: '700', fontSize: 15 },
+  codeBox: {
+    backgroundColor: '#0d1117', borderRadius: 10, padding: 16,
+    marginBottom: 20, borderWidth: 1, borderColor: '#374151',
+  },
+  codeText: {
+    color: '#7DD3FC', fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    lineHeight: 20,
+  },
 });
