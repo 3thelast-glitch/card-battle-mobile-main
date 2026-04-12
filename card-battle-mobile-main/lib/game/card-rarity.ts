@@ -77,6 +77,18 @@ export const RARITY_CONFIG: Record<CardRarity, RarityConfig> = {
         label: 'Legendary',
         badgeColor: '#ef4444',
     },
+    special: {
+        gradient: ['#0f172a', '#831843', '#f0abfc'],
+        borderColor: '#f0abfc',
+        borderWidth: 4,
+        glowColor: '#e879f9',
+        shadowRadius: 32,
+        shadowOpacity: 0.85,
+        hasPulsingGlow: true,
+        hasParticles: true,
+        label: 'Special',
+        badgeColor: '#e879f9',
+    },
 } as const;
 
 /** Resolve rarity with a safe fallback */
