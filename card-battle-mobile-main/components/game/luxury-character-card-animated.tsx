@@ -2,7 +2,7 @@
  * LuxuryCharacterCardAnimated
  * ✨ MetaStrip: sits BETWEEN attack & defense badges (same row)
  * ✨ Chips = icon only, no background, no border — pure clean icons
- * ✨ Element tints border glow + shimmer + bottom gradient
+ * ✨ Element has NO visual effect on card colors — rarity theme only
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -40,52 +40,6 @@ function isAnimatedUri(uri: string): boolean {
 function isLocalAsset(value: any): value is number { return typeof value === 'number'; }
 
 // ─────────────────────────────────────────────
-// ELEMENT THEME
-// ─────────────────────────────────────────────
-const ELEMENT_SHIMMER_COLORS: Record<Element, readonly [string,string,string,string,string,string,string]> = {
-    fire:      ['transparent','rgba(255,100,30,0.04)','rgba(255,80,10,0.14)','rgba(255,140,60,0.22)','rgba(255,80,10,0.14)','rgba(255,100,30,0.04)','transparent'],
-    ice:       ['transparent','rgba(100,220,255,0.04)','rgba(60,200,255,0.14)','rgba(180,240,255,0.22)','rgba(60,200,255,0.14)','rgba(100,220,255,0.04)','transparent'],
-    water:     ['transparent','rgba(30,130,255,0.04)','rgba(20,100,240,0.14)','rgba(80,160,255,0.22)','rgba(20,100,240,0.14)','rgba(30,130,255,0.04)','transparent'],
-    earth:     ['transparent','rgba(80,200,30,0.04)','rgba(60,180,20,0.14)','rgba(140,220,80,0.22)','rgba(60,180,20,0.14)','rgba(80,200,30,0.04)','transparent'],
-    lightning: ['transparent','rgba(255,210,20,0.04)','rgba(250,200,0,0.14)','rgba(255,230,80,0.22)','rgba(250,200,0,0.14)','rgba(255,210,20,0.04)','transparent'],
-    wind:      ['transparent','rgba(160,240,255,0.04)','rgba(140,220,255,0.14)','rgba(200,248,255,0.22)','rgba(140,220,255,0.14)','rgba(160,240,255,0.04)','transparent'],
-};
-
-function elementBottomGradient(el: Element | undefined, isSpecial: boolean): [string,string,string,string] {
-    if (isSpecial) return ['rgba(0,0,0,0.2)','transparent','rgba(0,0,0,0.7)','rgba(0,0,0,0.97)'];
-    if (!el) return ['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)'];
-    const c = ELEMENT_COLORS[el];
-    const r = parseInt(c.slice(1,3),16);
-    const g = parseInt(c.slice(3,5),16);
-    const b = parseInt(c.slice(5,7),16);
-    return ['transparent','transparent',`rgba(${r},${g},${b},0.18)`,'rgba(0,0,0,0.90)'];
-}
-
-// ─────────────────────────────────────────────
-// ElementGlowBorder
-// ─────────────────────────────────────────────
-const ElementGlowBorder = ({ color }: { color: string }) => {
-    const glow = useSharedValue(0);
-    useEffect(() => {
-        glow.value = withRepeat(
-            withSequence(
-                withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-                withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-            ), -1, false
-        );
-        return () => cancelAnimation(glow);
-    }, [color]);
-    const s = useAnimatedStyle(() => ({
-        opacity: interpolate(glow.value, [0,1], [0.3, 0.85]),
-        transform: [{ scale: interpolate(glow.value, [0,1], [1.0, 1.007]) }],
-    }));
-    return <Animated.View pointerEvents="none" style={[elGlow.ring, { borderColor: color, shadowColor: color }, s]} />;
-};
-const elGlow = StyleSheet.create({
-    ring: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 18, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.7, zIndex: 18 },
-});
-
-// ─────────────────────────────────────────────
 // TAG icons
 // ─────────────────────────────────────────────
 const TAG_ICONS: Record<string, string> = {
@@ -100,15 +54,14 @@ const MetaStrip = ({ card, sc }: { card: Card; sc: number }) => {
     const gap    = Math.max(2, Math.min(6, 4 * sc));
 
     const icons: string[] = [];
-
     const el  = card.element;
-    if (el  && ELEMENT_EMOJI[el])           icons.push(ELEMENT_EMOJI[el]);
+    if (el  && ELEMENT_EMOJI[el])  icons.push(ELEMENT_EMOJI[el]);
     const race = card.race;
-    if (race && RACE_EMOJI[race])           icons.push(RACE_EMOJI[race]);
+    if (race && RACE_EMOJI[race])  icons.push(RACE_EMOJI[race]);
     const cls = card.cardClass;
-    if (cls  && CLASS_EMOJI[cls])           icons.push(CLASS_EMOJI[cls]);
+    if (cls  && CLASS_EMOJI[cls])  icons.push(CLASS_EMOJI[cls]);
     const tag = card.tags?.[0];
-    if (tag  && TAG_ICONS[tag])             icons.push(TAG_ICONS[tag]);
+    if (tag  && TAG_ICONS[tag])    icons.push(TAG_ICONS[tag]);
 
     if (!icons.length) return null;
 
@@ -205,22 +158,32 @@ const LegendaryGlowBorder = ({ color }: { color: string }) => {
 };
 
 // ─────────────────────────────────────────────
-// ElementShimmer
+// RarityShimmer — foil using rarity color only
 // ─────────────────────────────────────────────
-const ElementShimmer = ({ cardW, foilDuration, element }: { cardW: number; foilDuration: number; element?: Element }) => {
+const RarityShimmer = ({ cardW, foilDuration, color }: { cardW: number; foilDuration: number; color: string }) => {
     const x = useSharedValue(-cardW * 0.7);
     useEffect(() => {
         x.value = withRepeat(withTiming(cardW * 1.7, { duration: foilDuration, easing: Easing.inOut(Easing.quad) }), -1, false);
         return () => cancelAnimation(x);
     }, [cardW, foilDuration]);
     const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-    const colors = element && ELEMENT_SHIMMER_COLORS[element]
-        ? ELEMENT_SHIMMER_COLORS[element]
-        : ['transparent','rgba(255,230,80,0.06)','rgba(255,215,0,0.18)','rgba(255,255,180,0.28)','rgba(255,215,0,0.18)','rgba(255,230,80,0.06)','transparent'] as any;
+    // parse hex color for shimmer tints
+    const r = parseInt(color.slice(1,3),16);
+    const g = parseInt(color.slice(3,5),16);
+    const b = parseInt(color.slice(5,7),16);
+    const shimmerColors = [
+        'transparent',
+        `rgba(${r},${g},${b},0.04)`,
+        `rgba(${r},${g},${b},0.14)`,
+        `rgba(${r},${g},${b},0.22)`,
+        `rgba(${r},${g},${b},0.14)`,
+        `rgba(${r},${g},${b},0.04)`,
+        'transparent',
+    ] as any;
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, width: cardW * 0.55 }, animStyle]}>
-                <LinearGradient colors={colors} start={{ x:0,y:0 }} end={{ x:1,y:1 }} style={{ flex:1, transform:[{rotate:'-25deg'}] }} />
+                <LinearGradient colors={shimmerColors} start={{ x:0,y:0 }} end={{ x:1,y:1 }} style={{ flex:1, transform:[{rotate:'-25deg'}] }} />
             </Animated.View>
         </View>
     );
@@ -439,8 +402,10 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
     const theme = RARITY_THEMES[rarity] ?? RARITY_THEMES.common;
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
-    const element = card.element;
-    const elementColor = element ? ELEMENT_COLORS[element] : null;
+
+    // ── Element has NO effect on colors — rarity only ──
+    const themeColor   = theme.color;
+    const themeBorder  = theme.borderColor;
 
     const styleW = (style as any)?.width;
     const styleH = (style as any)?.height;
@@ -461,7 +426,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
 
     const statFs = Math.max(11, 14*sc);
 
-    // ── layout stack ─────────────────────────────────────────
     const statsBottom   = Math.round(8*scH);
     const STAT_AREA_H   = Math.round(38*scH);
     const ABILITY_H     = hasAbility ? Math.round((rarity==='legendary'||rarity==='special'?50:42)*scH) : 0;
@@ -482,20 +446,23 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
 
     const specialRarityBadgeBg = rarity==='special'?'rgba(0,0,0,0.85)':rarity==='legendary'?'rgba(30,20,0,0.75)':rarity==='epic'?'rgba(20,0,30,0.75)':'rgba(0,0,0,0.65)';
     const isLegendary = rarity==='legendary';
-    const activeBorderColor = elementColor ?? theme.borderColor;
+
+    // bottom gradient — neutral dark only, no element tint
+    const bottomGradient: [string,string,string,string] = rarity==='special'
+        ? ['rgba(0,0,0,0.2)','transparent','rgba(0,0,0,0.7)','rgba(0,0,0,0.97)']
+        : ['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)'];
 
     return (
         <Animated.View style={[
             styles.cardContainer,
-            { width:cardW, height:cardH, borderRadius:Math.round(14*sc), borderColor:activeBorderColor, borderWidth:theme.borderWidth,
-              shadowColor:elementColor??theme.shadowColor, shadowOpacity:theme.shadowOpacity, shadowRadius:theme.shadowRadius, elevation:theme.elevation },
+            { width:cardW, height:cardH, borderRadius:Math.round(14*sc), borderColor:themeBorder, borderWidth:theme.borderWidth,
+              shadowColor:theme.shadowColor, shadowOpacity:theme.shadowOpacity, shadowRadius:theme.shadowRadius, elevation:theme.elevation },
             rarity==='special' && styles.specialCardBase,
             style,
         ]}>
-            {isLegendary && <LegendaryGlowBorder color={theme.color} />}
+            {isLegendary && <LegendaryGlowBorder color={themeColor} />}
             {rarity==='special' && <SpecialBreathingBorder />}
-            {rarity==='epic'    && <GlowRing color={theme.color} />}
-            {elementColor && <ElementGlowBorder color={elementColor} />}
+            {rarity==='epic'    && <GlowRing color={themeColor} />}
 
             <View style={[styles.cardInner,{borderRadius:Math.round(12*sc)}]}>
                 <LinearGradient colors={theme.bgColors} style={StyleSheet.absoluteFill} start={{x:0,y:0}} end={{x:1,y:1}} />
@@ -503,10 +470,10 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
                 {(hasImage||hasVideo) && <CardMedia cardImage={cardImage} videoAsset={videoAsset} customUri={customUri} isCustomImage={isCustomImage} imgStyle={imgStyle} videoMuted={!isOpenedView} />}
 
                 <View style={styles.contentLayer}>
-                    {theme.hasFoil && <ElementShimmer cardW={cardW} foilDuration={theme.foilDuration} element={element} />}
-                    <View style={[styles.innerBorder,{borderColor:activeBorderColor+'55',borderRadius:Math.round(9*sc)}]} pointerEvents="none" />
+                    {theme.hasFoil && <RarityShimmer cardW={cardW} foilDuration={theme.foilDuration} color={themeColor} />}
+                    <View style={[styles.innerBorder,{borderColor:themeBorder+'55',borderRadius:Math.round(9*sc)}]} pointerEvents="none" />
                     {(hasImage||hasVideo) && (
-                        <LinearGradient colors={elementBottomGradient(element,rarity==='special')} style={styles.gradientOverlay} start={{x:0,y:0}} end={{x:0,y:1}} pointerEvents="none" />
+                        <LinearGradient colors={bottomGradient} style={styles.gradientOverlay} start={{x:0,y:0}} end={{x:0,y:1}} pointerEvents="none" />
                     )}
                     {!hasImage && !hasVideo && (
                         <View style={styles.noImageBadge} pointerEvents="none">
@@ -514,25 +481,25 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
                             <Text style={styles.noImageText}>لا توجد صورة</Text>
                         </View>
                     )}
-                    {isLegendary && theme.hasParticles && <LegendaryParticles color={elementColor??theme.color} />}
-                    {theme.hasSideVines && <SideVines color={elementColor??theme.color} />}
+                    {isLegendary && theme.hasParticles && <LegendaryParticles color={themeColor} />}
+                    {theme.hasSideVines && <SideVines color={themeColor} />}
                     {(theme as any).hasDarkSmoke && <DarkSmokeEffect />}
                     {theme.hasFiligree && (
                         <>
-                            <ElvenCorner position="tl" color={elementColor??theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
-                            <ElvenCorner position="tr" color={elementColor??theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                            <ElvenCorner position="tl" color={themeColor} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                            <ElvenCorner position="tr" color={themeColor} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
                             {(rarity==='legendary'||rarity==='epic'||rarity==='special') && (
                                 <>
-                                    <ElvenCorner position="bl" color={elementColor??theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
-                                    <ElvenCorner position="br" color={elementColor??theme.color} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                                    <ElvenCorner position="bl" color={themeColor} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
+                                    <ElvenCorner position="br" color={themeColor} rich={rarity==='legendary'||rarity==='special'} scale={sc}/>
                                 </>
                             )}
                         </>
                     )}
 
                     {/* rarity badge */}
-                    <View style={[styles.rarityBadge,{top:badgeTop,left:badgeLeft,paddingHorizontal:badgePadH,paddingVertical:badgePadV,borderRadius:Math.round(7*sc),borderColor:theme.color+'AA',backgroundColor:specialRarityBadgeBg}]}>
-                        <Text style={[styles.rarityBadgeText,{color:theme.color,fontSize:badgeFontSize}]}>
+                    <View style={[styles.rarityBadge,{top:badgeTop,left:badgeLeft,paddingHorizontal:badgePadH,paddingVertical:badgePadV,borderRadius:Math.round(7*sc),borderColor:themeColor+'AA',backgroundColor:specialRarityBadgeBg}]}>
+                        <Text style={[styles.rarityBadgeText,{color:themeColor,fontSize:badgeFontSize}]}>
                             {rarity==='legendary'?'✧ ':rarity==='special'?'☠️ ':'✦ '}{theme.label}{rarity==='legendary'?' ✧':rarity==='special'?' ☠️':' ✦'}
                         </Text>
                     </View>
@@ -549,8 +516,8 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
                                 <LinearGradient colors={['transparent','rgba(192,192,192,0.12)','transparent']} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
                             </View>
                         )}
-                        <Text style={[styles.cardName,{textShadowColor:elementColor??theme.color,fontSize:nameFontSize}]} numberOfLines={1}>{card.nameAr||card.name}</Text>
-                        {stars>0 && <StarsRow count={stars} color={elementColor??theme.starColor} emptyColor={theme.starEmpty} sc={sc}/>}
+                        <Text style={[styles.cardName,{textShadowColor:themeColor,fontSize:nameFontSize}]} numberOfLines={1}>{card.nameAr||card.name}</Text>
+                        {stars>0 && <StarsRow count={stars} color={theme.starColor} emptyColor={theme.starEmpty} sc={sc}/>}
                     </View>
 
                     {/* ability */}
@@ -560,7 +527,7 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
                         </View>
                     )}
 
-                    {/* ✨ Stats row: [ ⚔️ 18 ] [ 🌍 👤 ⚔️ ⚔️ ] [ 🛡️ 16 ] */}
+                    {/* Stats row: [ ⚔️ 18 ] [ icons ] [ 🛡️ 16 ] */}
                     <View style={[styles.statsRow,{bottom:statsBottom,paddingHorizontal:Math.max(6,14*scW)}]}>
                         <StatBadge icon="⚔️" value={card.attack}  isAttack={true}  fs={statFs} />
                         <MetaStrip card={card} sc={sc} />
@@ -613,7 +580,6 @@ const styles = StyleSheet.create({
     abilityIcon:            {},
     abilityText:            { flex:1, fontWeight:'600', writingDirection:'rtl' },
 
-    // ✨ Stats row — atk | icons | def
     statsRow: { position:'absolute', left:0, right:0, flexDirection:'row', justifyContent:'space-between', alignItems:'center', zIndex:10 },
     statBadge:    { flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:5, borderRadius:20, gap:4, minWidth:48, justifyContent:'center' },
     attackBadge:  { backgroundColor:'rgba(20,12,0,0.88)',  borderWidth:1.5, borderColor:'#B8860B' },
