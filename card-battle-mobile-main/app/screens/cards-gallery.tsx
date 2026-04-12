@@ -11,7 +11,7 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data-exports';
-import { Card, CardRarity, RageModeData } from '@/lib/game/types';
+import { Card, CardRarity, CardClass, Element, Race, RageModeData, ELEMENT_EMOJI, RACE_EMOJI, CLASS_EMOJI } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap, Trash2 } from 'lucide-react-native';
@@ -44,6 +44,9 @@ type CardEdits = {
   fitInsideBorder: boolean;
   rarity: CardRarity;
   isVideo: boolean;
+  element: Element | null;
+  race: Race | null;
+  cardClass: CardClass | null;
 };
 
 function isVideoUri(uri: string): boolean {
@@ -71,6 +74,9 @@ function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fit
     fitInsideBorder: card.fitInsideBorder ?? false,
     rarity: card.rarity ?? 'common',
     isVideo: card.isVideo ?? (card.customImage ? isVideoUri(card.customImage) : false),
+    element: card.element ?? null,
+    race: card.race ?? null,
+    cardClass: card.cardClass ?? null,
   };
 }
 
@@ -83,6 +89,82 @@ const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars
   { value: 'legendary', labelAr: 'أسطوري',  color: '#ef4444', stars: 5 },
   { value: 'special',   labelAr: 'خاص',     color: '#ec4899', stars: 5 },
 ];
+
+// ─────────────────────────────────────────────
+// Icon Picker — Element / Race / Class
+// ─────────────────────────────────────────────
+const ELEMENT_OPTIONS: { value: Element | null; label: string }[] = [
+  { value: null,        label: '✕ بدون' },
+  { value: 'fire',      label: `${ELEMENT_EMOJI.fire} نار` },
+  { value: 'ice',       label: `${ELEMENT_EMOJI.ice} جليد` },
+  { value: 'water',     label: `${ELEMENT_EMOJI.water} ماء` },
+  { value: 'earth',     label: `${ELEMENT_EMOJI.earth} أرض` },
+  { value: 'lightning', label: `${ELEMENT_EMOJI.lightning} برق` },
+  { value: 'wind',      label: `${ELEMENT_EMOJI.wind} ريح` },
+];
+
+const RACE_OPTIONS: { value: Race | null; label: string }[] = [
+  { value: null,      label: '✕ بدون' },
+  { value: 'human',   label: `${RACE_EMOJI.human} بشر` },
+  { value: 'elf',     label: `${RACE_EMOJI.elf} إلف` },
+  { value: 'orc',     label: `${RACE_EMOJI.orc} أورك` },
+  { value: 'dragon',  label: `${RACE_EMOJI.dragon} تنين` },
+  { value: 'demon',   label: `${RACE_EMOJI.demon} شيطان` },
+  { value: 'undead',  label: `${RACE_EMOJI.undead} ميت` },
+  { value: 'monster', label: `${RACE_EMOJI.monster} وحش` },
+  { value: 'robot',   label: `${RACE_EMOJI.robot} روبوت` },
+];
+
+const CLASS_OPTIONS: { value: CardClass | null; label: string }[] = [
+  { value: null,        label: '✕ بدون' },
+  { value: 'warrior',   label: `${CLASS_EMOJI.warrior} محارب` },
+  { value: 'knight',    label: `${CLASS_EMOJI.knight} فارس` },
+  { value: 'mage',      label: `${CLASS_EMOJI.mage} ساحر` },
+  { value: 'archer',    label: `${CLASS_EMOJI.archer} رامي` },
+  { value: 'berserker', label: `${CLASS_EMOJI.berserker} محارب ضاري` },
+  { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين` },
+];
+
+function IconPicker<T extends string | null>({
+  label, options, value, color, onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T | null;
+  color: string;
+  onChange: (v: T | null) => void;
+}) {
+  return (
+    <View style={{ marginBottom: 4 }}>
+      <RNText style={[ep.label, { marginBottom: 5 }]}>{label}</RNText>
+      <View style={ip.row}>
+        {options.map(opt => {
+          const active = opt.value === value || (opt.value === null && value === null);
+          return (
+            <TouchableOpacity
+              key={String(opt.value)}
+              onPress={() => onChange(opt.value as T | null)}
+              activeOpacity={0.75}
+              style={[
+                ip.btn,
+                { borderColor: active ? color : '#33333388',
+                  backgroundColor: active ? color + '22' : 'rgba(255,255,255,0.03)' },
+              ]}
+            >
+              <RNText style={[ip.txt, { color: active ? color : '#666' }]}>{opt.label}</RNText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const ip = StyleSheet.create({
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 2 },
+  btn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14, borderWidth: 1.2 },
+  txt: { fontSize: 10, fontWeight: '800' },
+});
 
 function RarityPicker({ value, onChange }: { value: CardRarity; onChange: (r: CardRarity) => void }) {
   return (
@@ -463,6 +545,9 @@ export default function CardsGalleryScreen() {
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
       isVideo: edits.isVideo,
+      element: edits.element ?? undefined,
+      race: edits.race ?? undefined,
+      cardClass: edits.cardClass ?? undefined,
     });
   }, [edits, selectedCard]);
 
@@ -495,6 +580,9 @@ export default function CardsGalleryScreen() {
       isVideo: edits.isVideo,
       imageOffsetY: edits.imageOffsetY,
       fitInsideBorder: edits.fitInsideBorder,
+      element: edits.element ?? null,
+      race: edits.race ?? null,
+      cardClass: edits.cardClass ?? null,
     };
 
     const memRecord: Record<string, any> = { ...storeSafe, customImage: edits.customImage };
@@ -517,7 +605,6 @@ export default function CardsGalleryScreen() {
     handleClose();
   };
 
-  // ── حذف الكارت المخصص ──────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!selectedCard) return;
     const cardName = selectedCard.nameAr || selectedCard.name;
@@ -532,16 +619,12 @@ export default function CardsGalleryScreen() {
           style: 'destructive',
           onPress: async () => {
             const id = selectedCard.id;
-            // 1. حذف من custom-cards-store
             await deleteCustomCard(id);
-            // 2. حذف الصورة
             await deleteImage(`card_img_${id}`);
-            // 3. حذف من CARD_EDITS_KEY
             const newMap = { ...savedMap };
             delete newMap[id];
             setSavedMap(newMap);
             await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
-            // 4. إزالة من الشاشة
             setCards(prev => prev.filter(c => c.id !== id));
             handleClose();
           },
@@ -643,7 +726,6 @@ export default function CardsGalleryScreen() {
                     fitInsideBorder={card.fitInsideBorder ?? false}
                     style={{ width: galleryCardW, height: galleryCardH }}
                   />
-                  {/* شارة "مخصص" على الكروت المضافة */}
                   {card._isCustom && (
                     <View style={styles.customBadge}>
                       <RNText style={styles.customBadgeTxt}>✦</RNText>
@@ -673,7 +755,6 @@ export default function CardsGalleryScreen() {
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                  {/* زر الحذف — للكروت المخصصة فقط */}
                   {isCustomCard && (
                     <TouchableOpacity style={ep.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
                       <Trash2 size={13} color="#f87171" />
@@ -704,6 +785,32 @@ export default function CardsGalleryScreen() {
                   <RNText style={ep.label}>⭐ عدد النجوم</RNText>
                   <StarPicker value={edits.stars} onChange={n => patch({ stars: n })} />
                   {edits.stars === 0 && <RNText style={ep.hint}>الكرت بدون نجوم</RNText>}
+                  <View style={ep.divider} />
+
+                  {/* ── أيقونات المنتصف ───────────────────────── */}
+                  <RNText style={[ep.sectionHeader]}>🏷️ أيقونات المنتصف</RNText>
+
+                  <IconPicker
+                    label="🔥 العنصر"
+                    options={ELEMENT_OPTIONS as any}
+                    value={edits.element}
+                    color={rarityColor}
+                    onChange={v => patch({ element: v as Element | null })}
+                  />
+                  <IconPicker
+                    label="👤 الجنس / الفصيلة"
+                    options={RACE_OPTIONS as any}
+                    value={edits.race}
+                    color={rarityColor}
+                    onChange={v => patch({ race: v as Race | null })}
+                  />
+                  <IconPicker
+                    label="⚔️ الفئة"
+                    options={CLASS_OPTIONS as any}
+                    value={edits.cardClass}
+                    color={rarityColor}
+                    onChange={v => patch({ cardClass: v as CardClass | null })}
+                  />
                   <View style={ep.divider} />
 
                   <View style={ep.switchRow}>
@@ -805,6 +912,7 @@ const ep = StyleSheet.create({
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
   label:   { fontSize: 11, color: '#999', fontWeight: '700', marginBottom: 7, textAlign: 'right' },
   hint:    { fontSize: 10, color: '#f87171', textAlign: 'center', marginTop: 3, opacity: 0.8 },
+  sectionHeader: { fontSize: 12, color: '#ccc', fontWeight: '800', textAlign: 'center', marginBottom: 10, letterSpacing: 0.5 },
   nameArInput: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl', marginBottom: 2 },
   starRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 3, marginBottom: 2 },
   starBtn: { padding: 3 },
@@ -842,7 +950,6 @@ const ep = StyleSheet.create({
   offsetHint:      { fontSize: 9, color: '#555' },
   offsetResetBtn:  { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
   offsetResetTxt:  { fontSize: 10, color: '#666', fontWeight: '600' },
-  // زر الحذف
   deleteBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#f8717155', backgroundColor: 'rgba(248,113,113,0.08)', marginBottom: 10 },
   deleteBtnTxt: { color: '#f87171', fontWeight: '800', fontSize: 12 },
 });
@@ -866,7 +973,6 @@ const styles = StyleSheet.create({
     shadowColor: '#f59e0b', shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
   },
   fabTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  // شارة الكروت المخصصة
   customBadge: {
     position: 'absolute', top: 4, left: 4,
     backgroundColor: 'rgba(217,119,6,0.85)',
