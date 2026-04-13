@@ -92,75 +92,124 @@ const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars
   { value: 'special',   labelAr: 'خاص',     color: '#ec4899', stars: 5 },
 ];
 
-// ─────────────────────────────────────────────
-const ELEMENT_OPTIONS: { value: Element | null; label: string }[] = [
-  { value: null,        label: '✕ بدون' },
-  { value: 'fire',      label: `${ELEMENT_EMOJI.fire} نار` },
-  { value: 'ice',       label: `${ELEMENT_EMOJI.ice} جليد` },
-  { value: 'water',     label: `${ELEMENT_EMOJI.water} ماء` },
-  { value: 'earth',     label: `${ELEMENT_EMOJI.earth} أرض` },
-  { value: 'lightning', label: `${ELEMENT_EMOJI.lightning} برق` },
-  { value: 'wind',      label: `${ELEMENT_EMOJI.wind} ريح` },
+// ──────────────────────────────────────────────────────────
+// Helpers: split label into emoji + text
+// ──────────────────────────────────────────────────────────
+function splitLabel(label: string): { icon: string; name: string } {
+  // matches leading emoji(s) then the rest
+  const m = label.match(/^([\p{Emoji}\s✕×✦✧✦✱✲❆❇]+?)\s*(.*)$/u);
+  if (m && m[1].trim()) return { icon: m[1].trim(), name: m[2].trim() };
+  return { icon: '', name: label };
+}
+
+// ──────────────────────────────────────────────────────────
+// Options
+// ──────────────────────────────────────────────────────────
+const ELEMENT_OPTIONS: { value: Element | null; label: string; icon: string; name: string }[] = [
+  { value: null,        label: '✕ بدون',  icon: '✕',  name: 'بدون' },
+  { value: 'fire',      label: `${ELEMENT_EMOJI.fire} نار`,    icon: ELEMENT_EMOJI.fire,      name: 'نار' },
+  { value: 'ice',       label: `${ELEMENT_EMOJI.ice} جليد`,   icon: ELEMENT_EMOJI.ice,       name: 'جليد' },
+  { value: 'water',     label: `${ELEMENT_EMOJI.water} ماء`,    icon: ELEMENT_EMOJI.water,     name: 'ماء' },
+  { value: 'earth',     label: `${ELEMENT_EMOJI.earth} أرض`,    icon: ELEMENT_EMOJI.earth,     name: 'أرض' },
+  { value: 'lightning', label: `${ELEMENT_EMOJI.lightning} برق`,   icon: ELEMENT_EMOJI.lightning, name: 'برق' },
+  { value: 'wind',      label: `${ELEMENT_EMOJI.wind} ريح`,    icon: ELEMENT_EMOJI.wind,      name: 'ريح' },
 ];
 
-const RACE_OPTIONS: { value: Race | null; label: string }[] = [
-  { value: null,      label: '✕ بدون' },
-  { value: 'human',   label: `${RACE_EMOJI.human} بشر` },
-  { value: 'elf',     label: `${RACE_EMOJI.elf} إلف` },
-  { value: 'orc',     label: `${RACE_EMOJI.orc} أورك` },
-  { value: 'dragon',  label: `${RACE_EMOJI.dragon} تنين` },
-  { value: 'demon',   label: `${RACE_EMOJI.demon} شيطان` },
-  { value: 'undead',  label: `${RACE_EMOJI.undead} ميت` },
-  { value: 'monster', label: `${RACE_EMOJI.monster} وحش` },
-  { value: 'robot',   label: `${RACE_EMOJI.robot} روبوت` },
+const RACE_OPTIONS: { value: Race | null; label: string; icon: string; name: string }[] = [
+  { value: null,      label: '✕ بدون',    icon: '✕',         name: 'بدون' },
+  { value: 'human',   label: `${RACE_EMOJI.human} بشر`,    icon: RACE_EMOJI.human,   name: 'بشر' },
+  { value: 'elf',     label: `${RACE_EMOJI.elf} إلف`,     icon: RACE_EMOJI.elf,     name: 'إلف' },
+  { value: 'orc',     label: `${RACE_EMOJI.orc} أورك`,    icon: RACE_EMOJI.orc,     name: 'أورك' },
+  { value: 'dragon',  label: `${RACE_EMOJI.dragon} تنين`,   icon: RACE_EMOJI.dragon,  name: 'تنين' },
+  { value: 'demon',   label: `${RACE_EMOJI.demon} شيطان`,  icon: RACE_EMOJI.demon,   name: 'شيطان' },
+  { value: 'undead',  label: `${RACE_EMOJI.undead} ميت`,     icon: RACE_EMOJI.undead,  name: 'ميت' },
+  { value: 'monster', label: `${RACE_EMOJI.monster} وحش`,    icon: RACE_EMOJI.monster, name: 'وحش' },
+  { value: 'robot',   label: `${RACE_EMOJI.robot} روبوت`,  icon: RACE_EMOJI.robot,   name: 'روبوت' },
 ];
 
-const CLASS_OPTIONS: { value: CardClass | null; label: string }[] = [
-  { value: null,        label: '✕ بدون' },
-  { value: 'warrior',   label: `${CLASS_EMOJI.warrior} محارب` },
-  { value: 'knight',    label: `${CLASS_EMOJI.knight} فارس` },
-  { value: 'mage',      label: `${CLASS_EMOJI.mage} ساحر` },
-  { value: 'archer',    label: `${CLASS_EMOJI.archer} رامي` },
-  { value: 'berserker', label: `${CLASS_EMOJI.berserker} محارب ضاري` },
-  { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين` },
+const CLASS_OPTIONS: { value: CardClass | null; label: string; icon: string; name: string }[] = [
+  { value: null,        label: '✕ بدون',         icon: '✕',                name: 'بدون' },
+  { value: 'warrior',   label: `${CLASS_EMOJI.warrior} محارب`,   icon: CLASS_EMOJI.warrior,   name: 'محارب' },
+  { value: 'knight',    label: `${CLASS_EMOJI.knight} فارس`,    icon: CLASS_EMOJI.knight,    name: 'فارس' },
+  { value: 'mage',      label: `${CLASS_EMOJI.mage} ساحر`,      icon: CLASS_EMOJI.mage,      name: 'ساحر' },
+  { value: 'archer',    label: `${CLASS_EMOJI.archer} رامي`,     icon: CLASS_EMOJI.archer,    name: 'رامي' },
+  { value: 'berserker', label: `${CLASS_EMOJI.berserker} محارب ضاري`, icon: CLASS_EMOJI.berserker, name: 'ضاري' },
+  { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين`,  icon: CLASS_EMOJI.paladin,   name: 'بالادين' },
 ];
 
-const TAG_OPTIONS: { value: Tag; label: string }[] = [
-  { value: 'sword',  label: '⚔️ سيف' },
-  { value: 'shield', label: '🛡️ درع' },
-  { value: 'magic',  label: '✨ سحر' },
-  { value: 'bow',    label: '🏹 قوس' },
-  { value: 'crown',  label: '👑 تاج' },
+const TAG_OPTIONS: { value: Tag; label: string; icon: string; name: string }[] = [
+  { value: 'sword',  label: '⚔️ سيف',  icon: '⚔️', name: 'سيف' },
+  { value: 'shield', label: '🛡️ درع',  icon: '🛡️', name: 'درع' },
+  { value: 'magic',  label: '✨ سحر',  icon: '✨',  name: 'سحر' },
+  { value: 'bow',    label: '🏹 قوس',   icon: '🏹',  name: 'قوس' },
+  { value: 'crown',  label: '👑 تاج',  icon: '👑',  name: 'تاج' },
 ];
 
+// ──────────────────────────────────────────────────────────
+// GridTile — single card tile
+// ──────────────────────────────────────────────────────────
+function GridTile({
+  icon, name, active, color, onPress,
+}: {
+  icon: string; name: string; active: boolean; color: string; onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={[
+        gt.tile,
+        active
+          ? { borderColor: color, backgroundColor: color + '1a' }
+          : { borderColor: '#2a2a35', backgroundColor: '#13131a' },
+      ]}
+    >
+      <RNText style={gt.icon}>{icon || '□'}</RNText>
+      <RNText style={[gt.name, { color: active ? color : '#7a7a8a' }]} numberOfLines={1}>
+        {name}
+      </RNText>
+    </TouchableOpacity>
+  );
+}
+
+const gt = StyleSheet.create({
+  tile: {
+    width: 70, height: 56,
+    borderRadius: 10, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+    gap: 2,
+  },
+  icon: { fontSize: 20, lineHeight: 24 },
+  name: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+});
+
+// ──────────────────────────────────────────────────────────
+// IconPicker — single-select, grid tiles
+// ──────────────────────────────────────────────────────────
 function IconPicker<T extends string | null>({
   label, options, value, color, onChange,
 }: {
   label: string;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; icon: string; name: string }[];
   value: T | null;
   color: string;
   onChange: (v: T | null) => void;
 }) {
   return (
-    <View style={{ marginBottom: 4 }}>
-      <RNText style={[ep.label, { marginBottom: 5 }]}>{label}</RNText>
-      <View style={ip.row}>
+    <View style={ip.wrap}>
+      <RNText style={[ep.label, { marginBottom: 6 }]}>{label}</RNText>
+      <View style={ip.grid}>
         {options.map(opt => {
           const active = opt.value === value || (opt.value === null && value === null);
           return (
-            <TouchableOpacity
+            <GridTile
               key={String(opt.value)}
+              icon={opt.icon}
+              name={opt.name}
+              active={active}
+              color={opt.value === null ? '#f87171' : color}
               onPress={() => onChange(opt.value as T | null)}
-              activeOpacity={0.75}
-              style={[
-                ip.btn,
-                { borderColor: active ? color : '#33333388',
-                  backgroundColor: active ? color + '22' : 'rgba(255,255,255,0.03)' },
-              ]}
-            >
-              <RNText style={[ip.txt, { color: active ? color : '#666' }]}>{opt.label}</RNText>
-            </TouchableOpacity>
+            />
           );
         })}
       </View>
@@ -168,7 +217,9 @@ function IconPicker<T extends string | null>({
   );
 }
 
-/** Multi-select tags picker */
+// ──────────────────────────────────────────────────────────
+// TagsPicker — multi-select, grid tiles
+// ──────────────────────────────────────────────────────────
 function TagsPicker({ value, color, onChange }: {
   value: Tag[];
   color: string;
@@ -179,47 +230,34 @@ function TagsPicker({ value, color, onChange }: {
     else onChange([...value, tag]);
   };
   return (
-    <View style={{ marginBottom: 4 }}>
-      <RNText style={[ep.label, { marginBottom: 5 }]}>🏷️ الوسوم (تعددي)</RNText>
-      <View style={ip.row}>
-        {/* ✕ مسح الكل */}
-        <TouchableOpacity
+    <View style={ip.wrap}>
+      <RNText style={[ep.label, { marginBottom: 6 }]}>🏷️ الوسوم</RNText>
+      <View style={ip.grid}>
+        <GridTile
+          icon='✕'
+          name='بدون'
+          active={value.length === 0}
+          color='#f87171'
           onPress={() => onChange([])}
-          activeOpacity={0.75}
-          style={[
-            ip.btn,
-            { borderColor: value.length === 0 ? '#f87171' : '#33333388',
-              backgroundColor: value.length === 0 ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.03)' },
-          ]}
-        >
-          <RNText style={[ip.txt, { color: value.length === 0 ? '#f87171' : '#666' }]}>✕ بدون</RNText>
-        </TouchableOpacity>
-        {TAG_OPTIONS.map(opt => {
-          const active = value.includes(opt.value);
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              onPress={() => toggle(opt.value)}
-              activeOpacity={0.75}
-              style={[
-                ip.btn,
-                { borderColor: active ? color : '#33333388',
-                  backgroundColor: active ? color + '22' : 'rgba(255,255,255,0.03)' },
-              ]}
-            >
-              <RNText style={[ip.txt, { color: active ? color : '#666' }]}>{opt.label}</RNText>
-            </TouchableOpacity>
-          );
-        })}
+        />
+        {TAG_OPTIONS.map(opt => (
+          <GridTile
+            key={opt.value}
+            icon={opt.icon}
+            name={opt.name}
+            active={value.includes(opt.value)}
+            color={color}
+            onPress={() => toggle(opt.value)}
+          />
+        ))}
       </View>
     </View>
   );
 }
 
 const ip = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 2 },
-  btn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14, borderWidth: 1.2 },
-  txt: { fontSize: 10, fontWeight: '800' },
+  wrap: { marginBottom: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
 });
 
 function RarityPicker({ value, onChange }: { value: CardRarity; onChange: (r: CardRarity) => void }) {
@@ -855,6 +893,7 @@ export default function CardsGalleryScreen() {
                     color={rarityColor}
                     onChange={v => patch({ element: v as Element | null })}
                   />
+                  <View style={ep.divider} />
                   <IconPicker
                     label="👤 الجنس / الفصيلة"
                     options={RACE_OPTIONS as any}
@@ -862,6 +901,7 @@ export default function CardsGalleryScreen() {
                     color={rarityColor}
                     onChange={v => patch({ race: v as Race | null })}
                   />
+                  <View style={ep.divider} />
                   <IconPicker
                     label="⚔️ الفئة"
                     options={CLASS_OPTIONS as any}
@@ -869,6 +909,7 @@ export default function CardsGalleryScreen() {
                     color={rarityColor}
                     onChange={v => patch({ cardClass: v as CardClass | null })}
                   />
+                  <View style={ep.divider} />
                   <TagsPicker
                     value={edits.tags}
                     color={rarityColor}
