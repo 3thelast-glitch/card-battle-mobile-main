@@ -92,19 +92,6 @@ const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars
   { value: 'special',   labelAr: 'خاص',     color: '#ec4899', stars: 5 },
 ];
 
-// ──────────────────────────────────────────────────────────
-// Helpers: split label into emoji + text
-// ──────────────────────────────────────────────────────────
-function splitLabel(label: string): { icon: string; name: string } {
-  // matches leading emoji(s) then the rest
-  const m = label.match(/^([\p{Emoji}\s✕×✦✧✦✱✲❆❇]+?)\s*(.*)$/u);
-  if (m && m[1].trim()) return { icon: m[1].trim(), name: m[2].trim() };
-  return { icon: '', name: label };
-}
-
-// ──────────────────────────────────────────────────────────
-// Options
-// ──────────────────────────────────────────────────────────
 const ELEMENT_OPTIONS: { value: Element | null; label: string; icon: string; name: string }[] = [
   { value: null,        label: '✕ بدون',  icon: '✕',  name: 'بدون' },
   { value: 'fire',      label: `${ELEMENT_EMOJI.fire} نار`,    icon: ELEMENT_EMOJI.fire,      name: 'نار' },
@@ -133,7 +120,7 @@ const CLASS_OPTIONS: { value: CardClass | null; label: string; icon: string; nam
   { value: 'knight',    label: `${CLASS_EMOJI.knight} فارس`,    icon: CLASS_EMOJI.knight,    name: 'فارس' },
   { value: 'mage',      label: `${CLASS_EMOJI.mage} ساحر`,      icon: CLASS_EMOJI.mage,      name: 'ساحر' },
   { value: 'archer',    label: `${CLASS_EMOJI.archer} رامي`,     icon: CLASS_EMOJI.archer,    name: 'رامي' },
-  { value: 'berserker', label: `${CLASS_EMOJI.berserker} محارب ضاري`, icon: CLASS_EMOJI.berserker, name: 'ضاري' },
+  { value: 'berserker', label: `${CLASS_EMOJI.berserker} ضاري`, icon: CLASS_EMOJI.berserker, name: 'ضاري' },
   { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين`,  icon: CLASS_EMOJI.paladin,   name: 'بالادين' },
 ];
 
@@ -145,9 +132,9 @@ const TAG_OPTIONS: { value: Tag; label: string; icon: string; name: string }[] =
   { value: 'crown',  label: '👑 تاج',  icon: '👑',  name: 'تاج' },
 ];
 
-// ──────────────────────────────────────────────────────────
-// GridTile — single card tile
-// ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// GridTile — Dark Mode card tile
+// ─────────────────────────────────────────────────────────
 function GridTile({
   icon, name, active, color, onPress,
 }: {
@@ -156,36 +143,95 @@ function GridTile({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.75}
+      activeOpacity={0.7}
       style={[
         gt.tile,
         active
-          ? { borderColor: color, backgroundColor: color + '1a' }
-          : { borderColor: '#2a2a35', backgroundColor: '#13131a' },
+          ? {
+              borderColor: color,
+              backgroundColor: '#0d0d14',
+              shadowColor: color,
+              shadowOpacity: 0.45,
+              shadowRadius: 8,
+              elevation: 6,
+            }
+          : {
+              borderColor: '#1e1e2a',
+              backgroundColor: '#0d0d14',
+            },
       ]}
     >
-      <RNText style={gt.icon}>{icon || '□'}</RNText>
-      <RNText style={[gt.name, { color: active ? color : '#7a7a8a' }]} numberOfLines={1}>
+      {/* icon badge circle */}
+      <View
+        style={[
+          gt.iconBadge,
+          active
+            ? { backgroundColor: color + '22', borderColor: color + '55' }
+            : { backgroundColor: '#161620', borderColor: '#252530' },
+        ]}
+      >
+        <RNText style={gt.icon}>{icon || '□'}</RNText>
+      </View>
+
+      {/* label */}
+      <RNText
+        style={[
+          gt.name,
+          { color: active ? color : '#4a4a5a' },
+        ]}
+        numberOfLines={1}
+      >
         {name}
       </RNText>
+
+      {/* active indicator dot */}
+      {active && <View style={[gt.dot, { backgroundColor: color }]} />}
     </TouchableOpacity>
   );
 }
 
 const gt = StyleSheet.create({
   tile: {
-    width: 70, height: 56,
-    borderRadius: 10, borderWidth: 1.5,
-    alignItems: 'center', justifyContent: 'center',
-    gap: 2,
+    width: 68,
+    height: 62,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    gap: 4,
   },
-  icon: { fontSize: 20, lineHeight: 24 },
-  name: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  icon: {
+    fontSize: 16,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  name: {
+    fontSize: 9,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  dot: {
+    position: 'absolute',
+    bottom: 5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
 });
 
-// ──────────────────────────────────────────────────────────
-// IconPicker — single-select, grid tiles
-// ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// IconPicker — single-select
+// ─────────────────────────────────────────────────────────
 function IconPicker<T extends string | null>({
   label, options, value, color, onChange,
 }: {
@@ -217,9 +263,9 @@ function IconPicker<T extends string | null>({
   );
 }
 
-// ──────────────────────────────────────────────────────────
-// TagsPicker — multi-select, grid tiles
-// ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
+// TagsPicker — multi-select
+// ─────────────────────────────────────────────────────────
 function TagsPicker({ value, color, onChange }: {
   value: Tag[];
   color: string;
@@ -489,13 +535,13 @@ function RageModeSection({ cardId, data, onChange }: {
             style={[ep.nameArInput, { borderColor: RAGE_COLOR + '55', color: RAGE_COLOR }]}
             value={data.rageNameAr ?? ''}
             onChangeText={t => onChange({ rageNameAr: t })}
-            placeholder="مثال: سوبر سايان — غضب البركان..."
+            placeholder="مثال: سوبر سايان..."
             placeholderTextColor="#555"
             textAlign="right"
             writingDirection="rtl"
           />
 
-          <RNText style={[ep.label, { marginTop: 10 }]}>⚡ زيادة الطاقات عند الغضب</RNText>
+          <RNText style={[ep.label, { marginTop: 10 }]}>⚡ زيادة الطاقات</RNText>
           <View style={ep.steppers}>
             <StatStepper icon="⚔️" label="هجوم +" value={data.rageAttackBoost}  color="#f87171" onChange={v => onChange({ rageAttackBoost: clamp(v, 0, 999) })} />
             <StatStepper icon="🛡️" label="دفاع +" value={data.rageDefenseBoost} color="#60a5fa" onChange={v => onChange({ rageDefenseBoost: clamp(v, 0, 999) })} />
@@ -883,7 +929,6 @@ export default function CardsGalleryScreen() {
                   {edits.stars === 0 && <RNText style={ep.hint}>الكرت بدون نجوم</RNText>}
                   <View style={ep.divider} />
 
-                  {/* ── أيقونات المنتصف */}
                   <RNText style={ep.sectionHeader}>🏷️ أيقونات المنتصف</RNText>
 
                   <IconPicker
