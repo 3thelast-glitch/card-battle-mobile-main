@@ -11,7 +11,7 @@ import { LuxuryBackground } from '@/components/game/luxury-background';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { ALL_CARDS } from '@/lib/game/cards-data-exports';
-import { Card, CardRarity, CardClass, Element, Race, RageModeData, ELEMENT_EMOJI, RACE_EMOJI, CLASS_EMOJI } from '@/lib/game/types';
+import { Card, CardRarity, CardClass, Element, Race, Tag, RageModeData, ELEMENT_EMOJI, RACE_EMOJI, CLASS_EMOJI } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { useLandscapeLayout, useCardSize, LAYOUT_PADDING } from '@/utils/layout';
 import { ArrowLeft, Minus, Plus, Image as ImageIcon, Film, X, ChevronUp, ChevronDown, Zap, Trash2 } from 'lucide-react-native';
@@ -47,6 +47,7 @@ type CardEdits = {
   element: Element | null;
   race: Race | null;
   cardClass: CardClass | null;
+  tags: Tag[];
 };
 
 function isVideoUri(uri: string): boolean {
@@ -77,6 +78,7 @@ function toEdits(card: Card & { customImage?: string; imageOffsetY?: number; fit
     element: card.element ?? null,
     race: card.race ?? null,
     cardClass: card.cardClass ?? null,
+    tags: card.tags ?? [],
   };
 }
 
@@ -90,8 +92,6 @@ const RARITY_OPTIONS: { value: CardRarity; labelAr: string; color: string; stars
   { value: 'special',   labelAr: 'خاص',     color: '#ec4899', stars: 5 },
 ];
 
-// ─────────────────────────────────────────────
-// Icon Picker — Element / Race / Class
 // ─────────────────────────────────────────────
 const ELEMENT_OPTIONS: { value: Element | null; label: string }[] = [
   { value: null,        label: '✕ بدون' },
@@ -125,6 +125,14 @@ const CLASS_OPTIONS: { value: CardClass | null; label: string }[] = [
   { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين` },
 ];
 
+const TAG_OPTIONS: { value: Tag; label: string }[] = [
+  { value: 'sword',  label: '⚔️ سيف' },
+  { value: 'shield', label: '🛡️ درع' },
+  { value: 'magic',  label: '✨ سحر' },
+  { value: 'bow',    label: '🏹 قوس' },
+  { value: 'crown',  label: '👑 تاج' },
+];
+
 function IconPicker<T extends string | null>({
   label, options, value, color, onChange,
 }: {
@@ -144,6 +152,54 @@ function IconPicker<T extends string | null>({
             <TouchableOpacity
               key={String(opt.value)}
               onPress={() => onChange(opt.value as T | null)}
+              activeOpacity={0.75}
+              style={[
+                ip.btn,
+                { borderColor: active ? color : '#33333388',
+                  backgroundColor: active ? color + '22' : 'rgba(255,255,255,0.03)' },
+              ]}
+            >
+              <RNText style={[ip.txt, { color: active ? color : '#666' }]}>{opt.label}</RNText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** Multi-select tags picker */
+function TagsPicker({ value, color, onChange }: {
+  value: Tag[];
+  color: string;
+  onChange: (tags: Tag[]) => void;
+}) {
+  const toggle = (tag: Tag) => {
+    if (value.includes(tag)) onChange(value.filter(t => t !== tag));
+    else onChange([...value, tag]);
+  };
+  return (
+    <View style={{ marginBottom: 4 }}>
+      <RNText style={[ep.label, { marginBottom: 5 }]}>🏷️ الوسوم (تعددي)</RNText>
+      <View style={ip.row}>
+        {/* ✕ مسح الكل */}
+        <TouchableOpacity
+          onPress={() => onChange([])}
+          activeOpacity={0.75}
+          style={[
+            ip.btn,
+            { borderColor: value.length === 0 ? '#f87171' : '#33333388',
+              backgroundColor: value.length === 0 ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.03)' },
+          ]}
+        >
+          <RNText style={[ip.txt, { color: value.length === 0 ? '#f87171' : '#666' }]}>✕ بدون</RNText>
+        </TouchableOpacity>
+        {TAG_OPTIONS.map(opt => {
+          const active = value.includes(opt.value);
+          return (
+            <TouchableOpacity
+              key={opt.value}
+              onPress={() => toggle(opt.value)}
               activeOpacity={0.75}
               style={[
                 ip.btn,
@@ -548,6 +604,7 @@ export default function CardsGalleryScreen() {
       element: edits.element ?? undefined,
       race: edits.race ?? undefined,
       cardClass: edits.cardClass ?? undefined,
+      tags: edits.tags,
     });
   }, [edits, selectedCard]);
 
@@ -583,6 +640,7 @@ export default function CardsGalleryScreen() {
       element: edits.element ?? null,
       race: edits.race ?? null,
       cardClass: edits.cardClass ?? null,
+      tags: edits.tags,
     };
 
     const memRecord: Record<string, any> = { ...storeSafe, customImage: edits.customImage };
@@ -787,8 +845,8 @@ export default function CardsGalleryScreen() {
                   {edits.stars === 0 && <RNText style={ep.hint}>الكرت بدون نجوم</RNText>}
                   <View style={ep.divider} />
 
-                  {/* ── أيقونات المنتصف ───────────────────────── */}
-                  <RNText style={[ep.sectionHeader]}>🏷️ أيقونات المنتصف</RNText>
+                  {/* ── أيقونات المنتصف */}
+                  <RNText style={ep.sectionHeader}>🏷️ أيقونات المنتصف</RNText>
 
                   <IconPicker
                     label="🔥 العنصر"
@@ -810,6 +868,11 @@ export default function CardsGalleryScreen() {
                     value={edits.cardClass}
                     color={rarityColor}
                     onChange={v => patch({ cardClass: v as CardClass | null })}
+                  />
+                  <TagsPicker
+                    value={edits.tags}
+                    color={rarityColor}
+                    onChange={tags => patch({ tags })}
                   />
                   <View style={ep.divider} />
 
