@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
   TextInput, Switch, Text as RNText, Image, Platform, Alert,
@@ -20,6 +20,20 @@ import { getRageOverrides, saveRageOverride, RageOverridesMap } from '@/lib/game
 import { loadCustomCards, deleteCustomCard } from '@/lib/game/custom-cards-store';
 
 export const CARD_EDITS_KEY = 'card_edits_v1';
+export const DELETED_CARDS_KEY = 'deleted_cards_v1';
+
+/** Load IDs of base cards that the player has deleted */
+async function loadDeletedCardIds(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(DELETED_CARDS_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+/** Persist IDs of deleted base cards */
+async function saveDeletedCardIds(ids: Set<string>): Promise<void> {
+  await AsyncStorage.setItem(DELETED_CARDS_KEY, JSON.stringify([...ids]));
+}
 
 function buildUniqueCards(base: Card[], custom: Card[]): Card[] {
   const map: Record<string, Card> = {};
@@ -575,6 +589,7 @@ export default function CardsGalleryScreen() {
   const router = useRouter();
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
   const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean })[]>([]);
+  const [deletedBaseIds, setDeletedBaseIds] = useState<Set<string>>(new Set());
   const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<any | null>(null);
@@ -595,12 +610,19 @@ export default function CardsGalleryScreen() {
       const UNIQUE = buildUniqueCards(ALL_CARDS, customCards);
       const customIds = new Set(customCards.map(c => c.id));
 
+      // Load deleted base card IDs
+      const deletedIds = await loadDeletedCardIds();
+      setDeletedBaseIds(deletedIds);
+
       const rawEdits = await AsyncStorage.getItem(CARD_EDITS_KEY);
       const rageOverrides = await getRageOverrides();
       setRageMap(rageOverrides);
 
+      // Filter out deleted cards
+      const VISIBLE = UNIQUE.filter(c => !deletedIds.has(c.id));
+
       if (!rawEdits) {
-        setCards(UNIQUE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
+        setCards(VISIBLE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
         return;
       }
       try {
@@ -617,13 +639,13 @@ export default function CardsGalleryScreen() {
         );
         const fullMap = Object.fromEntries(entries);
         setSavedMap(Object.fromEntries(entries.map(([id, d]) => [id, toStoreSafe(d)])));
-        setCards(UNIQUE.map((c: Card) => ({
+        setCards(VISIBLE.map((c: Card) => ({
           ...c,
           ...(fullMap[c.id] ?? {}),
           _isCustom: customIds.has(c.id),
         })));
       } catch {
-        setCards(UNIQUE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
+        setCards(VISIBLE.map(c => ({ ...c, _isCustom: customIds.has(c.id) })));
       }
     }
     load();
@@ -705,28 +727,48 @@ export default function CardsGalleryScreen() {
     handleClose();
   };
 
-  const handleDelete = async () => {
-    if (!selectedCard) return;
-    const cardName = selectedCard.nameAr || selectedCard.name;
+  const handleDelete = async (cardToDelete?: typeof selectedCard) => {
+    const card = cardToDelete || selectedCard;
+    if (!card) return;
+    const cardName = card.nameAr || card.name;
 
     Alert.alert(
-      '🗑️ حذف الكارت',
-      `هل أنت متأكد من حذف "${cardName}"؟\nسيتم حذف جميع بيانات الكارت نهائياً.`,
+      'حذف البطاقة',
+      `هل أنت متأكد أنك تريد حذف هذا الكرت نهائياً من مجموعتك؟\n\n"${cardName}"`,
       [
         { text: 'إلغاء', style: 'cancel' },
         {
           text: 'حذف',
           style: 'destructive',
           onPress: async () => {
-            const id = selectedCard.id;
-            await deleteCustomCard(id);
+            const id = card.id;
+            const isCustom = card._isCustom === true;
+
+            // 1. Delete custom card data if applicable
+            if (isCustom) {
+              await deleteCustomCard(id);
+            } else {
+              // For base cards, persist deletion via hidden IDs
+              const newDeleted = new Set(deletedBaseIds);
+              newDeleted.add(id);
+              setDeletedBaseIds(newDeleted);
+              await saveDeletedCardIds(newDeleted);
+            }
+
+            // 2. Remove custom image
             await deleteImage(`card_img_${id}`);
+
+            // 3. Clean up saved edits
             const newMap = { ...savedMap };
             delete newMap[id];
             setSavedMap(newMap);
             await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
+
+            // 4. Remove from visible list
             setCards(prev => prev.filter(c => c.id !== id));
-            handleClose();
+
+            // 5. Close modal if open
+            if (selectedCard?.id === id) handleClose();
           },
         },
       ]
@@ -773,6 +815,7 @@ export default function CardsGalleryScreen() {
     ? getRarityConfig(edits.rarity).badgeColor
     : selectedCard ? getRarityConfig(selectedCard.rarity).badgeColor : '#d4af37';
 
+  // Delete is now available for ALL cards, not just custom ones
   const isCustomCard = selectedCard?._isCustom === true;
 
   return (
@@ -831,6 +874,15 @@ export default function CardsGalleryScreen() {
                       <RNText style={styles.customBadgeTxt}>✦</RNText>
                     </View>
                   )}
+                  {/* Delete icon overlay — top-right corner */}
+                  <TouchableOpacity
+                    style={styles.gridDeleteBtn}
+                    onPress={(e) => { e.stopPropagation?.(); handleDelete(card); }}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Trash2 size={11} color="#f87171" />
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))}
@@ -855,12 +907,11 @@ export default function CardsGalleryScreen() {
               <View style={[ep.panel, { borderColor: rarityColor + '77' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                  {isCustomCard && (
-                    <TouchableOpacity style={ep.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-                      <Trash2 size={13} color="#f87171" />
-                      <RNText style={ep.deleteBtnTxt}>حذف الكارت</RNText>
-                    </TouchableOpacity>
-                  )}
+                  {/* Delete button — available for ALL cards */}
+                  <TouchableOpacity style={ep.deleteBtn} onPress={() => handleDelete()} activeOpacity={0.8}>
+                    <Trash2 size={13} color="#f87171" />
+                    <RNText style={ep.deleteBtnTxt}>حذف الكارت</RNText>
+                  </TouchableOpacity>
 
                   <RNText style={[ep.title, { color: rarityColor }]}>{edits.nameAr || selectedCard.nameAr || selectedCard.name}</RNText>
                   <RNText style={ep.sub}>{selectedCard.name}</RNText>
@@ -1081,4 +1132,23 @@ const styles = StyleSheet.create({
     borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
   },
   customBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '900' },
+  // ─ Grid delete button overlay (glassmorphism style)
+  gridDeleteBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,5,5,0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // subtle shadow for depth
+    shadowColor: '#f87171',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
 });

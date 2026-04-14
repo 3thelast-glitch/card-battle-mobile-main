@@ -30,21 +30,30 @@ function isVideoUri(uri: string): boolean {
     || lower.startsWith('data:video/');
 }
 
+const DELETED_CARDS_KEY = 'deleted_cards_v1';
+
 /**
  * Returns ALL_CARDS + custom cards merged with:
  *  1. Gallery edits (attack, defense, nameAr, rarity, etc.)
  *  2. Custom images / videos from IndexedDB
  *  3. Rage mode overrides
+ *  4. Filters out cards the player has deleted
  */
 export async function getCardsWithEdits(): Promise<Card[]> {
   try {
-    const [customCards, rawEdits, rageMap] = await Promise.all([
+    const [customCards, rawEdits, rageMap, rawDeleted] = await Promise.all([
       loadCustomCards(),
       AsyncStorage.getItem(CARD_EDITS_KEY),
       getRageOverrides(),
+      AsyncStorage.getItem(DELETED_CARDS_KEY),
     ]);
 
-    const unique = dedup([...ALL_CARDS, ...customCards]);
+    // Build deleted IDs set
+    const deletedIds: Set<string> = rawDeleted ? new Set(JSON.parse(rawDeleted)) : new Set();
+
+    const unique = dedup([...ALL_CARDS, ...customCards])
+      .filter(c => !deletedIds.has(c.id));
+
     const editsMap: Record<string, any> = rawEdits ? JSON.parse(rawEdits) : {};
 
     // تحميل الصور من IndexedDB لكل كارت عنده hasCustomImage
