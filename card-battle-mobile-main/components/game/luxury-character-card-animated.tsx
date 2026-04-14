@@ -39,12 +39,7 @@ function isAnimatedUri(uri: string): boolean {
 }
 function isLocalAsset(value: any): value is number { return typeof value === 'number'; }
 
-// ─────────────────────────────────────────────
-// TAG icons
-// ─────────────────────────────────────────────
-const TAG_ICONS: Record<string, string> = {
-    sword: '⚔️', shield: '🛡️', magic: '✨', bow: '🏹', crown: '👑',
-};
+// Tag elements removed as per user request to rely purely on Element, Race, and Class
 
 // ─────────────────────────────────────────────
 // MetaStrip — icon-only, no bg/border, sits BETWEEN atk & def
@@ -60,8 +55,6 @@ const MetaStrip = ({ card, sc }: { card: Card; sc: number }) => {
     if (race && RACE_EMOJI[race])  icons.push(RACE_EMOJI[race]);
     const cls = card.cardClass;
     if (cls  && CLASS_EMOJI[cls])  icons.push(CLASS_EMOJI[cls]);
-    const tag = card.tags?.[0];
-    if (tag  && TAG_ICONS[tag])    icons.push(TAG_ICONS[tag]);
 
     if (!icons.length) return null;
 

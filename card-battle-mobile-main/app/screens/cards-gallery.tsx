@@ -124,13 +124,7 @@ const CLASS_OPTIONS: { value: CardClass | null; label: string; icon: string; nam
   { value: 'paladin',   label: `${CLASS_EMOJI.paladin} بالادين`,  icon: CLASS_EMOJI.paladin,   name: 'بالادين' },
 ];
 
-const TAG_OPTIONS: { value: Tag; label: string; icon: string; name: string }[] = [
-  { value: 'sword',  label: '⚔️ سيف',  icon: '⚔️', name: 'سيف' },
-  { value: 'shield', label: '🛡️ درع',  icon: '🛡️', name: 'درع' },
-  { value: 'magic',  label: '✨ سحر',  icon: '✨',  name: 'سحر' },
-  { value: 'bow',    label: '🏹 قوس',   icon: '🏹',  name: 'قوس' },
-  { value: 'crown',  label: '👑 تاج',  icon: '👑',  name: 'تاج' },
-];
+// Removed TAG_OPTIONS
 
 // ─────────────────────────────────────────────────────────
 // GridTile — Dark Mode card tile
@@ -263,43 +257,7 @@ function IconPicker<T extends string | null>({
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// TagsPicker — multi-select
-// ─────────────────────────────────────────────────────────
-function TagsPicker({ value, color, onChange }: {
-  value: Tag[];
-  color: string;
-  onChange: (tags: Tag[]) => void;
-}) {
-  const toggle = (tag: Tag) => {
-    if (value.includes(tag)) onChange(value.filter(t => t !== tag));
-    else onChange([...value, tag]);
-  };
-  return (
-    <View style={ip.wrap}>
-      <RNText style={[ep.label, { marginBottom: 6 }]}>🏷️ الوسوم</RNText>
-      <View style={ip.grid}>
-        <GridTile
-          icon='✕'
-          name='بدون'
-          active={value.length === 0}
-          color='#f87171'
-          onPress={() => onChange([])}
-        />
-        {TAG_OPTIONS.map(opt => (
-          <GridTile
-            key={opt.value}
-            icon={opt.icon}
-            name={opt.name}
-            active={value.includes(opt.value)}
-            color={color}
-            onPress={() => toggle(opt.value)}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
+// Removed TagsPicker
 
 const ip = StyleSheet.create({
   wrap: { marginBottom: 6 },
@@ -955,12 +913,7 @@ export default function CardsGalleryScreen() {
                     onChange={v => patch({ cardClass: v as CardClass | null })}
                   />
                   <View style={ep.divider} />
-                  <TagsPicker
-                    value={edits.tags}
-                    color={rarityColor}
-                    onChange={tags => patch({ tags })}
-                  />
-                  <View style={ep.divider} />
+
 
                   <View style={ep.switchRow}>
                     <RNText style={ep.label}>❆ يملك قدرة خاصة</RNText>

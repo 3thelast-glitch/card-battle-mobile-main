@@ -16,7 +16,8 @@ export type CardClass = 'warrior' | 'knight' | 'mage' | 'archer' | 'berserker' |
 
 export type Element = 'fire' | 'ice' | 'water' | 'earth' | 'lightning' | 'wind';
 
-export type Tag = 'sword' | 'shield' | 'magic' | 'bow' | 'crown';
+// Removed predefined tags to rely entirely on Element, Race, and Class.
+export type Tag = string;
 
 /** Rarity tier for a card */
 export type CardRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
@@ -70,7 +71,7 @@ export interface Card {
   race: Race;
   cardClass: CardClass;
   element: Element;
-  tags: Tag[];
+  tags?: Tag[];
   emoji?: string;
   videoUrl?: string;
   rarity?: CardRarity;
