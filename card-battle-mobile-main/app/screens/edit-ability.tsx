@@ -1,7 +1,6 @@
 /**
  * edit-ability.tsx — two-column layout matching add-card.tsx
- * left: AbilityCard live preview + media + rarity
- * right: scrollable fields (names, stats, icon, description)
+ * Supports: edit existing ability (via route params) OR create new
  */
 import React, { useState } from 'react';
 import {
@@ -10,15 +9,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Save, Check } from 'lucide-react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { Rarity } from '@/data/abilities';
 
 // ─── Rarity config ───
-const RARITIES: {
-  id: Rarity; labelAr: string; color: string;
-}[] = [
+const RARITIES: { id: Rarity; labelAr: string; color: string }[] = [
   { id: 'Common',    labelAr: 'عادي',   color: '#10b981' },
   { id: 'Rare',      labelAr: 'نادر',   color: '#3b82f6' },
   { id: 'Epic',      labelAr: 'ملحمي',  color: '#a855f7' },
@@ -30,7 +27,7 @@ const RARITY_STARS: Record<Rarity, number> = {
   Common: 1, Rare: 2, Epic: 3, Legendary: 4, Special: 4,
 };
 
-// ─── Ability icon list ───
+// ─── Ability icons ───
 const ABILITY_ICONS: { key: string; labelAr: string; Icon: any }[] = [
   { key: 'Zap',       labelAr: 'برق',   Icon: LucideIcons.Zap        },
   { key: 'Shield',    labelAr: 'درع',   Icon: LucideIcons.Shield     },
@@ -49,8 +46,8 @@ const ABILITY_ICONS: { key: string; labelAr: string; Icon: any }[] = [
   { key: 'Crown',     labelAr: 'تاج',   Icon: LucideIcons.Crown      },
 ];
 
-// ─── pick file (web only for now) ───
-function pickFileCrossPlatform(accept: string): Promise<{ uri: string; isVideo: boolean } | null> {
+// ─── pick file ───
+function pickFileCrossPlatform(accept: string): Promise<{ uri: string } | null> {
   return new Promise(resolve => {
     if (Platform.OS !== 'web') {
       Alert.alert('قريباً', 'هذه الخاصية تعمل على الويب حالياً.');
@@ -64,17 +61,14 @@ function pickFileCrossPlatform(accept: string): Promise<{ uri: string; isVideo: 
       const file = e.target?.files?.[0];
       if (!file) { resolve(null); return; }
       const reader = new FileReader();
-      reader.onload = (ev) => resolve({
-        uri: ev.target?.result as string,
-        isVideo: file.type.startsWith('video/'),
-      });
+      reader.onload = (ev) => resolve({ uri: ev.target?.result as string });
       reader.readAsDataURL(file);
     };
     input.click();
   });
 }
 
-// ─── Chip (for rarity) ───
+// ─── Chip ───
 const Chip = ({ label, selected, color, onPress }: {
   label: string; selected: boolean; color: string; onPress: () => void;
 }) => (
@@ -87,8 +81,8 @@ const Chip = ({ label, selected, color, onPress }: {
 );
 
 // ─── Icon Chip ───
-const IconChip = ({ iconKey, labelAr, Icon, selected, color, onPress }: {
-  iconKey: string; labelAr: string; Icon: any;
+const IconChip = ({ labelAr, Icon, selected, color, onPress }: {
+  labelAr: string; Icon: any;
   selected: boolean; color: string; onPress: () => void;
 }) => (
   <TouchableOpacity
@@ -104,7 +98,6 @@ const IconChip = ({ iconKey, labelAr, Icon, selected, color, onPress }: {
     )}
   </TouchableOpacity>
 );
-
 const IC = StyleSheet.create({
   btn:   { position: 'relative', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', minWidth: 54, margin: 3 },
   lbl:   { fontSize: 9, color: '#6B7280', fontWeight: '700', marginTop: 3, textAlign: 'center' },
@@ -113,20 +106,18 @@ const IC = StyleSheet.create({
 
 // ─── Mini Card Preview ───
 function AbilityCardPreview({
-  nameAr, nameEn, description, warning,
-  rarity, mediaUri, iconKey,
+  nameAr, nameEn, description, warning, rarity, mediaUri, iconKey,
 }: {
   nameAr: string; nameEn: string; description: string; warning: string;
   rarity: Rarity; mediaUri: string | null; iconKey: string;
 }) {
-  const r   = RARITIES.find(x => x.id === rarity)!;
-  const stars = RARITY_STARS[rarity];
+  const r      = RARITIES.find(x => x.id === rarity)!;
+  const stars  = RARITY_STARS[rarity];
   const iconObj = ABILITY_ICONS.find(i => i.key === iconKey);
   const IconComp = iconObj?.Icon ?? LucideIcons.Zap;
 
   return (
     <View style={[P.card, { borderColor: r.color + 'AA', shadowColor: r.color }]}>
-      {/* art zone */}
       <View style={P.artZone}>
         {mediaUri
           ? <Image source={{ uri: mediaUri }} style={P.artImg} resizeMode="cover" />
@@ -140,8 +131,6 @@ function AbilityCardPreview({
           <IconComp size={14} color={r.color} strokeWidth={2} />
         </View>
       </View>
-
-      {/* body */}
       <View style={P.body}>
         <Text style={[P.nameAr, { color: r.color }]} numberOfLines={1}>{nameAr || '—'}</Text>
         <Text style={P.nameEn} numberOfLines={1}>{nameEn || '—'}</Text>
@@ -149,8 +138,6 @@ function AbilityCardPreview({
         <Text style={P.desc} numberOfLines={3}>{description || 'وصف القدرة...'}</Text>
         {warning ? <Text style={P.warn} numberOfLines={2}>⚠️ {warning}</Text> : null}
       </View>
-
-      {/* footer */}
       <View style={[P.foot, { borderTopColor: r.color + '44' }]}>
         <View style={P.stars}>
           {Array.from({ length: 4 }).map((_, i) => (
@@ -162,7 +149,6 @@ function AbilityCardPreview({
     </View>
   );
 }
-
 const P = StyleSheet.create({
   card:       { width: 168, borderRadius: 16, borderWidth: 2, backgroundColor: '#000', overflow: 'hidden', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 14, elevation: 12 },
   artZone:    { width: '100%', height: 110, backgroundColor: '#0d0d0d', overflow: 'hidden' },
@@ -186,19 +172,22 @@ const P = StyleSheet.create({
 // ─── Main Screen ───
 export default function EditAbilityScreen() {
   const navigation = useNavigation();
+  const route      = useRoute() as any;
+  const params     = route.params ?? {};
 
-  const [nameAr,      setNameAr]      = useState('');
-  const [nameEn,      setNameEn]      = useState('');
-  const [description, setDescription] = useState('');
-  const [warning,     setWarning]     = useState('');
-  const [rarity,      setRarity]      = useState<Rarity>('Common');
+  // ── تعبئة أولية من params (تعديل كرت موجود) أو فارغة (كرت جديد)
+  const [nameAr,      setNameAr]      = useState<string>(params.presetNameAr      ?? '');
+  const [nameEn,      setNameEn]      = useState<string>(params.presetNameEn      ?? '');
+  const [description, setDescription] = useState<string>(params.presetDescription ?? '');
+  const [warning,     setWarning]     = useState<string>(params.presetWarning     ?? '');
+  const [rarity,      setRarity]      = useState<Rarity>((params.presetRarity as Rarity) ?? 'Common');
   const [iconKey,     setIconKey]     = useState('Zap');
   const [mediaUri,    setMediaUri]    = useState<string | null>(null);
   const [iconsOpen,   setIconsOpen]   = useState(false);
 
-  const sel         = RARITIES.find(r => r.id === rarity)!;
-  const iconPreview = ABILITY_ICONS.find(i => i.key === iconKey);
-  const IconPrev    = iconPreview?.Icon ?? LucideIcons.Zap;
+  const isEditing = !!params.abilityId;
+  const sel       = RARITIES.find(r => r.id === rarity)!;
+  const IconPrev  = ABILITY_ICONS.find(i => i.key === iconKey)?.Icon ?? LucideIcons.Zap;
 
   const handlePickMedia = async (accept: string) => {
     const res = await pickFileCrossPlatform(accept);
@@ -210,7 +199,10 @@ export default function EditAbilityScreen() {
       Alert.alert('تنبيه', 'أدخل اسم القدرة على الأقل.');
       return;
     }
-    Alert.alert('تم الحفظ ✅', `"${nameAr || nameEn}" — ${sel.labelAr}`);
+    Alert.alert(
+      isEditing ? 'تم التعديل ✅' : 'تم الحفظ ✅',
+      `"${nameAr || nameEn}" — ${sel.labelAr}`,
+    );
     navigation.goBack();
   };
 
@@ -223,33 +215,27 @@ export default function EditAbilityScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.backBtn}>
           <Text style={S.backTxt}>← رجوع</Text>
         </TouchableOpacity>
-        <Text style={S.pageTitle}>✏️ تعديل القدرة</Text>
+        <Text style={S.pageTitle}>
+          {isEditing ? '✏️ تعديل القدرة' : '➕ قدرة جديدة'}
+        </Text>
         <View style={{ width: 60 }} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={S.columns}>
 
-          {/* ── LEFT COL: preview + media + rarity ── */}
+          {/* LEFT: preview + media + rarity */}
           <View style={S.leftCol}>
             <AbilityCardPreview
               nameAr={nameAr} nameEn={nameEn}
               description={description} warning={warning}
               rarity={rarity} mediaUri={mediaUri} iconKey={iconKey}
             />
-
-            {/* media buttons */}
             <View style={S.mediaRow}>
-              <TouchableOpacity
-                style={[S.mediaBtn, { borderColor: sel.color + '88' }]}
-                onPress={() => handlePickMedia('image/*')}
-              >
+              <TouchableOpacity style={[S.mediaBtn, { borderColor: sel.color + '88' }]} onPress={() => handlePickMedia('image/*')}>
                 <Text style={[S.mediaBtnTxt, { color: sel.color }]}>🖼️ صورة</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[S.mediaBtn, { borderColor: '#a78bfa88' }]}
-                onPress={() => handlePickMedia('video/mp4,video/webm,video/*')}
-              >
+              <TouchableOpacity style={[S.mediaBtn, { borderColor: '#a78bfa88' }]} onPress={() => handlePickMedia('video/mp4,video/webm,video/*')}>
                 <Text style={[S.mediaBtnTxt, { color: '#a78bfa' }]}>🎦 فيديو</Text>
               </TouchableOpacity>
             </View>
@@ -258,8 +244,6 @@ export default function EditAbilityScreen() {
                 <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '700' }}>✕ حذف الوسيط</Text>
               </TouchableOpacity>
             )}
-
-            {/* rarity */}
             <Text style={S.secLabel}>الندرة</Text>
             <View style={S.chipCol}>
               {RARITIES.map(r => (
@@ -268,76 +252,40 @@ export default function EditAbilityScreen() {
             </View>
           </View>
 
-          {/* ── RIGHT COL: fields ── */}
-          <ScrollView
-            style={S.rightCol}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          {/* RIGHT: fields */}
+          <ScrollView style={S.rightCol} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
             <Text style={S.secLabel}>الاسم بالعربي *</Text>
-            <TextInput
-              style={[S.input, { borderColor: sel.color + '55' }]}
-              placeholder="مثال: ناروتو" placeholderTextColor="#444"
-              value={nameAr} onChangeText={setNameAr} textAlign="right"
-            />
+            <TextInput style={[S.input, { borderColor: sel.color + '55' }]} placeholder="مثال: ناروتو" placeholderTextColor="#444" value={nameAr} onChangeText={setNameAr} textAlign="right" />
 
             <Text style={S.secLabel}>الاسم بالإنجليزي *</Text>
-            <TextInput
-              style={[S.input, { borderColor: '#37415155' }]}
-              placeholder="Naruto" placeholderTextColor="#444"
-              value={nameEn} onChangeText={setNameEn}
-            />
+            <TextInput style={[S.input, { borderColor: '#37415155' }]} placeholder="Naruto" placeholderTextColor="#444" value={nameEn} onChangeText={setNameEn} />
 
-            {/* ── icon picker (collapsible) ── */}
-            <TouchableOpacity
-              style={S.iconHeader}
-              onPress={() => setIconsOpen(v => !v)}
-              activeOpacity={0.75}
-            >
+            {/* icon picker */}
+            <TouchableOpacity style={S.iconHeader} onPress={() => setIconsOpen(v => !v)} activeOpacity={0.75}>
               <Text style={S.iconHeaderTitle}>الأيقونة</Text>
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <IconPrev size={16} color={sel.color} strokeWidth={2} />
               </View>
               <Text style={S.iconHeaderChevron}>{iconsOpen ? '▲' : '▼'}</Text>
             </TouchableOpacity>
-
             {iconsOpen && (
               <View style={S.iconsGrid}>
                 {ABILITY_ICONS.map(({ key, labelAr, Icon }) => (
-                  <IconChip
-                    key={key}
-                    iconKey={key} labelAr={labelAr} Icon={Icon}
-                    selected={iconKey === key}
-                    color={sel.color}
-                    onPress={() => setIconKey(key)}
-                  />
+                  <IconChip key={key} labelAr={labelAr} Icon={Icon} selected={iconKey === key} color={sel.color} onPress={() => setIconKey(key)} />
                 ))}
               </View>
             )}
 
             <Text style={S.secLabel}>القدرة الخاصة (اختياري)</Text>
-            <TextInput
-              style={[S.input, S.multiline, { borderColor: sel.color + '33' }]}
-              placeholder="اكتب وصف القدرة..." placeholderTextColor="#444"
-              multiline value={description} onChangeText={setDescription}
-              textAlign="right"
-            />
+            <TextInput style={[S.input, S.multiline, { borderColor: sel.color + '33' }]} placeholder="اكتب وصف القدرة..." placeholderTextColor="#444" multiline value={description} onChangeText={setDescription} textAlign="right" />
 
             <Text style={S.secLabel}>⚠️ تحذير (اختياري)</Text>
-            <TextInput
-              style={[S.input, { borderColor: '#ef444433' }]}
-              placeholder="تحذير أو ملاحظة..." placeholderTextColor="#444"
-              value={warning} onChangeText={setWarning}
-              textAlign="right"
-            />
+            <TextInput style={[S.input, { borderColor: '#ef444433' }]} placeholder="تحذير أو ملاحظة..." placeholderTextColor="#444" value={warning} onChangeText={setWarning} textAlign="right" />
 
-            <TouchableOpacity
-              style={[S.saveBtn, { backgroundColor: sel.color }]}
-              onPress={handleSave}
-            >
+            <TouchableOpacity style={[S.saveBtn, { backgroundColor: sel.color }]} onPress={handleSave}>
               <Save size={18} color="#000" />
-              <Text style={S.saveBtnTxt}>حفظ القدرة</Text>
+              <Text style={S.saveBtnTxt}>{isEditing ? 'حفظ التعديلات' : 'حفظ القدرة'}</Text>
             </TouchableOpacity>
 
           </ScrollView>
@@ -348,34 +296,28 @@ export default function EditAbilityScreen() {
 }
 
 const S = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: '#060610' },
-  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  backBtn:     { width: 60 },
-  backTxt:     { color: '#6B7280', fontSize: 13, fontWeight: '700' },
-  pageTitle:   { color: '#FFD700', fontSize: 18, fontWeight: '900', textAlign: 'center', flex: 1 },
-
-  columns:     { flex: 1, flexDirection: 'row' },
-  leftCol:     { width: 200, paddingHorizontal: 12, paddingTop: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
-  rightCol:    { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
-
-  mediaRow:    { flexDirection: 'row', gap: 6, marginTop: 12, marginBottom: 4 },
-  mediaBtn:    { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
-  mediaBtnTxt: { fontSize: 12, fontWeight: '700' },
-  removeMedia: { alignSelf: 'center', paddingVertical: 4, marginBottom: 4 },
-
-  chipCol:     { flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 },
-  chip:        { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', width: '100%', alignItems: 'center' },
-  chipTxt:     { color: '#6B7280', fontSize: 12, fontWeight: '700' },
-
-  secLabel:    { color: '#9CA3AF', fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 5, textAlign: 'right' },
-  input:       { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 2 },
-  multiline:   { minHeight: 64, textAlignVertical: 'top' },
-
-  iconHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)' },
-  iconHeaderTitle: { color: '#E2E8F0', fontSize: 13, fontWeight: '800' },
-  iconHeaderChevron: { color: '#6B7280', fontSize: 12, fontWeight: '700' },
-  iconsGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 6 },
-
-  saveBtn:     { marginTop: 20, borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  saveBtnTxt:  { color: '#000', fontWeight: '900', fontSize: 15 },
+  root:             { flex: 1, backgroundColor: '#060610' },
+  topBar:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  backBtn:          { width: 60 },
+  backTxt:          { color: '#6B7280', fontSize: 13, fontWeight: '700' },
+  pageTitle:        { color: '#FFD700', fontSize: 18, fontWeight: '900', textAlign: 'center', flex: 1 },
+  columns:          { flex: 1, flexDirection: 'row' },
+  leftCol:          { width: 200, paddingHorizontal: 12, paddingTop: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
+  rightCol:         { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
+  mediaRow:         { flexDirection: 'row', gap: 6, marginTop: 12, marginBottom: 4 },
+  mediaBtn:         { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  mediaBtnTxt:      { fontSize: 12, fontWeight: '700' },
+  removeMedia:      { alignSelf: 'center', paddingVertical: 4, marginBottom: 4 },
+  chipCol:          { flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 },
+  chip:             { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', width: '100%', alignItems: 'center' },
+  chipTxt:          { color: '#6B7280', fontSize: 12, fontWeight: '700' },
+  secLabel:         { color: '#9CA3AF', fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 5, textAlign: 'right' },
+  input:            { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 2 },
+  multiline:        { minHeight: 64, textAlignVertical: 'top' },
+  iconHeader:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)' },
+  iconHeaderTitle:  { color: '#E2E8F0', fontSize: 13, fontWeight: '800' },
+  iconHeaderChevron:{ color: '#6B7280', fontSize: 12, fontWeight: '700' },
+  iconsGrid:        { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 6 },
+  saveBtn:          { marginTop: 20, borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  saveBtnTxt:       { color: '#000', fontWeight: '900', fontSize: 15 },
 });
