@@ -6,14 +6,14 @@ import type { DifficultyLevel } from '@/app/screens/difficulty';
 import { determineRoundWinner } from './cards-data-exports';
 import { getBotCards } from './bot-ai';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────
 const initialState: GameState = {
   playerDeck: [],
   botDeck: [],
   currentRound: 0,
   totalRounds: 0,
-  playerScore: 0,
-  botScore: 0,
+  playerScore: 0,   // ← صحة اللاعب
+  botScore: 0,      // ← صحة البوت
   roundResults: [],
   difficulty: 2,
   abilitiesEnabled: true,
@@ -25,7 +25,6 @@ const initialState: GameState = {
 
 const initialDifficulty: DifficultyLevel = 2;
 
-// ── نسب الندرة ──────────────────────────────────────────────────────────────
 export type RarityKey = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
 export type RarityWeights = Record<RarityKey, number>;
 
@@ -49,7 +48,7 @@ async function saveRarityWeights(weights: RarityWeights): Promise<void> {
   } catch { }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────
 const EFFECT_PRIORITY = {
   forcedOutcome: 100,
   silenceAbilities: 90,
@@ -81,7 +80,7 @@ const isEffectExpired = (effect: Effect, roundNumber: number) => {
 const makeEffectId = (abilityType: AbilityType, side: Side, roundNumber: number) =>
   `${abilityType}-${side}-${roundNumber}-${Math.random().toString(36).slice(2, 6)}`;
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────
 type GameAction =
   | { type: 'SET_PLAYER_DECK'; payload: Card[] }
   | { type: 'SET_BOT_DECK'; payload: Card[] }
@@ -97,7 +96,7 @@ type GameAction =
   | { type: 'USE_ABILITY'; payload: { abilityType: AbilityType; isPlayer: boolean; data?: Record<string, unknown> } }
   | { type: 'SYNC_DECKS'; payload: { playerDeck: Card[]; botDeck: Card[] } };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
 
@@ -113,20 +112,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SET_TOTAL_ROUNDS':
       return { ...state, totalRounds: action.payload };
 
+    // ✅ START_BATTLE: صحة كل لاعب = عدد الجولات
     case 'START_BATTLE': {
       const assignedAbilities = action.payload?.playerAbilities;
       return {
         ...state,
         currentRound: 0,
-        // ✅ نظام الصحة: يبدأ بعدد الجولات
         playerScore: state.totalRounds,
-        botScore: state.totalRounds,
+        botScore:    state.totalRounds,
         roundResults: [],
         activeEffects: [],
         playerAbilities: state.abilitiesEnabled
           ? (assignedAbilities
-            ? assignedAbilities.map(type => ({ type, used: false }))
-            : getRandomAbilities(3).map(type => ({ type, used: false })))
+              ? assignedAbilities.map(type => ({ type, used: false }))
+              : getRandomAbilities(3).map(type => ({ type, used: false })))
           : [],
         botAbilities: state.abilitiesEnabled
           ? getRandomAbilities(3).map(type => ({ type, used: false }))
@@ -139,32 +138,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.currentRound >= state.totalRounds) return state;
 
       const playerCard = state.playerDeck[state.currentRound];
-      const botCard = state.botDeck[state.currentRound];
+      const botCard    = state.botDeck[state.currentRound];
       if (!playerCard || !botCard) return state;
 
-      const roundNumber = getRoundNumber(state);
+      const roundNumber  = getRoundNumber(state);
       const activeEffects = state.abilitiesEnabled
         ? state.activeEffects.filter(e => isEffectActive(e, roundNumber))
         : [];
 
       const playerEffects = activeEffects.filter(e => e.targetSide === 'player' || e.targetSide === 'all');
-      const botEffects = activeEffects.filter(e => e.targetSide === 'bot' || e.targetSide === 'all');
+      const botEffects    = activeEffects.filter(e => e.targetSide === 'bot'    || e.targetSide === 'all');
 
       const forcedOutcomeEffect = activeEffects
         .filter(e => e.kind === 'forcedOutcome')
-        .filter(e => {
-          const d = e.data as { appliesToRound?: number } | undefined;
-          return !d?.appliesToRound || d.appliesToRound === roundNumber;
-        })
+        .filter(e => { const d = e.data as { appliesToRound?: number } | undefined; return !d?.appliesToRound || d.appliesToRound === roundNumber; })
         .sort((a, b) => b.priority - a.priority || b.createdAtRound - a.createdAtRound)[0];
 
       const result = forcedOutcomeEffect
-        ? {
-          winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0,
-          playerBaseDamage: 0, botBaseDamage: 0,
-          playerElementAdvantage: 'neutral' as ElementAdvantage,
-          botElementAdvantage: 'neutral' as ElementAdvantage
-        }
+        ? { winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0, playerBaseDamage: 0, botBaseDamage: 0, playerElementAdvantage: 'neutral' as ElementAdvantage, botElementAdvantage: 'neutral' as ElementAdvantage }
         : determineRoundWinner(playerCard, botCard, playerEffects, botEffects, state.abilitiesEnabled);
 
       const roundResult: RoundResult = {
@@ -173,18 +164,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         playerDamage: result.playerDamage, botDamage: result.botDamage,
         playerBaseDamage: result.playerBaseDamage, botBaseDamage: result.botBaseDamage,
         playerElementAdvantage: result.playerElementAdvantage,
-        botElementAdvantage: result.botElementAdvantage,
+        botElementAdvantage:    result.botElementAdvantage,
         winner: result.winner,
       };
 
-      // ✅ نظام الصحة: الخاسر يخسر نقطة صحة
-      let playerScoreDelta = 0;
-      let botScoreDelta = 0;
+      // ✅ نظام الصحة: الخاسر يخسر -1 صحة
+      let playerHpDelta = 0;
+      let botHpDelta    = 0;
 
-      if (result.winner === 'player') botScoreDelta -= 1;
-      else if (result.winner === 'bot') playerScoreDelta -= 1;
+      if (result.winner === 'player') botHpDelta    -= 1;
+      else if (result.winner === 'bot') playerHpDelta -= 1;
 
-      const effectsToRemove = new Set<string>();
+      const effectsToRemove  = new Set<string>();
       const effectsToReplace = new Map<string, Effect>();
       const effectsToAdd: Effect[] = [];
 
@@ -195,21 +186,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 'protection': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (d?.appliesToRound !== undefined && d.appliesToRound !== roundNumber) break;
-            // ✅ منع خسارة الصحة بدل منع ازدياد النقاط
-            if (effect.targetSide === 'player' && playerScoreDelta < 0) { playerScoreDelta = 0; effectsToRemove.add(effect.id); }
-            if (effect.targetSide === 'bot' && botScoreDelta < 0) { botScoreDelta = 0; effectsToRemove.add(effect.id); }
+            if (effect.targetSide === 'player' && playerHpDelta < 0) { playerHpDelta = 0; effectsToRemove.add(effect.id); }
+            if (effect.targetSide === 'bot'    && botHpDelta    < 0) { botHpDelta    = 0; effectsToRemove.add(effect.id); }
             break;
           }
           case 'doubleOrNothing': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (!d?.appliesToRound || d.appliesToRound === roundNumber) {
-              // ✅ إذا ربح: تُسترجع نقطة صحة إضافية من الخصم؛ إذا خسر: ينقص مرتين
               if (result.winner === effect.sourceSide) {
-                if (effect.sourceSide === 'player') botScoreDelta -= 1;
-                if (effect.sourceSide === 'bot') playerScoreDelta -= 1;
+                if (effect.sourceSide === 'player') botHpDelta    -= 1;
+                if (effect.sourceSide === 'bot')    playerHpDelta -= 1;
               } else if (result.winner === getOppositeSide(effect.sourceSide)) {
-                if (effect.sourceSide === 'player') playerScoreDelta -= 1;
-                if (effect.sourceSide === 'bot') botScoreDelta -= 1;
+                if (effect.sourceSide === 'player') playerHpDelta -= 1;
+                if (effect.sourceSide === 'bot')    botHpDelta    -= 1;
               }
               effectsToRemove.add(effect.id);
             }
@@ -221,15 +210,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (!prediction) break;
             const expectedWinner = prediction === 'win' ? effect.sourceSide : getOppositeSide(effect.sourceSide);
             if (result.winner === expectedWinner) {
-              // ✅ مكافأة: الخصم يخسر صحة إضافية
               const reward = d?.rewardHp ?? 1;
-              if (effect.sourceSide === 'player') botScoreDelta -= reward;
-              if (effect.sourceSide === 'bot') playerScoreDelta -= reward;
+              if (effect.sourceSide === 'player') botHpDelta    -= reward;
+              if (effect.sourceSide === 'bot')    playerHpDelta -= reward;
             } else if (result.winner && result.winner !== 'draw') {
-              // ✅ عقوبة: اللاعب نفسه يخسر صحة إضافية
               const penalty = d?.penaltyHp ?? 1;
-              if (effect.sourceSide === 'player') playerScoreDelta -= penalty;
-              if (effect.sourceSide === 'bot') botScoreDelta -= penalty;
+              if (effect.sourceSide === 'player') playerHpDelta -= penalty;
+              if (effect.sourceSide === 'bot')    botHpDelta    -= penalty;
             }
             const nextPredictions = { ...(d?.predictions ?? {}) }; delete nextPredictions[roundNumber];
             const nextCharges = Math.max(0, (effect.charges ?? 0) - 1);
@@ -238,17 +225,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             break;
           }
           case 'halvePoints': {
-            // ✅ تنصيف: إذا كان المفروض أن يخسر اللاعب — تُلغى العقوبة
-            if (effect.targetSide === 'bot' && botScoreDelta < 0) { botScoreDelta = Math.ceil(botScoreDelta / 2); }
-            else if (effect.targetSide === 'player' && playerScoreDelta < 0) { playerScoreDelta = Math.ceil(playerScoreDelta / 2); }
+            if (effect.targetSide === 'bot'    && botHpDelta    < 0) botHpDelta    = Math.ceil(botHpDelta    / 2);
+            else if (effect.targetSide === 'player' && playerHpDelta < 0) playerHpDelta = Math.ceil(playerHpDelta / 2);
             effectsToRemove.add(effect.id); break;
           }
           case 'starAdvantage': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (d?.appliesToRound !== undefined && d.appliesToRound !== roundNumber) break;
-            // ✅ أفضلية النجوم: الخصم يخسر صحة
-            if (effect.targetSide === 'player') { playerScoreDelta = 0; botScoreDelta = Math.min(botScoreDelta, -1); }
-            else if (effect.targetSide === 'bot') { botScoreDelta = 0; playerScoreDelta = Math.min(playerScoreDelta, -1); }
+            if (effect.targetSide === 'player') { playerHpDelta = 0; botHpDelta    = Math.min(botHpDelta,    -1); }
+            else if (effect.targetSide === 'bot') { botHpDelta = 0; playerHpDelta = Math.min(playerHpDelta, -1); }
             effectsToRemove.add(effect.id); break;
           }
           case 'fortify': {
@@ -260,10 +245,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             effectsToRemove.add(effect.id); break;
           }
           case 'lifesteal': {
-            // ✅ سرقة صحة: إذا فاز يسترجع نقطة من خصمه
             if (result.winner === effect.sourceSide) {
-              if (effect.sourceSide === 'player') botScoreDelta -= 1;
-              if (effect.sourceSide === 'bot') playerScoreDelta -= 1;
+              if (effect.sourceSide === 'player') botHpDelta    -= 1;
+              if (effect.sourceSide === 'bot')    playerHpDelta -= 1;
             }
             effectsToRemove.add(effect.id); break;
           }
@@ -274,10 +258,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
           case 'suicidePact': {
             const opponentSide = getOppositeSide(effect.sourceSide);
-            // ✅ اتفاقية انتحار: إذا خسر الخصم تُلغى خسارته (ما تنقص صحته)
             if (result.winner === opponentSide) {
-              if (opponentSide === 'player') playerScoreDelta = 0;
-              if (opponentSide === 'bot') botScoreDelta = 0;
+              if (opponentSide === 'player') playerHpDelta = 0;
+              if (opponentSide === 'bot')    botHpDelta    = 0;
             }
             effectsToRemove.add(effect.id); break;
           }
@@ -303,7 +286,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (result.winner === opponentSide) {
               const newCount = lossCount + 1;
               if (newCount >= 2) {
-                effectsToAdd.push({ id: makeEffectId('ConsecutiveLossBuff', effect.sourceSide, roundNumber), kind: 'statModifier', sourceSide: effect.sourceSide, targetSide: effect.sourceSide, createdAtRound: roundNumber, expiresAtRound: state.totalRounds, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack', amount: 1 } });
+                effectsToAdd.push({ id: makeEffectId('ConsecutiveLossBuff', effect.sourceSide, roundNumber), kind: 'statModifier', sourceSide: effect.sourceSide, targetSide: effect.sourceSide, createdAtRound: roundNumber, expiresAtRound: state.totalRounds, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack',  amount: 1 } });
                 effectsToAdd.push({ id: makeEffectId('ConsecutiveLossBuff', effect.sourceSide, roundNumber), kind: 'statModifier', sourceSide: effect.sourceSide, targetSide: effect.sourceSide, createdAtRound: roundNumber, expiresAtRound: state.totalRounds, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'defense', amount: 1 } });
                 effectsToRemove.add(effect.id);
               } else effectsToReplace.set(effect.id, { ...effect, data: { lossCount: newCount } });
@@ -321,18 +304,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 'shieldGuard': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (d?.appliesToRound !== undefined && d.appliesToRound !== roundNumber) break;
-            // ✅ درع: يمنع خسارة الصحة
-            if (effect.targetSide === 'player' && playerScoreDelta < 0) { playerScoreDelta = 0; effectsToRemove.add(effect.id); }
-            if (effect.targetSide === 'bot' && botScoreDelta < 0) { botScoreDelta = 0; effectsToRemove.add(effect.id); }
+            if (effect.targetSide === 'player' && playerHpDelta < 0) { playerHpDelta = 0; effectsToRemove.add(effect.id); }
+            if (effect.targetSide === 'bot'    && botHpDelta    < 0) { botHpDelta    = 0; effectsToRemove.add(effect.id); }
             break;
           }
           case 'trap': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (!d?.appliesToRound || d.appliesToRound !== roundNumber) break;
             const opponentSide = getOppositeSide(effect.sourceSide);
-            // ✅ فخ: الخصم يخسر صحة إضافية
-            if (opponentSide === 'player') { playerScoreDelta = Math.min(playerScoreDelta, -1); botScoreDelta = 0; }
-            if (opponentSide === 'bot') { botScoreDelta = Math.min(botScoreDelta, -1); playerScoreDelta = 0; }
+            if (opponentSide === 'player') { playerHpDelta = Math.min(playerHpDelta, -1); botHpDelta    = 0; }
+            if (opponentSide === 'bot')    { botHpDelta    = Math.min(botHpDelta,    -1); playerHpDelta = 0; }
             effectsToRemove.add(effect.id); break;
           }
           case 'convertDebuffs': {
@@ -351,7 +332,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             effectsToRemove.add(effect.id); break;
           }
           case 'takeIt': {
-            const sideName = effect.sourceSide;
+            const sideName     = effect.sourceSide;
             const opponentSide = getOppositeSide(sideName);
             activeEffects.filter(e => e.kind === 'statModifier' && e.targetSide === sideName && (e.data as any)?.amount < 0).forEach(d => { effectsToRemove.add(d.id); effectsToAdd.push({ ...d, id: makeEffectId('TakeIt', opponentSide, roundNumber), targetSide: opponentSide, sourceSide: sideName }); });
             effectsToRemove.add(effect.id); break;
@@ -359,23 +340,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 'deprivation': {
             const opponentSide = getOppositeSide(effect.sourceSide);
             const d = effect.data as { chosenBuffId?: string } | undefined;
-            const targetBuff = d?.chosenBuffId ? activeEffects.find(e => e.id === d.chosenBuffId && e.targetSide === opponentSide && (e.data as any)?.amount > 0) : activeEffects.filter(e => e.kind === 'statModifier' && e.targetSide === opponentSide && (e.data as any)?.amount > 0).sort((a, b) => (b.data as any).amount - (a.data as any).amount)[0];
+            const targetBuff = d?.chosenBuffId
+              ? activeEffects.find(e => e.id === d.chosenBuffId && e.targetSide === opponentSide && (e.data as any)?.amount > 0)
+              : activeEffects.filter(e => e.kind === 'statModifier' && e.targetSide === opponentSide && (e.data as any)?.amount > 0).sort((a, b) => (b.data as any).amount - (a.data as any).amount)[0];
             if (targetBuff) { effectsToRemove.add(targetBuff.id); effectsToAdd.push({ ...targetBuff, id: makeEffectId('Deprivation', effect.sourceSide, roundNumber), targetSide: effect.sourceSide, sourceSide: effect.sourceSide }); }
             effectsToRemove.add(effect.id); break;
           }
           case 'pool': {
             const d = effect.data as { appliesToRound?: number } | undefined;
             if (!d?.appliesToRound || d.appliesToRound !== roundNumber) break;
-            // ✅ تصفير الجولة: يلغي خسارة الصحة في هذه الجولة
             const opponentSide = getOppositeSide(effect.sourceSide);
-            if (opponentSide === 'player') playerScoreDelta = 0;
-            if (opponentSide === 'bot') botScoreDelta = 0;
+            if (opponentSide === 'player') playerHpDelta = 0;
+            if (opponentSide === 'bot')    botHpDelta    = 0;
             effectsToRemove.add(effect.id); break;
           }
         }
       });
 
-      let nextEffects = state.activeEffects.filter(e => !effectsToRemove.has(e.id)).map(e => effectsToReplace.get(e.id) ?? e);
+      let nextEffects = state.activeEffects
+        .filter(e => !effectsToRemove.has(e.id))
+        .map(e => effectsToReplace.get(e.id) ?? e);
       if (effectsToAdd.length > 0) nextEffects = [...nextEffects, ...effectsToAdd];
       if (forcedOutcomeEffect) nextEffects = nextEffects.filter(e => e.id !== forcedOutcomeEffect.id);
       nextEffects = nextEffects.filter(e => !isEffectExpired(e, roundNumber));
@@ -384,9 +368,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         currentRound: state.currentRound + 1,
-        // ✅ نظام الصحة: Math.max(0) يضمن عدم السلبية
-        playerScore: Math.max(0, state.playerScore + playerScoreDelta),
-        botScore: Math.max(0, state.botScore + botScoreDelta),
+        // ✅ صحة جديدة (Math.max(0) يضمن عدم السلبية)
+        playerScore: Math.max(0, state.playerScore + playerHpDelta),
+        botScore:    Math.max(0, state.botScore    + botHpDelta),
         roundResults: [...state.roundResults, roundResult],
         activeEffects: nextEffects,
         usedAbilities: [],
@@ -397,9 +381,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const { abilityType, isPlayer, data } = action.payload;
       if (!state.abilitiesEnabled) return state;
 
-      const side: Side = isPlayer ? 'player' : 'bot';
+      const side: Side         = isPlayer ? 'player' : 'bot';
       const opponentSide: Side = getOppositeSide(side);
-      const roundNumber = getRoundNumber(state);
+      const roundNumber        = getRoundNumber(state);
 
       const isSealed = state.activeEffects.some(e => e.kind === 'silenceAbilities' && isEffectActive(e, roundNumber) && (e.targetSide === side || e.targetSide === 'all'));
       if (isSealed) return state;
@@ -443,7 +427,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'ConvertDebuffsToBuffs': { nextEffects = [...nextEffects, { id: makeEffectId('ConvertDebuffsToBuffs', side, roundNumber), kind: 'convertDebuffs', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.cleanseEffects, data: {} }]; break; }
         case 'Sniping': { const sniperRound = Number(data?.round); if (!Number.isInteger(sniperRound) || sniperRound <= roundNumber || sniperRound > state.totalRounds) return state; nextEffects = [...nextEffects, { id: makeEffectId('Sniping', side, roundNumber), kind: 'forcedOutcome', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: sniperRound, charges: 1, priority: EFFECT_PRIORITY.forcedOutcome, data: { appliesToRound: sniperRound } }]; break; }
         case 'Merge': { const mergeIdx = data?.roundIndex !== undefined ? Number(data.roundIndex) : state.roundResults.length - 1; const mergeResult = state.roundResults[mergeIdx]; if (mergeResult) { const pastCard = side === 'player' ? mergeResult.playerCard : mergeResult.botCard; const curCard = side === 'player' ? state.playerDeck[state.currentRound] : state.botDeck[state.currentRound]; if (curCard) { const merged: Card = { ...curCard, attack: curCard.attack + pastCard.attack, defense: curCard.defense + pastCard.defense, ability: undefined }; if (side === 'player') { const d = [...state.playerDeck]; d[state.currentRound] = merged; nextState = { ...nextState, playerDeck: d }; } else { const d = [...state.botDeck]; d[state.currentRound] = merged; nextState = { ...nextState, botDeck: d }; } } } break; }
-        case 'DoubleNextCards': { const n1 = roundNumber + 1; const n2 = roundNumber + 2;[n1, n2].filter(r => r <= state.totalRounds).forEach(r => { nextEffects = [...nextEffects, { id: makeEffectId('DoubleNextCards', side, r), kind: 'statModifier', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: r, charges: 1, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack', amount: 100, multiplier: true } }]; }); break; }
+        case 'DoubleNextCards': { const n1 = roundNumber + 1; const n2 = roundNumber + 2; [n1, n2].filter(r => r <= state.totalRounds).forEach(r => { nextEffects = [...nextEffects, { id: makeEffectId('DoubleNextCards', side, r), kind: 'statModifier', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: r, charges: 1, priority: EFFECT_PRIORITY.statModifiers, data: { stat: 'attack', amount: 100, multiplier: true } }]; }); break; }
         case 'Deprivation': { const chosenBuffId = data?.chosenBuffId as string | undefined; nextEffects = [...nextEffects, { id: makeEffectId('Deprivation', side, roundNumber), kind: 'deprivation', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.cleanseEffects, data: { chosenBuffId } }]; break; }
         case 'Greed': { nextEffects = [...nextEffects, { id: makeEffectId('Greed', side, roundNumber), kind: 'greedBuff', sourceSide: side, targetSide: side, createdAtRound: roundNumber, expiresAtRound: roundNumber, charges: 1, priority: EFFECT_PRIORITY.rewards, data: {} }]; break; }
         case 'Dilemma': { const chosenRoundIndex = Number(data?.roundIndex ?? -1); const myResult = state.roundResults[chosenRoundIndex]; if (myResult) { const myPastCard = side === 'player' ? myResult.playerCard : myResult.botCard; if (side === 'player') { const d = [...state.botDeck]; d[state.currentRound] = { ...myPastCard, ability: undefined }; nextState = { ...nextState, botDeck: d }; } else { const d = [...state.playerDeck]; d[state.currentRound] = { ...myPastCard, ability: undefined }; nextState = { ...nextState, playerDeck: d }; } } break; }
@@ -465,27 +449,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const newAbilityStateList = abilityStateList.map((a, i) => i === abilityIndex ? { ...a, used: true } : a);
-      return { ...nextState, activeEffects: nextEffects, usedAbilities: [...state.usedAbilities, abilityType], playerAbilities: isPlayer ? newAbilityStateList : state.playerAbilities, botAbilities: isPlayer ? state.botAbilities : newAbilityStateList };
+      return {
+        ...nextState,
+        activeEffects: nextEffects,
+        usedAbilities: [...state.usedAbilities, abilityType],
+        playerAbilities: isPlayer ? newAbilityStateList : state.playerAbilities,
+        botAbilities:    isPlayer ? state.botAbilities   : newAbilityStateList,
+      };
     }
 
-    case 'ADD_EFFECT': return { ...state, activeEffects: [...state.activeEffects, action.payload] };
-
+    case 'ADD_EFFECT':    return { ...state, activeEffects: [...state.activeEffects, action.payload] };
     case 'REMOVE_EFFECTS': {
       const { targetSide, sourceSide } = action.payload;
       return { ...state, activeEffects: state.activeEffects.filter(effect => { const targetMatch = !targetSide || targetSide === 'all' || effect.targetSide === targetSide; const sourceMatch = !sourceSide || sourceSide === 'all' || effect.sourceSide === sourceSide; return !(targetMatch && sourceMatch); }) };
     }
-
-    case 'SET_DIFFICULTY': return { ...state, difficulty: action.payload };
-
+    case 'SET_DIFFICULTY':        return { ...state, difficulty: action.payload };
     case 'SET_ABILITIES_ENABLED': return { ...state, abilitiesEnabled: action.payload, activeEffects: action.payload ? state.activeEffects : [], playerAbilities: action.payload ? state.playerAbilities : [], botAbilities: action.payload ? state.botAbilities : [] };
-
-    case 'RESET_GAME': return { ...initialState, difficulty: state.difficulty };
-
+    case 'RESET_GAME':            return { ...initialState, difficulty: state.difficulty };
     default: return state;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────
 interface GameContextType {
   state: GameState;
   difficulty: DifficultyLevel;
@@ -514,28 +499,23 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const [difficulty, setDifficultyState] = useState<DifficultyLevel>(initialDifficulty);
-  const [rarityWeights, setRarityWeightsState] = useState<RarityWeights>({ ...DEFAULT_RARITY_WEIGHTS });
+  const [difficulty,     setDifficultyState]    = useState<DifficultyLevel>(initialDifficulty);
+  const [rarityWeights,  setRarityWeightsState] = useState<RarityWeights>({ ...DEFAULT_RARITY_WEIGHTS });
 
-  useEffect(() => {
-    loadRarityWeights().then(setRarityWeightsState);
-  }, []);
+  useEffect(() => { loadRarityWeights().then(setRarityWeightsState); }, []);
 
-  const setRarityWeights = (w: RarityWeights) => {
-    setRarityWeightsState(w);
-    saveRarityWeights(w);
-  };
+  const setRarityWeights = (w: RarityWeights) => { setRarityWeightsState(w); saveRarityWeights(w); };
 
   const setPlayerDeck = (cards: Card[]) => dispatch({ type: 'SET_PLAYER_DECK', payload: cards });
-  const syncDecks = (playerDeck: Card[], botDeck: Card[]) => dispatch({ type: 'SYNC_DECKS', payload: { playerDeck, botDeck } });
+  const syncDecks     = (playerDeck: Card[], botDeck: Card[]) => dispatch({ type: 'SYNC_DECKS', payload: { playerDeck, botDeck } });
   const setTotalRounds = (rounds: number) => dispatch({ type: 'SET_TOTAL_ROUNDS', payload: rounds });
-  const playRound = () => dispatch({ type: 'PLAY_ROUND' });
-  const nextRound = () => dispatch({ type: 'NEXT_ROUND' });
-  const addEffect = (effect: Effect) => dispatch({ type: 'ADD_EFFECT', payload: effect });
-  const resetGame = () => dispatch({ type: 'RESET_GAME' });
+  const playRound  = () => dispatch({ type: 'PLAY_ROUND' });
+  const nextRound  = () => dispatch({ type: 'NEXT_ROUND' });
+  const addEffect  = (effect: Effect) => dispatch({ type: 'ADD_EFFECT', payload: effect });
+  const resetGame  = () => dispatch({ type: 'RESET_GAME' });
   const setAbilitiesEnabled = (enabled: boolean) => dispatch({ type: 'SET_ABILITIES_ENABLED', payload: enabled });
   const removeEffects = (targetSide?: Side | 'all', sourceSide?: Side | 'all') => dispatch({ type: 'REMOVE_EFFECTS', payload: { targetSide, sourceSide } });
-  const useAbility = (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer: boolean = true) => dispatch({ type: 'USE_ABILITY', payload: { abilityType, isPlayer, data } });
+  const useAbility    = (abilityType: AbilityType, data?: Record<string, unknown>, isPlayer: boolean = true) => dispatch({ type: 'USE_ABILITY', payload: { abilityType, isPlayer, data } });
 
   const setDifficulty = (level: DifficultyLevel) => {
     setDifficultyState(level);
@@ -550,24 +530,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'START_BATTLE', payload: { playerAbilities } });
   };
 
-  // ✅ نظام الصحة: اللعبة تنتهي إذا وصل أي لاعب لصفر أو انتهت الجولات
+  // ✅ اللعبة تنتهي: إذا وصلت صحة أي لاعب للصفر، أو انتهت كل الجولات
   const isGameOver =
     (state.totalRounds > 0 && (state.playerScore <= 0 || state.botScore <= 0)) ||
     (state.roundResults.length >= state.totalRounds && state.totalRounds > 0);
 
-  const currentPlayerCard = state.currentRound < state.totalRounds ? state.playerDeck[state.currentRound] : null;
-  const currentBotCard = state.currentRound < state.totalRounds ? state.botDeck[state.currentRound] : null;
-  const lastRoundResult = state.roundResults.length > 0 ? state.roundResults[state.roundResults.length - 1] : null;
+  const currentPlayerCard  = state.currentRound < state.totalRounds ? state.playerDeck[state.currentRound] : null;
+  const currentBotCard     = state.currentRound < state.totalRounds ? state.botDeck[state.currentRound]    : null;
+  const lastRoundResult    = state.roundResults.length > 0 ? state.roundResults[state.roundResults.length - 1] : null;
 
   const expectedRoundResult = React.useMemo(() => {
     if (state.currentRound >= state.totalRounds) return null;
     const playerCard = state.playerDeck[state.currentRound];
-    const botCard = state.botDeck[state.currentRound];
+    const botCard    = state.botDeck[state.currentRound];
     if (!playerCard || !botCard) return null;
-    const roundNumber = getRoundNumber(state);
+    const roundNumber   = getRoundNumber(state);
     const activeEffects = state.abilitiesEnabled ? state.activeEffects.filter(e => isEffectActive(e, roundNumber)) : [];
     const playerEffects = activeEffects.filter(e => e.targetSide === 'player' || e.targetSide === 'all');
-    const botEffects = activeEffects.filter(e => e.targetSide === 'bot' || e.targetSide === 'all');
+    const botEffects    = activeEffects.filter(e => e.targetSide === 'bot'    || e.targetSide === 'all');
     const forcedOutcomeEffect = activeEffects.filter(e => e.kind === 'forcedOutcome').filter(e => { const d = e.data as { appliesToRound?: number } | undefined; return !d?.appliesToRound || d.appliesToRound === roundNumber; }).sort((a, b) => b.priority - a.priority || b.createdAtRound - a.createdAtRound)[0];
     return forcedOutcomeEffect
       ? { winner: forcedOutcomeEffect.sourceSide, playerDamage: 0, botDamage: 0, playerBaseDamage: 0, botBaseDamage: 0, playerElementAdvantage: 'neutral' as ElementAdvantage, botElementAdvantage: 'neutral' as ElementAdvantage }
