@@ -3,10 +3,10 @@ import {
   UserPlus, ShieldPlus, Eraser, Zap, ArrowRightLeft, LifeBuoy, AlertTriangle, Crosshair, Combine, HeartPulse, ChevronsUp, ArrowDownRight, Eye, Replace,
   Droplet, Flame, Users, Shuffle, Magnet, RefreshCw, Layers, Ban, Coins, GitCompare, Megaphone, Sparkles, Target, Waves, ShieldCheck, Wand2, SkipForward,
   Star, Moon, XOctagon, ArrowUpCircle, Repeat, Send, Bomb, PlusCircle, Globe, Ghost,
-  Swords,
+  Swords, Infinity, Crown,
 } from 'lucide-react-native';
 
-export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
+export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary' | 'Special';
 
 export interface Ability {
   id: number;
@@ -175,7 +175,7 @@ export const abilities: Ability[] = [
     id: 18,
     nameEn: 'Shambles',
     nameAr: 'شامبلز',
-    description: 'بدّل طاقات كرتك مع كرت الخصم (Hسجوم/دفاع بدون الخواص)',
+    description: 'بدّل طاقات كرتك مع كرت الخصم (هجوم/دفاع بدون الخواص)',
     rarity: 'Rare',
     icon: ArrowRightLeft,
     isActive: false,
@@ -297,7 +297,7 @@ export const abilities: Ability[] = [
     id: 32,
     nameEn: 'Merge',
     nameAr: 'الدمج',
-    description: 'ادمج كرتك مع كرتك السابق (Hسجوم+دفاع بدون خاصية)',
+    description: 'ادمج كرتك مع كرتك السابق (هجوم+دفاع بدون خاصية)',
     descriptionWarning: 'دفاع وهجوم الكرت السابق تُضاف للكرت الحالي',
     rarity: 'Epic',
     icon: Combine,
@@ -464,5 +464,36 @@ export const abilities: Ability[] = [
     descriptionWarning: 'عناصرك تتغلب على العناصر المتضادة حتى لو كانت أضعف',
     rarity: 'Legendary',
     icon: Globe,
+  },
+
+  // ─────────────────────────────────────
+  // 🌟 SPECIAL
+  // ─────────────────────────────────────
+  {
+    id: 52,
+    nameEn: 'Absolute Dominance',
+    nameAr: 'السيطرة المطلقة',
+    description: 'تفوز بالجولة بغض النظر عن أي قدرة أو عنصر للخصم',
+    descriptionWarning: 'مرة واحدة فقط في المباراة • لا تنفع ضد كرت خاص آخر',
+    rarity: 'Special',
+    icon: Crown,
+  },
+  {
+    id: 53,
+    nameEn: 'Infinity Loop',
+    nameAr: 'الحلقة الأبدية',
+    description: 'أعد تشغيل آخر 3 جولات كأنها لم تحدث',
+    descriptionWarning: 'يُعاد لعب الجولات الثلاث الأخيرة بنفس الكروت ولكن بدون أي قدرات مستخدمة فيها',
+    rarity: 'Special',
+    icon: Infinity,
+  },
+  {
+    id: 54,
+    nameEn: 'Phantom Blade',
+    nameAr: 'شفرة الوهم',
+    description: 'هجومك يضرب مرتين في هذه الجولة',
+    descriptionWarning: 'قيمة الهجوم تُحسب مرتين مقابل دفاع الخصم',
+    rarity: 'Special',
+    icon: Swords,
   },
 ];
