@@ -14,7 +14,8 @@ export type Race =
 
 export type CardClass = 'warrior' | 'knight' | 'mage' | 'archer' | 'berserker' | 'paladin';
 
-export type Element = 'fire' | 'ice' | 'water' | 'earth' | 'lightning' | 'wind';
+// ✦ نظام خماسي — تم حذف عنصر الجليد (ice)
+export type Element = 'fire' | 'water' | 'earth' | 'lightning' | 'wind';
 
 // Removed predefined tags to rely entirely on Element, Race, and Class.
 export type Tag = string;
@@ -32,7 +33,7 @@ export interface LocalizedString {
 }
 
 /** Per-card animation preset key */
-export type CardAnimationPreset = 'default' | 'fire' | 'ice' | 'lightning' | 'shadow' | 'holy';
+export type CardAnimationPreset = 'default' | 'fire' | 'lightning' | 'shadow' | 'holy';
 
 /**
  * بيانات وضع الغضب للبطاقة — اختياري، يُضبَط من شاشة إدارة الكروت
@@ -242,22 +243,21 @@ export const CLASS_EMOJI: Record<CardClass, string> = {
   paladin: '\u{1F4AA}',
 };
 
+// ✦ بدون ice
 export const ELEMENT_EMOJI: Record<Element, string> = {
-  fire: '\u{1F525}',
-  ice: '\u2744\ufe0f',
-  water: '\u{1F4A7}',
-  earth: '\u{1F30D}',
+  fire:      '\u{1F525}',
+  water:     '\u{1F4A7}',
+  earth:     '\u{1F30D}',
   lightning: '\u26a1',
-  wind: '\u{1F4A8}',
+  wind:      '\u{1F4A8}',
 };
 
 export const ELEMENT_COLORS: Record<Element, string> = {
-  fire: '#ef4444',
-  ice: '#38bdf8',
-  water: '#3b82f6',
-  earth: '#a3e635',
+  fire:      '#ef4444',
+  water:     '#3b82f6',
+  earth:     '#a3e635',
   lightning: '#facc15',
-  wind: '#a78bfa',
+  wind:      '#a78bfa',
 };
 
 export type ElementAdvantage = 'strong' | 'weak' | 'neutral';
@@ -268,20 +268,29 @@ export const ELEMENT_MULTIPLIER = {
   neutral: 1.0,
 };
 
+// ─── نظام التفوق العنصري الخماسي ────────────────────────────────────────────
 export const ELEMENT_ADVANTAGES: Record<Element, Element[]> = {
-  fire: ['ice'],
-  ice: ['earth'],
-  earth: ['fire'],
-  water: [],
-  lightning: [],
-  wind: [],
+  fire:      ['earth'],
+  water:     ['fire'],
+  earth:     ['lightning', 'water'],
+  lightning: ['water', 'wind'],
+  wind:      ['earth'],
 };
 
 export const ELEMENT_WEAKNESSES: Record<Element, Element[]> = {
-  fire: ['earth'],
-  ice: ['fire'],
-  earth: ['ice'],
-  water: [],
-  lightning: [],
-  wind: [],
+  fire:      ['water', 'wind'],
+  water:     ['earth', 'lightning'],
+  earth:     ['wind'],
+  lightning: ['earth'],
+  wind:      ['lightning', 'fire'],
+};
+
+// ─── خريطة المضاعفات العنصرية (ELEMENTAL_MAP) ────────────────────────────────
+// القيم: 2.0 = تفوق قوي | 0.5 = ضعف واضح
+export const ELEMENTAL_MAP: Record<string, Record<string, number>> = {
+  'نار':  { 'أرض': 2.0, 'ماء': 0.5 },
+  'ماء':  { 'نار': 2.0, 'أرض': 0.5, 'برق': 0.5 },
+  'أرض':  { 'برق': 2.0, 'ماء': 2.0, 'ريح': 0.5 },
+  'برق':  { 'ماء': 2.0, 'ريح': 2.0, 'أرض': 0.5 },
+  'ريح':  { 'أرض': 2.0, 'برق': 0.5, 'نار': 0.5 },
 };
