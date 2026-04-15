@@ -1,534 +1,381 @@
-import React, { useState, useRef } from 'react';
+/**
+ * edit-ability.tsx — two-column layout matching add-card.tsx
+ * left: AbilityCard live preview + media + rarity
+ * right: scrollable fields (names, stats, icon, description)
+ */
+import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, SafeAreaView,
-  TouchableOpacity, TextInput, KeyboardAvoidingView,
-  Platform, StatusBar, Image, Alert, Text,
+  View, Text, TextInput, ScrollView, TouchableOpacity,
+  StyleSheet, Alert, Platform, KeyboardAvoidingView, Image,
 } from 'react-native';
-import { ThemedText } from '@/components/ui/ThemedText';
-import {
-  ArrowLeft, Save, Check, ImagePlus, X,
-  Video, Film, Image as ImageIcon,
-  Zap, Shield, Sword, Star, Flame, Snowflake,
-  Wind, Droplets, Sun, Moon, Eye, Heart, Skull,
-  Bolt, CircleDot, Trophy, Crown, Diamond,
-} from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { Save, Check } from 'lucide-react-native';
+import * as LucideIcons from 'lucide-react-native';
 import { Rarity } from '@/data/abilities';
 
 // ─── Rarity config ───
 const RARITIES: {
-  id: Rarity; label: string; labelAr: string;
-  gradient: [string, string]; border: string; textColor: string;
-  badgeBg: string; checkColor: string; glowColor: string;
+  id: Rarity; labelAr: string; color: string;
 }[] = [
-  { id: 'Common',    label: 'Common',    labelAr: 'عادي',    gradient: ['#064e3b','#065f46'], border: '#10b981', textColor: '#34d399', badgeBg: 'rgba(16,185,129,0.15)',  checkColor: '#10b981', glowColor: 'rgba(16,185,129,0.25)'  },
-  { id: 'Rare',      label: 'Rare',      labelAr: 'نادر',    gradient: ['#1e3a5f','#1e40af'], border: '#3b82f6', textColor: '#93c5fd', badgeBg: 'rgba(59,130,246,0.15)',  checkColor: '#3b82f6', glowColor: 'rgba(59,130,246,0.25)'  },
-  { id: 'Epic',      label: 'Epic',      labelAr: 'ملحمي',   gradient: ['#3b0764','#6d28d9'], border: '#a855f7', textColor: '#d8b4fe', badgeBg: 'rgba(168,85,247,0.15)', checkColor: '#a855f7', glowColor: 'rgba(168,85,247,0.3)'   },
-  { id: 'Legendary', label: 'Legendary', labelAr: 'أسطوري',  gradient: ['#78350f','#b45309'], border: '#f59e0b', textColor: '#fcd34d', badgeBg: 'rgba(245,158,11,0.15)',  checkColor: '#f59e0b', glowColor: 'rgba(245,158,11,0.35)'  },
-  { id: 'Special',   label: 'Special',   labelAr: 'خاص ✦',   gradient: ['#0f172a','#701a75'], border: '#e879f9', textColor: '#f0abfc', badgeBg: 'rgba(232,121,249,0.18)', checkColor: '#e879f9', glowColor: 'rgba(232,121,249,0.45)' },
+  { id: 'Common',    labelAr: 'عادي',   color: '#10b981' },
+  { id: 'Rare',      labelAr: 'نادر',   color: '#3b82f6' },
+  { id: 'Epic',      labelAr: 'ملحمي',  color: '#a855f7' },
+  { id: 'Legendary', labelAr: 'أسطوري', color: '#f59e0b' },
+  { id: 'Special',   labelAr: 'خاص',    color: '#e879f9' },
 ];
 
-// ─── أيقونات القدرات المتاحة ───
-const ABILITY_ICONS: { key: string; label: string; Icon: any }[] = [
-  { key: 'Zap',       label: 'برق',    Icon: Zap       },
-  { key: 'Shield',    label: 'درع',    Icon: Shield    },
-  { key: 'Sword',     label: 'سيف',    Icon: Sword     },
-  { key: 'Star',      label: 'نجمة',   Icon: Star      },
-  { key: 'Flame',     label: 'نار',    Icon: Flame     },
-  { key: 'Snowflake', label: 'جليد',   Icon: Snowflake },
-  { key: 'Wind',      label: 'ريح',    Icon: Wind      },
-  { key: 'Droplets',  label: 'ماء',    Icon: Droplets  },
-  { key: 'Sun',       label: 'شمس',    Icon: Sun       },
-  { key: 'Moon',      label: 'قمر',    Icon: Moon      },
-  { key: 'Eye',       label: 'عين',    Icon: Eye       },
-  { key: 'Heart',     label: 'قلب',    Icon: Heart     },
-  { key: 'Skull',     label: 'جمجمة',  Icon: Skull     },
-  { key: 'CircleDot', label: 'هدف',    Icon: CircleDot },
-  { key: 'Trophy',    label: 'كأس',    Icon: Trophy    },
-  { key: 'Crown',     label: 'تاج',    Icon: Crown     },
-  { key: 'Diamond',   label: 'ألماس',  Icon: Diamond   },
+const RARITY_STARS: Record<Rarity, number> = {
+  Common: 1, Rare: 2, Epic: 3, Legendary: 4, Special: 4,
+};
+
+// ─── Ability icon list ───
+const ABILITY_ICONS: { key: string; labelAr: string; Icon: any }[] = [
+  { key: 'Zap',       labelAr: 'برق',   Icon: LucideIcons.Zap        },
+  { key: 'Shield',    labelAr: 'درع',   Icon: LucideIcons.Shield     },
+  { key: 'Sword',     labelAr: 'سيف',   Icon: LucideIcons.Sword      },
+  { key: 'Star',      labelAr: 'نجمة',  Icon: LucideIcons.Star       },
+  { key: 'Flame',     labelAr: 'نار',   Icon: LucideIcons.Flame      },
+  { key: 'Snowflake', labelAr: 'جليد',  Icon: LucideIcons.Snowflake  },
+  { key: 'Wind',      labelAr: 'ريح',   Icon: LucideIcons.Wind       },
+  { key: 'Droplets',  labelAr: 'ماء',   Icon: LucideIcons.Droplets   },
+  { key: 'Sun',       labelAr: 'شمس',   Icon: LucideIcons.Sun        },
+  { key: 'Moon',      labelAr: 'قمر',   Icon: LucideIcons.Moon       },
+  { key: 'Eye',       labelAr: 'عين',   Icon: LucideIcons.Eye        },
+  { key: 'Heart',     labelAr: 'قلب',   Icon: LucideIcons.Heart      },
+  { key: 'Skull',     labelAr: 'جمجمة', Icon: LucideIcons.Skull      },
+  { key: 'Trophy',    labelAr: 'كأس',   Icon: LucideIcons.Trophy     },
+  { key: 'Crown',     labelAr: 'تاج',   Icon: LucideIcons.Crown      },
 ];
 
-// ─── نوع الميديا ───
-type MediaType = 'image' | 'video' | 'gif' | null;
-
-// ─── فتح ملف حسب النوع ───
-const pickFileCrossPlatform = (
-  accept: string,
-  onPick: (uri: string, type: MediaType) => void,
-  mediaType: MediaType,
-) => {
-  if (Platform.OS === 'web') {
+// ─── pick file (web only for now) ───
+function pickFileCrossPlatform(accept: string): Promise<{ uri: string; isVideo: boolean } | null> {
+  return new Promise(resolve => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('قريباً', 'هذه الخاصية تعمل على الويب حالياً.');
+      resolve(null);
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
     input.onchange = (e: any) => {
       const file = e.target?.files?.[0];
-      if (!file) return;
+      if (!file) { resolve(null); return; }
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string;
-        if (result) onPick(result, mediaType);
-      };
+      reader.onload = (ev) => resolve({
+        uri: ev.target?.result as string,
+        isVideo: file.type.startsWith('video/'),
+      });
       reader.readAsDataURL(file);
     };
     input.click();
-  } else {
-    Alert.alert('قريباً', 'هذه الخاصية تعمل على الويب حالياً. الموبايل قيد التطوير.', [{ text: 'حسناً' }]);
-  }
-};
+  });
+}
 
-// ─── Live Card Preview ───
-function LiveCardPreview({
-  nameEn, nameAr, description, warning,
-  rarity, mediaUri, mediaType, iconKey,
+// ─── Chip (for rarity) ───
+const Chip = ({ label, selected, color, onPress }: {
+  label: string; selected: boolean; color: string; onPress: () => void;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[S.chip, selected && { borderColor: color, backgroundColor: color + '25' }]}
+  >
+    <Text style={[S.chipTxt, selected && { color }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+// ─── Icon Chip ───
+const IconChip = ({ iconKey, labelAr, Icon, selected, color, onPress }: {
+  iconKey: string; labelAr: string; Icon: any;
+  selected: boolean; color: string; onPress: () => void;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[IC.btn, selected && { borderColor: color, backgroundColor: color + '20' }]}
+  >
+    <Icon size={18} color={selected ? color : '#6B7280'} strokeWidth={selected ? 2.5 : 1.5} />
+    <Text style={[IC.lbl, selected && { color }]}>{labelAr}</Text>
+    {selected && (
+      <View style={[IC.check, { backgroundColor: color }]}>
+        <Check size={7} color="#000" />
+      </View>
+    )}
+  </TouchableOpacity>
+);
+
+const IC = StyleSheet.create({
+  btn:   { position: 'relative', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', minWidth: 54, margin: 3 },
+  lbl:   { fontSize: 9, color: '#6B7280', fontWeight: '700', marginTop: 3, textAlign: 'center' },
+  check: { position: 'absolute', top: 3, right: 3, width: 13, height: 13, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Mini Card Preview ───
+function AbilityCardPreview({
+  nameAr, nameEn, description, warning,
+  rarity, mediaUri, iconKey,
 }: {
-  nameEn: string; nameAr: string; description: string; warning: string;
-  rarity: Rarity; mediaUri: string | null; mediaType: MediaType; iconKey: string;
+  nameAr: string; nameEn: string; description: string; warning: string;
+  rarity: Rarity; mediaUri: string | null; iconKey: string;
 }) {
-  const r = RARITIES.find((x) => x.id === rarity)!;
-  const iconObj = ABILITY_ICONS.find((i) => i.key === iconKey);
-  const IconComp = iconObj?.Icon ?? Zap;
+  const r   = RARITIES.find(x => x.id === rarity)!;
+  const stars = RARITY_STARS[rarity];
+  const iconObj = ABILITY_ICONS.find(i => i.key === iconKey);
+  const IconComp = iconObj?.Icon ?? LucideIcons.Zap;
 
   return (
-    <View style={[previewStyles.card, { borderColor: r.border + 'AA', shadowColor: r.border }]}>
-      {/* صورة/فيديو/GIF */}
-      <View style={previewStyles.artZone}>
-        {mediaUri ? (
-          <Image source={{ uri: mediaUri }} style={previewStyles.artImage} resizeMode="cover" />
-        ) : (
-          <View style={previewStyles.artPlaceholder}>
-            <ImageIcon size={28} color={r.border + '60'} />
-          </View>
-        )}
-        {/* طبقة تعتيم */}
-        <View style={previewStyles.artOverlay} />
-        {/* badge */}
-        <View style={[previewStyles.rarityBadge, { backgroundColor: r.badgeBg, borderColor: r.border + '80' }]}>
-          <Text style={[previewStyles.rarityText, { color: r.textColor }]}>{r.label.toUpperCase()}</Text>
+    <View style={[P.card, { borderColor: r.color + 'AA', shadowColor: r.color }]}>
+      {/* art zone */}
+      <View style={P.artZone}>
+        {mediaUri
+          ? <Image source={{ uri: mediaUri }} style={P.artImg} resizeMode="cover" />
+          : <View style={P.artEmpty}><LucideIcons.Image size={22} color={r.color + '50'} /></View>
+        }
+        <View style={P.artOverlay} />
+        <View style={[P.badge, { backgroundColor: r.color + '22', borderColor: r.color + '66' }]}>
+          <Text style={[P.badgeTxt, { color: r.color }]}>{r.id.toUpperCase()}</Text>
         </View>
-        {/* أيقونة */}
-        <View style={[previewStyles.iconBadge, { borderColor: r.border, shadowColor: r.border }]}>
-          <IconComp size={16} color={r.textColor} strokeWidth={2} />
+        <View style={[P.iconCircle, { borderColor: r.color, shadowColor: r.color }]}>
+          <IconComp size={14} color={r.color} strokeWidth={2} />
         </View>
       </View>
 
       {/* body */}
-      <View style={previewStyles.body}>
-        <Text style={[previewStyles.nameAr, { color: r.textColor }]} numberOfLines={1}>
-          {nameAr || '—'}
-        </Text>
-        <Text style={previewStyles.nameEn} numberOfLines={1}>
-          {nameEn || '—'}
-        </Text>
-        <View style={[previewStyles.divider, { backgroundColor: r.border + '55' }]} />
-        <Text style={previewStyles.desc} numberOfLines={3}>
-          {description || 'وصف القدرة...'}
-        </Text>
-        {warning ? (
-          <Text style={previewStyles.warn} numberOfLines={2}>⚠️ {warning}</Text>
-        ) : null}
+      <View style={P.body}>
+        <Text style={[P.nameAr, { color: r.color }]} numberOfLines={1}>{nameAr || '—'}</Text>
+        <Text style={P.nameEn} numberOfLines={1}>{nameEn || '—'}</Text>
+        <View style={[P.divider, { backgroundColor: r.color + '55' }]} />
+        <Text style={P.desc} numberOfLines={3}>{description || 'وصف القدرة...'}</Text>
+        {warning ? <Text style={P.warn} numberOfLines={2}>⚠️ {warning}</Text> : null}
       </View>
 
       {/* footer */}
-      <View style={[previewStyles.footer, { borderTopColor: r.border + '44' }]}>
-        <View style={previewStyles.starsRow}>
+      <View style={[P.foot, { borderTopColor: r.color + '44' }]}>
+        <View style={P.stars}>
           {Array.from({ length: 4 }).map((_, i) => (
-            <Text key={i} style={{ fontSize: 8, color: i < (RARITIES.indexOf(r) + 1) ? r.textColor : r.textColor + '28' }}>★</Text>
+            <Text key={i} style={{ fontSize: 8, color: i < stars ? r.color : r.color + '28' }}>★</Text>
           ))}
         </View>
-        <Text style={[previewStyles.footerLabel, { color: r.textColor + 'BB' }]}>{r.labelAr}</Text>
+        <Text style={[P.footLbl, { color: r.color + 'BB' }]}>{r.labelAr}</Text>
       </View>
     </View>
   );
 }
 
-const previewStyles = StyleSheet.create({
-  card: {
-    width: 200, alignSelf: 'center',
-    borderRadius: 18, borderWidth: 2,
-    backgroundColor: '#000',
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 16, elevation: 12,
-    overflow: 'hidden',
-  },
-  artZone:        { width: '100%', height: 120, backgroundColor: '#111', overflow: 'hidden' },
-  artImage:       { width: '100%', height: '100%' },
-  artPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' },
-  artOverlay:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 40, backgroundColor: 'rgba(0,0,0,0.5)' },
-  rarityBadge:    { position: 'absolute', top: 7, left: 7, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  rarityText:     { fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
-  iconBadge: {
-    position: 'absolute', bottom: -16, alignSelf: 'center',
-    width: 34, height: 34, borderRadius: 17, borderWidth: 2,
-    backgroundColor: '#080808',
-    alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.9, shadowRadius: 5, elevation: 8,
-  },
-  body:       { paddingTop: 22, paddingHorizontal: 12, paddingBottom: 4, alignItems: 'center', gap: 3 },
-  nameAr:     { fontSize: 14, fontWeight: '900', textAlign: 'center', letterSpacing: 0.3 },
-  nameEn:     { fontSize: 8, fontWeight: '700', color: '#64748b', textAlign: 'center', letterSpacing: 1.2, textTransform: 'uppercase' },
-  divider:    { width: 36, height: 1.5, borderRadius: 1, marginVertical: 4 },
-  desc:       { fontSize: 9, color: '#94a3b8', textAlign: 'center', lineHeight: 13 },
-  warn:       { fontSize: 8, color: '#f87171', textAlign: 'center', lineHeight: 12, marginTop: 3 },
-  footer:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6, borderTopWidth: 1, backgroundColor: 'rgba(0,0,0,0.6)', marginTop: 8 },
-  starsRow:   { flexDirection: 'row', gap: 2 },
-  footerLabel:{ fontSize: 7, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
+const P = StyleSheet.create({
+  card:       { width: 168, borderRadius: 16, borderWidth: 2, backgroundColor: '#000', overflow: 'hidden', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 14, elevation: 12 },
+  artZone:    { width: '100%', height: 110, backgroundColor: '#0d0d0d', overflow: 'hidden' },
+  artImg:     { width: '100%', height: '100%' },
+  artEmpty:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  artOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 36, backgroundColor: 'rgba(0,0,0,0.55)' },
+  badge:      { position: 'absolute', top: 6, left: 6, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5, borderWidth: 1 },
+  badgeTxt:   { fontSize: 6.5, fontWeight: '900', letterSpacing: 1 },
+  iconCircle: { position: 'absolute', bottom: -14, alignSelf: 'center', width: 30, height: 30, borderRadius: 15, borderWidth: 2, backgroundColor: '#080808', alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.9, shadowRadius: 4, elevation: 8 },
+  body:       { paddingTop: 20, paddingHorizontal: 10, paddingBottom: 4, alignItems: 'center', gap: 2 },
+  nameAr:     { fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  nameEn:     { fontSize: 7.5, fontWeight: '700', color: '#555', textAlign: 'center', letterSpacing: 1, textTransform: 'uppercase' },
+  divider:    { width: 30, height: 1.5, borderRadius: 1, marginVertical: 4 },
+  desc:       { fontSize: 8.5, color: '#7a8fa6', textAlign: 'center', lineHeight: 12 },
+  warn:       { fontSize: 8, color: '#f87171', textAlign: 'center', marginTop: 2 },
+  foot:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 5, borderTopWidth: 1, backgroundColor: 'rgba(0,0,0,0.7)', marginTop: 6 },
+  stars:      { flexDirection: 'row', gap: 2 },
+  footLbl:    { fontSize: 6.5, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
 });
 
 // ─── Main Screen ───
 export default function EditAbilityScreen() {
   const navigation = useNavigation();
 
-  const [nameEn,   setNameEn]   = useState('');
-  const [nameAr,   setNameAr]   = useState('');
+  const [nameAr,      setNameAr]      = useState('');
+  const [nameEn,      setNameEn]      = useState('');
   const [description, setDescription] = useState('');
-  const [warning,  setWarning]  = useState('');
-  const [rarity,   setRarity]   = useState<Rarity>('Common');
-  const [iconKey,  setIconKey]  = useState('Zap');
-  const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<MediaType>(null);
+  const [warning,     setWarning]     = useState('');
+  const [rarity,      setRarity]      = useState<Rarity>('Common');
+  const [iconKey,     setIconKey]     = useState('Zap');
+  const [mediaUri,    setMediaUri]    = useState<string | null>(null);
+  const [iconsOpen,   setIconsOpen]   = useState(false);
 
-  const sel = RARITIES.find((r) => r.id === rarity)!;
+  const sel         = RARITIES.find(r => r.id === rarity)!;
+  const iconPreview = ABILITY_ICONS.find(i => i.key === iconKey);
+  const IconPrev    = iconPreview?.Icon ?? LucideIcons.Zap;
 
-  const handlePickImage = () =>
-    pickFileCrossPlatform('image/png, image/jpeg, image/webp', (uri, t) => { setMediaUri(uri); setMediaType(t); }, 'image');
-
-  const handlePickGif = () =>
-    pickFileCrossPlatform('image/gif', (uri, t) => { setMediaUri(uri); setMediaType(t); }, 'gif');
-
-  const handlePickVideo = () =>
-    pickFileCrossPlatform('video/mp4, video/webm, video/mov', (uri, t) => { setMediaUri(uri); setMediaType(t); }, 'video');
-
-  const handleRemoveMedia = () => { setMediaUri(null); setMediaType(null); };
+  const handlePickMedia = async (accept: string) => {
+    const res = await pickFileCrossPlatform(accept);
+    if (res) setMediaUri(res.uri);
+  };
 
   const handleSave = () => {
-    if (!nameEn.trim() && !nameAr.trim()) {
+    if (!nameAr.trim() && !nameEn.trim()) {
       Alert.alert('تنبيه', 'أدخل اسم القدرة على الأقل.');
       return;
     }
-    console.log('Save:', { nameEn, nameAr, description, warning, rarity, iconKey, mediaUri, mediaType });
     Alert.alert('تم الحفظ ✅', `"${nameAr || nameEn}" — ${sel.labelAr}`);
     navigation.goBack();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={S.root}>
+      <LinearGradient colors={['#060610', '#0f172a']} style={StyleSheet.absoluteFill} />
 
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <ArrowLeft size={20} color="#fff" />
+      {/* TOP BAR */}
+      <View style={S.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={S.backBtn}>
+          <Text style={S.backTxt}>← رجوع</Text>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>تعديل القدرة</ThemedText>
-        <View style={{ width: 40 }} />
+        <Text style={S.pageTitle}>✏️ تعديل القدرة</Text>
+        <View style={{ width: 60 }} />
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={S.columns}>
 
-          {/* ─── LIVE PREVIEW ─── */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>معاينة مباشرة / Live Preview</ThemedText>
-            <LiveCardPreview
-              nameEn={nameEn} nameAr={nameAr}
+          {/* ── LEFT COL: preview + media + rarity ── */}
+          <View style={S.leftCol}>
+            <AbilityCardPreview
+              nameAr={nameAr} nameEn={nameEn}
               description={description} warning={warning}
-              rarity={rarity} mediaUri={mediaUri}
-              mediaType={mediaType} iconKey={iconKey}
+              rarity={rarity} mediaUri={mediaUri} iconKey={iconKey}
             />
-          </View>
 
-          {/* ─── RARITY ─── */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>الندرة / Rarity</ThemedText>
-            <View style={styles.rarityRow}>
-              {RARITIES.slice(0, 2).map((r) => (
-                <RarityCard key={r.id} r={r} isSelected={rarity === r.id} onPress={() => setRarity(r.id)} />
+            {/* media buttons */}
+            <View style={S.mediaRow}>
+              <TouchableOpacity
+                style={[S.mediaBtn, { borderColor: sel.color + '88' }]}
+                onPress={() => handlePickMedia('image/*')}
+              >
+                <Text style={[S.mediaBtnTxt, { color: sel.color }]}>🖼️ صورة</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[S.mediaBtn, { borderColor: '#a78bfa88' }]}
+                onPress={() => handlePickMedia('video/mp4,video/webm,video/*')}
+              >
+                <Text style={[S.mediaBtnTxt, { color: '#a78bfa' }]}>🎦 فيديو</Text>
+              </TouchableOpacity>
+            </View>
+            {mediaUri && (
+              <TouchableOpacity onPress={() => setMediaUri(null)} style={S.removeMedia}>
+                <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '700' }}>✕ حذف الوسيط</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* rarity */}
+            <Text style={S.secLabel}>الندرة</Text>
+            <View style={S.chipCol}>
+              {RARITIES.map(r => (
+                <Chip key={r.id} label={r.labelAr} selected={rarity === r.id} color={r.color} onPress={() => setRarity(r.id)} />
               ))}
             </View>
-            <View style={[styles.rarityRow, { marginTop: 10 }]}>
-              {RARITIES.slice(2, 4).map((r) => (
-                <RarityCard key={r.id} r={r} isSelected={rarity === r.id} onPress={() => setRarity(r.id)} />
-              ))}
-            </View>
-            <View style={[styles.rarityRow, { marginTop: 10 }]}>
-              <SpecialRarityCard r={RARITIES[4]} isSelected={rarity === 'Special'} onPress={() => setRarity('Special')} />
-            </View>
           </View>
 
-          {/* ─── MEDIA (صورة / GIF / فيديو) ─── */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>ميديا الكرت / Card Media</ThemedText>
+          {/* ── RIGHT COL: fields ── */}
+          <ScrollView
+            style={S.rightCol}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={S.secLabel}>الاسم بالعربي *</Text>
+            <TextInput
+              style={[S.input, { borderColor: sel.color + '55' }]}
+              placeholder="مثال: ناروتو" placeholderTextColor="#444"
+              value={nameAr} onChangeText={setNameAr} textAlign="right"
+            />
 
-            {mediaUri ? (
-              <View style={styles.mediaPreviewWrapper}>
-                {mediaType === 'video' ? (
-                  <View style={[styles.videoPlaceholder, { borderColor: sel.border }]}>
-                    <Film size={36} color={sel.textColor} />
-                    <ThemedText style={[styles.videoLabel, { color: sel.textColor }]}>فيديو مُختار ✓</ThemedText>
-                    <ThemedText style={styles.videoSub}>سيُشغَّل داخل الكرت عند اللعب</ThemedText>
-                  </View>
-                ) : (
-                  <Image
-                    source={{ uri: mediaUri }}
-                    style={[styles.mediaPreview, { borderColor: sel.border }]}
-                    resizeMode="cover"
-                  />
-                )}
-                <View style={styles.mediaActions}>
-                  <TouchableOpacity
-                    onPress={handlePickImage}
-                    style={[styles.mediaActionBtn, { backgroundColor: sel.badgeBg, borderColor: sel.border + '80' }]}
-                  >
-                    <ImageIcon size={13} color={sel.textColor} />
-                    <ThemedText style={[styles.mediaActionText, { color: sel.textColor }]}>صورة</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handlePickGif}
-                    style={[styles.mediaActionBtn, { backgroundColor: sel.badgeBg, borderColor: sel.border + '80' }]}
-                  >
-                    <Film size={13} color={sel.textColor} />
-                    <ThemedText style={[styles.mediaActionText, { color: sel.textColor }]}>GIF</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handlePickVideo}
-                    style={[styles.mediaActionBtn, { backgroundColor: sel.badgeBg, borderColor: sel.border + '80' }]}
-                  >
-                    <Video size={13} color={sel.textColor} />
-                    <ThemedText style={[styles.mediaActionText, { color: sel.textColor }]}>فيديو</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleRemoveMedia} style={styles.mediaRemoveBtn}>
-                    <X size={13} color="#f87171" />
-                    <ThemedText style={styles.mediaRemoveText}>حذف</ThemedText>
-                  </TouchableOpacity>
-                </View>
+            <Text style={S.secLabel}>الاسم بالإنجليزي *</Text>
+            <TextInput
+              style={[S.input, { borderColor: '#37415155' }]}
+              placeholder="Naruto" placeholderTextColor="#444"
+              value={nameEn} onChangeText={setNameEn}
+            />
+
+            {/* ── icon picker (collapsible) ── */}
+            <TouchableOpacity
+              style={S.iconHeader}
+              onPress={() => setIconsOpen(v => !v)}
+              activeOpacity={0.75}
+            >
+              <Text style={S.iconHeaderTitle}>الأيقونة</Text>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <IconPrev size={16} color={sel.color} strokeWidth={2} />
               </View>
-            ) : (
-              <View style={styles.mediaPickerRow}>
-                <TouchableOpacity
-                  onPress={handlePickImage}
-                  style={[styles.mediaPickBox, { borderColor: sel.border + '55', backgroundColor: sel.badgeBg }]}
-                >
-                  <ImageIcon size={24} color={sel.textColor} />
-                  <ThemedText style={[styles.mediaPickLabel, { color: sel.textColor }]}>صورة</ThemedText>
-                  <ThemedText style={styles.mediaPickSub}>PNG / JPG</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handlePickGif}
-                  style={[styles.mediaPickBox, { borderColor: sel.border + '55', backgroundColor: sel.badgeBg }]}
-                >
-                  <Film size={24} color={sel.textColor} />
-                  <ThemedText style={[styles.mediaPickLabel, { color: sel.textColor }]}>GIF</ThemedText>
-                  <ThemedText style={styles.mediaPickSub}>متحرك</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handlePickVideo}
-                  style={[styles.mediaPickBox, { borderColor: sel.border + '55', backgroundColor: sel.badgeBg }]}
-                >
-                  <Video size={24} color={sel.textColor} />
-                  <ThemedText style={[styles.mediaPickLabel, { color: sel.textColor }]}>فيديو</ThemedText>
-                  <ThemedText style={styles.mediaPickSub}>MP4 / WebM</ThemedText>
-                </TouchableOpacity>
+              <Text style={S.iconHeaderChevron}>{iconsOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            {iconsOpen && (
+              <View style={S.iconsGrid}>
+                {ABILITY_ICONS.map(({ key, labelAr, Icon }) => (
+                  <IconChip
+                    key={key}
+                    iconKey={key} labelAr={labelAr} Icon={Icon}
+                    selected={iconKey === key}
+                    color={sel.color}
+                    onPress={() => setIconKey(key)}
+                  />
+                ))}
               </View>
             )}
-          </View>
 
-          {/* ─── ICON ─── */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionLabel}>أيقونة القدرة / Ability Icon</ThemedText>
-            <View style={styles.iconsGrid}>
-              {ABILITY_ICONS.map(({ key, label, Icon }) => {
-                const isActive = iconKey === key;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    onPress={() => setIconKey(key)}
-                    style={[
-                      styles.iconCell,
-                      isActive && { borderColor: sel.border, backgroundColor: sel.badgeBg },
-                    ]}
-                  >
-                    <Icon size={20} color={isActive ? sel.textColor : '#475569'} strokeWidth={isActive ? 2.5 : 1.5} />
-                    <ThemedText style={[styles.iconCellLabel, { color: isActive ? sel.textColor : '#475569' }]}>
-                      {label}
-                    </ThemedText>
-                    {isActive && (
-                      <View style={[styles.iconActiveCheck, { backgroundColor: sel.border }]}>
-                        <Check size={8} color="#000" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+            <Text style={S.secLabel}>القدرة الخاصة (اختياري)</Text>
+            <TextInput
+              style={[S.input, S.multiline, { borderColor: sel.color + '33' }]}
+              placeholder="اكتب وصف القدرة..." placeholderTextColor="#444"
+              multiline value={description} onChangeText={setDescription}
+              textAlign="right"
+            />
 
-          {/* ─── INPUTS ─── */}
-          <View style={styles.section}>
-            <InputField label="English Name" value={nameEn} onChangeText={setNameEn} placeholder="e.g. Logical Encounter" textAlign="left" accentColor={sel.textColor} />
-            <InputField label="الاسم العربي" value={nameAr} onChangeText={setNameAr} placeholder="مثال: مصادفة منطقية" textAlign="right" accentColor={sel.textColor} />
-            <InputField label="الوصف / Description" value={description} onChangeText={setDescription} placeholder="وصف القدرة..." multiline textAlign="right" accentColor={sel.textColor} />
-            <InputField label="⚠️ تحذير / Warning" value={warning} onChangeText={setWarning} placeholder="تحذير أو ملاحظة اختيارية..." multiline textAlign="right" accentColor="#f87171" />
-          </View>
+            <Text style={S.secLabel}>⚠️ تحذير (اختياري)</Text>
+            <TextInput
+              style={[S.input, { borderColor: '#ef444433' }]}
+              placeholder="تحذير أو ملاحظة..." placeholderTextColor="#444"
+              value={warning} onChangeText={setWarning}
+              textAlign="right"
+            />
 
-          <View style={{ height: 120 }} />
-        </ScrollView>
+            <TouchableOpacity
+              style={[S.saveBtn, { backgroundColor: sel.color }]}
+              onPress={handleSave}
+            >
+              <Save size={18} color="#000" />
+              <Text style={S.saveBtnTxt}>حفظ القدرة</Text>
+            </TouchableOpacity>
+
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
-
-      {/* FOOTER */}
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelBtn}>
-          <ThemedText style={styles.cancelText}>إلغاء</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={[styles.saveBtn, { backgroundColor: sel.border, shadowColor: sel.glowColor }]}
-        >
-          <Save size={20} color="#000" />
-          <ThemedText style={styles.saveText}>حفظ القدرة</ThemedText>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
 
-// ─── Sub-components ───
-function RarityCard({ r, isSelected, onPress }: any) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[
-        styles.rarityCard,
-        {
-          borderColor: isSelected ? r.border : 'rgba(255,255,255,0.08)',
-          backgroundColor: isSelected ? r.gradient[1] + '40' : 'rgba(255,255,255,0.04)',
-          shadowColor: isSelected ? r.glowColor : 'transparent',
-          shadowRadius: isSelected ? 10 : 0, shadowOpacity: isSelected ? 1 : 0,
-          elevation: isSelected ? 6 : 0,
-        },
-      ]}
-    >
-      <View style={styles.rarityCardTop}>
-        <View style={[styles.rarityBadgePill, { backgroundColor: isSelected ? r.badgeBg : 'rgba(255,255,255,0.05)' }]}>
-          <ThemedText style={[styles.rarityBadgeText, { color: isSelected ? r.textColor : '#64748b' }]}>{r.id.toUpperCase()}</ThemedText>
-        </View>
-        {isSelected && (
-          <View style={[styles.checkCircle, { backgroundColor: r.badgeBg }]}>
-            <Check size={11} color={r.checkColor} />
-          </View>
-        )}
-      </View>
-      <ThemedText style={[styles.rarityLabelAr, { color: isSelected ? '#fff' : '#475569' }]}>{r.labelAr}</ThemedText>
-    </TouchableOpacity>
-  );
-}
+const S = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: '#060610' },
+  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  backBtn:     { width: 60 },
+  backTxt:     { color: '#6B7280', fontSize: 13, fontWeight: '700' },
+  pageTitle:   { color: '#FFD700', fontSize: 18, fontWeight: '900', textAlign: 'center', flex: 1 },
 
-function SpecialRarityCard({ r, isSelected, onPress }: any) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[
-        styles.specialCard,
-        {
-          borderColor: isSelected ? r.border : 'rgba(255,255,255,0.08)',
-          backgroundColor: isSelected ? 'rgba(232,121,249,0.08)' : 'rgba(255,255,255,0.03)',
-          shadowColor: isSelected ? r.glowColor : 'transparent',
-          shadowRadius: isSelected ? 18 : 0, shadowOpacity: isSelected ? 1 : 0,
-          elevation: isSelected ? 10 : 0,
-        },
-      ]}
-    >
-      <View style={styles.specialCardInner}>
-        <View style={styles.rarityCardTop}>
-          <View style={[styles.rarityBadgePill, { backgroundColor: isSelected ? r.badgeBg : 'rgba(255,255,255,0.05)' }]}>
-            <ThemedText style={[styles.rarityBadgeText, { color: isSelected ? r.textColor : '#64748b' }]}>SPECIAL</ThemedText>
-          </View>
-          {isSelected && (
-            <View style={[styles.checkCircle, { backgroundColor: r.badgeBg }]}>
-              <Check size={11} color={r.checkColor} />
-            </View>
-          )}
-        </View>
-        <ThemedText style={[styles.rarityLabelAr, { color: isSelected ? r.textColor : '#475569', fontSize: 15, letterSpacing: 1 }]}>{r.labelAr}</ThemedText>
-        {isSelected && <ThemedText style={styles.specialHint}>نادرة جداً — لا تظهر في اللعب الاعتيادي</ThemedText>}
-      </View>
-    </TouchableOpacity>
-  );
-}
+  columns:     { flex: 1, flexDirection: 'row' },
+  leftCol:     { width: 200, paddingHorizontal: 12, paddingTop: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.06)' },
+  rightCol:    { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
 
-function InputField({ label, value, onChangeText, placeholder, multiline = false, textAlign = 'left', accentColor }: any) {
-  return (
-    <View style={styles.inputGroup}>
-      <ThemedText style={[styles.inputLabel, { textAlign: textAlign === 'right' ? 'right' : 'left' }]}>{label}</ThemedText>
-      <View style={[styles.inputBox, multiline && { minHeight: 90 }]}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#475569"
-          multiline={multiline}
-          textAlignVertical={multiline ? 'top' : 'center'}
-          style={[styles.textInput, { textAlign: textAlign as any, color: accentColor || '#e2e8f0' }]}
-        />
-      </View>
-    </View>
-  );
-}
+  mediaRow:    { flexDirection: 'row', gap: 6, marginTop: 12, marginBottom: 4 },
+  mediaBtn:    { flex: 1, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  mediaBtnTxt: { fontSize: 12, fontWeight: '700' },
+  removeMedia: { alignSelf: 'center', paddingVertical: 4, marginBottom: 4 },
 
-// ─── Styles ───
-const styles = StyleSheet.create({
-  safeArea:    { flex: 1, backgroundColor: '#020617' },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(2,6,23,0.9)' },
-  backBtn:     { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20 },
-  section:     { marginBottom: 28 },
-  sectionLabel:{ fontSize: 12, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12, textAlign: 'right' },
+  chipCol:     { flexDirection: 'column', gap: 5, width: '100%', marginTop: 4 },
+  chip:        { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5, borderColor: '#2D3748', backgroundColor: 'rgba(255,255,255,0.03)', width: '100%', alignItems: 'center' },
+  chipTxt:     { color: '#6B7280', fontSize: 12, fontWeight: '700' },
 
-  // Rarity
-  rarityRow:       { flexDirection: 'row', gap: 10 },
-  rarityCard:      { flex: 1, minHeight: 80, borderRadius: 14, borderWidth: 1.5, padding: 12, justifyContent: 'space-between' },
-  rarityCardTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rarityBadgePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  rarityBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
-  checkCircle:     { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  rarityLabelAr:   { fontSize: 13, fontWeight: '600', marginTop: 8, textAlign: 'left' },
-  specialCard:     { flex: 1, borderRadius: 16, borderWidth: 2, padding: 16 },
-  specialCardInner:{ gap: 6 },
-  specialHint:     { fontSize: 10, color: '#94a3b8', marginTop: 4, textAlign: 'right' },
+  secLabel:    { color: '#9CA3AF', fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 5, textAlign: 'right' },
+  input:       { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderRadius: 10, color: '#fff', fontSize: 14, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 2 },
+  multiline:   { minHeight: 64, textAlignVertical: 'top' },
 
-  // Media
-  mediaPickerRow:    { flexDirection: 'row', gap: 10 },
-  mediaPickBox:      { flex: 1, borderWidth: 2, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 18, alignItems: 'center', gap: 6 },
-  mediaPickLabel:    { fontSize: 12, fontWeight: '700' },
-  mediaPickSub:      { fontSize: 9, color: 'rgba(255,255,255,0.3)' },
-  mediaPreviewWrapper: { alignItems: 'center', gap: 12 },
-  mediaPreview:      { width: '100%', height: 200, borderRadius: 16, borderWidth: 2 },
-  videoPlaceholder:  { width: '100%', height: 120, borderRadius: 16, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.03)' },
-  videoLabel:        { fontSize: 14, fontWeight: '700' },
-  videoSub:          { fontSize: 11, color: '#64748b' },
-  mediaActions:      { flexDirection: 'row', gap: 8, width: '100%' },
-  mediaActionBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
-  mediaActionText:   { fontSize: 11, fontWeight: '700' },
-  mediaRemoveBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1, backgroundColor: 'rgba(248,113,113,0.08)', borderColor: 'rgba(248,113,113,0.35)' },
-  mediaRemoveText:   { fontSize: 11, fontWeight: '700', color: '#f87171' },
+  iconHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)' },
+  iconHeaderTitle: { color: '#E2E8F0', fontSize: 13, fontWeight: '800' },
+  iconHeaderChevron: { color: '#6B7280', fontSize: 12, fontWeight: '700' },
+  iconsGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 6 },
 
-  // Icons grid
-  iconsGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  iconCell:        { width: 62, paddingVertical: 10, alignItems: 'center', gap: 4, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)' },
-  iconCellLabel:   { fontSize: 9, fontWeight: '600' },
-  iconActiveCheck: { position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-
-  // Inputs
-  inputGroup:  { marginBottom: 16 },
-  inputLabel:  { fontSize: 12, fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  inputBox:    { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
-  textInput:   { fontSize: 15, fontWeight: '500' },
-
-  // Footer
-  footer:      { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 28, backgroundColor: 'rgba(2,6,23,0.95)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
-  cancelBtn:   { flex: 1, height: 54, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
-  cancelText:  { color: '#94a3b8', fontWeight: '600', fontSize: 15 },
-  saveBtn:     { flex: 2, height: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 8 },
-  saveText:    { color: '#000', fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
+  saveBtn:     { marginTop: 20, borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  saveBtnTxt:  { color: '#000', fontWeight: '900', fontSize: 15 },
 });
