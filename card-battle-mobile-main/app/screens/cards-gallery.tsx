@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, TouchableOpacity, StyleSheet, ScrollView, Modal,
-  TextInput, Switch, Text as RNText, Image, Platform, Alert,
+  TextInput, Switch, Text as RNText, Image, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText as Text } from '@/components/ui/ThemedText';
@@ -590,6 +590,7 @@ export default function CardsGalleryScreen() {
   const [savedMap, setSavedMap] = useState<Record<string, Record<string, any>>>({});
   const [cards, setCards] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean })[]>([]);
   const [deletedBaseIds, setDeletedBaseIds] = useState<Set<string>>(new Set());
+  const [cardToDelete, setCardToDelete] = useState<(Card & { _isCustom?: boolean }) | null>(null);
   const [selectedCard, setSelectedCard] = useState<(Card & { customImage?: string; imageOffsetY?: number; fitInsideBorder?: boolean; isVideo?: boolean; _isCustom?: boolean }) | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [previewCard, setPreviewCard] = useState<any | null>(null);
@@ -727,52 +728,47 @@ export default function CardsGalleryScreen() {
     handleClose();
   };
 
-  const handleDelete = async (cardToDelete?: typeof selectedCard) => {
-    const card = cardToDelete || selectedCard;
-    if (!card) return;
-    const cardName = card.nameAr || card.name;
+  /** Open the delete confirmation modal */
+  const handleDelete = (card?: typeof selectedCard) => {
+    const target = card || selectedCard;
+    if (!target) return;
+    setCardToDelete(target);
+  };
 
-    Alert.alert(
-      'حذف البطاقة',
-      `هل أنت متأكد أنك تريد حذف هذا الكرت نهائياً من مجموعتك؟\n\n"${cardName}"`,
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: async () => {
-            const id = card.id;
-            const isCustom = card._isCustom === true;
+  /** Execute the actual deletion after user confirms */
+  const executeDelete = async () => {
+    if (!cardToDelete) return;
+    const id = cardToDelete.id;
+    const isCustom = cardToDelete._isCustom === true;
 
-            // 1. Delete custom card data if applicable
-            if (isCustom) {
-              await deleteCustomCard(id);
-            } else {
-              // For base cards, persist deletion via hidden IDs
-              const newDeleted = new Set(deletedBaseIds);
-              newDeleted.add(id);
-              setDeletedBaseIds(newDeleted);
-              await saveDeletedCardIds(newDeleted);
-            }
+    // 1. Delete custom card data if applicable
+    if (isCustom) {
+      await deleteCustomCard(id);
+    } else {
+      // For base cards, persist deletion via hidden IDs
+      const newDeleted = new Set(deletedBaseIds);
+      newDeleted.add(id);
+      setDeletedBaseIds(newDeleted);
+      await saveDeletedCardIds(newDeleted);
+    }
 
-            // 2. Remove custom image
-            await deleteImage(`card_img_${id}`);
+    // 2. Remove custom image
+    await deleteImage(`card_img_${id}`);
 
-            // 3. Clean up saved edits
-            const newMap = { ...savedMap };
-            delete newMap[id];
-            setSavedMap(newMap);
-            await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
+    // 3. Clean up saved edits
+    const newMap = { ...savedMap };
+    delete newMap[id];
+    setSavedMap(newMap);
+    await AsyncStorage.setItem(CARD_EDITS_KEY, JSON.stringify(newMap));
 
-            // 4. Remove from visible list
-            setCards(prev => prev.filter(c => c.id !== id));
+    // 4. Remove from visible list
+    setCards(prev => prev.filter(c => c.id !== id));
 
-            // 5. Close modal if open
-            if (selectedCard?.id === id) handleClose();
-          },
-        },
-      ]
-    );
+    // 5. Close edit modal if this card was open there
+    if (selectedCard?.id === id) handleClose();
+
+    // 6. Close confirmation modal
+    setCardToDelete(null);
   };
 
   const handleClose = () => { setSelectedCard(null); setEdits(null); setPreviewCard(null); };
@@ -1039,9 +1035,199 @@ export default function CardsGalleryScreen() {
           )}
         </View>
       </Modal>
+
+      {/* ─── Delete Confirmation Modal ─── */}
+      <Modal visible={!!cardToDelete} animationType="fade" transparent onRequestClose={() => setCardToDelete(null)}>
+        <View style={delModal.backdrop}>
+          <View style={delModal.container}>
+            {/* Glowing red top accent */}
+            <View style={delModal.topAccent} />
+
+            {/* Icon */}
+            <View style={delModal.iconWrap}>
+              <Trash2 size={28} color="#f87171" />
+            </View>
+
+            {/* Title */}
+            <RNText style={delModal.title}>حذف البطاقة</RNText>
+
+            {/* Card name */}
+            {cardToDelete && (
+              <RNText style={delModal.cardName}>
+                {cardToDelete.nameAr || cardToDelete.name}
+              </RNText>
+            )}
+
+            {/* Warning message */}
+            <RNText style={delModal.message}>
+              هل أنت متأكد أنك تريد حذف هذا الكرت نهائياً من مجموعتك؟
+            </RNText>
+            <RNText style={delModal.warning}>
+              ⚠️ هذا الإجراء لا يمكن التراجع عنه
+            </RNText>
+
+            {/* Divider */}
+            <View style={delModal.divider} />
+
+            {/* Action buttons */}
+            <View style={delModal.btnRow}>
+              <TouchableOpacity
+                style={delModal.cancelBtn}
+                onPress={() => setCardToDelete(null)}
+                activeOpacity={0.8}
+              >
+                <RNText style={delModal.cancelTxt}>إلغاء</RNText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={delModal.deleteBtn}
+                onPress={executeDelete}
+                activeOpacity={0.8}
+              >
+                <Trash2 size={14} color="#fff" />
+                <RNText style={delModal.deleteTxt}>حذف</RNText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
+
+// ─── Delete Confirmation Modal Styles ───
+const delModal = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    width: 320,
+    backgroundColor: '#1A1A24',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#2A2A35',
+    padding: 24,
+    alignItems: 'center',
+    // Subtle red outer glow
+    shadowColor: '#f87171',
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  topAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#ef4444',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(248,113,113,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#f87171',
+    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  cardName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  message: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+    writingDirection: 'rtl',
+    marginBottom: 6,
+  },
+  warning: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#f87171',
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: '100%',
+    marginVertical: 16,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#333340',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelTxt: {
+    color: '#94a3b8',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  deleteBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    backgroundColor: 'rgba(239,68,68,0.20)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    // Red glow on button
+    shadowColor: '#ef4444',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  deleteTxt: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+});
 
 const rp = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 4, flexWrap: 'wrap' },
