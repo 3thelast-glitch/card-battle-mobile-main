@@ -15,7 +15,7 @@ import { getAbilityNameAr } from '@/lib/game/ability-names';
 import type { AbilityType } from '@/lib/game/types';
 
 const ELEMENT_EMOJI: Record<string, string> = {
-  fire: '🔥', ice: '❌️', water: '💧',
+  fire: '🔥', ice: '❄️', water: '💧',
   earth: '🌍', lightning: '⚡', wind: '💨',
 };
 const ELEMENT_AR: Record<string, string> = {
@@ -80,11 +80,8 @@ export default function BattleResultsScreen() {
   const botHp       = state.botScore;
   const totalRounds = state.totalRounds;
 
-  // ── تحديد الفائز ──
-  // إذا وصل أحدهم صفر قبل الآخر
   const playerLostByHp = playerHp <= 0 && botHp > 0;
   const botLostByHp   = botHp   <= 0 && playerHp > 0;
-  // إذا انتهت الجولات: من عنده صحة أعلى
   const isPlayerWinner = botLostByHp  || (!playerLostByHp && playerHp > botHp);
   const isDraw         = !playerLostByHp && !botLostByHp && playerHp === botHp;
 
@@ -237,34 +234,31 @@ export default function BattleResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:    { paddingHorizontal: SPACE.lg, paddingTop: SPACE.xxl, paddingBottom: SPACE.xxl + SPACE.xl, gap: SPACE.xl },
-  heroBanner:   { ...GLASS_PANEL, alignItems: 'center', paddingVertical: SPACE.xxl, gap: SPACE.lg },
-  winnerBadge:  { alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.xxl, paddingVertical: SPACE.lg, borderRadius: RADIUS.xl, borderWidth: 1.5, width: '100%' },
-  heroEmoji:    { fontSize: 56 },
-  heroLabel:    { fontSize: FONT.hero + 4, letterSpacing: 1, textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6, textAlign: 'center' },
-  diffBadge:    { marginTop: SPACE.xs, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.xs, borderRadius: RADIUS.full, backgroundColor: 'rgba(74,222,128,0.12)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.3)' },
-  diffBadgeText:{ color: COLOR.green, fontSize: FONT.xs },
-  hpSection:    { width: '100%', gap: SPACE.md, paddingHorizontal: SPACE.sm },
-  statsRow:     { flexDirection: 'row', gap: SPACE.md },
-  panel:        { ...GLASS_PANEL, padding: SPACE.xl },
-  panelTitle:   { color: COLOR.gold, fontSize: FONT.lg, marginBottom: SPACE.md },
-  abilitiesBlock: { gap: SPACE.sm },
-  abilitiesWho: { fontSize: FONT.sm, marginBottom: 2 },
-  abilitiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm },
-  abilityChip:  { paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs, borderRadius: RADIUS.full, borderWidth: 1 },
+  container:       { paddingHorizontal: SPACE.lg, paddingTop: SPACE.xxl, paddingBottom: SPACE.xxl + SPACE.xl, gap: SPACE.xl },
+  heroBanner:      { ...GLASS_PANEL, alignItems: 'center', paddingVertical: SPACE.xxl, gap: SPACE.lg },
+  winnerBadge:     { alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.xxl, paddingVertical: SPACE.lg, borderRadius: RADIUS.lg, borderWidth: 1.5, width: '100%' },
+  heroEmoji:       { fontSize: 56 },
+  heroLabel:       { fontSize: FONT.hero + 4, letterSpacing: 1, textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6, textAlign: 'center' },
+  diffBadge:       { marginTop: SPACE.xs, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.xs, borderRadius: RADIUS.full, backgroundColor: 'rgba(74,222,128,0.12)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.3)' },
+  diffBadgeText:   { color: COLOR.green, fontSize: FONT.xs },
+  hpSection:       { width: '100%', gap: SPACE.md, paddingHorizontal: SPACE.sm },
+  statsRow:        { flexDirection: 'row', gap: SPACE.md },
+  panel:           { ...GLASS_PANEL, padding: SPACE.xl },
+  panelTitle:      { color: COLOR.gold, fontSize: FONT.lg, marginBottom: SPACE.md },
+  abilitiesBlock:  { gap: SPACE.sm },
+  abilitiesWho:    { fontSize: FONT.sm, marginBottom: 2 },
+  abilitiesRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm },
+  abilityChip:     { paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs, borderRadius: RADIUS.full, borderWidth: 1 },
   abilityChipText: { fontSize: FONT.xs },
-  roundRow:     { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, paddingLeft: SPACE.md, paddingVertical: SPACE.sm, marginBottom: SPACE.sm, gap: SPACE.md, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: RADIUS.sm },
-  roundLeft:    { minWidth: 72 },
-  roundNum:     { color: COLOR.textMuted, fontSize: FONT.xs },
-  roundWinner:  { fontSize: FONT.sm, marginTop: 2 },
-  roundCards:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
-  roundCard:    { flex: 1, color: COLOR.textPrimary, fontSize: FONT.xs, textAlign: 'center' },
-  roundVs:      { color: COLOR.textMuted, fontSize: FONT.xs },
-  roundRight:   { minWidth: 60, alignItems: 'flex-end' },
-  roundDmg:     { color: COLOR.textMuted, fontSize: FONT.xs },
-  actions:      { flexDirection: 'row', gap: SPACE.md },
-  actionBtn:    { flex: 1 },
+  roundRow:        { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, paddingLeft: SPACE.md, paddingVertical: SPACE.sm, marginBottom: SPACE.sm, gap: SPACE.md, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: RADIUS.sm },
+  roundLeft:       { minWidth: 72 },
+  roundNum:        { color: COLOR.textMuted, fontSize: FONT.xs },
+  roundWinner:     { fontSize: FONT.sm, marginTop: 2 },
+  roundCards:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  roundCard:       { flex: 1, color: COLOR.textPrimary, fontSize: FONT.xs, textAlign: 'center' },
+  roundVs:         { color: COLOR.textMuted, fontSize: FONT.xs },
+  roundRight:      { minWidth: 60, alignItems: 'flex-end' },
+  roundDmg:        { color: COLOR.textMuted, fontSize: FONT.xs },
+  actions:         { flexDirection: 'row', gap: SPACE.md },
+  actionBtn:       { flex: 1 },
 });
-
-// RADIUS fallback if not in design-tokens
-const RADIUS = { sm: 6, md: 10, xl: 16, full: 999 };
