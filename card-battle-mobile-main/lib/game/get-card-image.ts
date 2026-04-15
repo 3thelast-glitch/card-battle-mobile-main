@@ -2,16 +2,18 @@ import type { ImageSourcePropType } from 'react-native';
 import type { Card } from '@/lib/game/types';
 import { COMMON_IMAGES, COMMON_VIDEOS } from '@/assets/characters/common';
 import { RARE_IMAGES } from '@/assets/characters/rare';
-import { EPIC_IMAGES } from '@/assets/characters/epic';
+import { EPIC_IMAGES, EPIC_VIDEOS } from '@/assets/characters/epic';
 import { LEGENDARY_IMAGES, LEGENDARY_VIDEOS } from '@/assets/characters/legendary';
+import { SPECIAL_IMAGES, SPECIAL_VIDEOS } from '@/assets/characters/special';
 import { RAGE_IMAGES, RAGE_VIDEOS } from '@/assets/characters/rage';
 
 // ─── خرائط الفيديو لكل ندرة ──────────────────────────────────────────────────
 const VIDEO_MAPS: Record<string, Record<string, any>> = {
     common: COMMON_VIDEOS,
     // rare: RARE_VIDEOS,    // أضف لاحقاً عند الحاجة
-    // epic: EPIC_VIDEOS,
+    epic: EPIC_VIDEOS,
     legendary: LEGENDARY_VIDEOS,
+    special: SPECIAL_VIDEOS,
 };
 
 /**
@@ -59,6 +61,7 @@ export function getCardImage(
         rare: RARE_IMAGES,
         epic: EPIC_IMAGES,
         legendary: LEGENDARY_IMAGES,
+        special: SPECIAL_IMAGES,
     };
 
     const local = IMAGE_MAPS[rarity]?.[card.id];

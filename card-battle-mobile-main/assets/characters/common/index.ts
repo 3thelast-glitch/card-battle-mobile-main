@@ -1,4 +1,5 @@
 export const COMMON_IMAGES: Record<string, any> = {
+    hiking_bear: require('./Hiking_Bear.png'),
     yosaku: require('./yosaku.png'),
     johnny: require('./johnny.png'),
     nami: require('./nami.png'),

@@ -89,3 +89,8 @@ export const EPIC_IMAGES: Record<string, any> = {
     zero: require('./zero.png'),
     zodd: require('./zodd.png'),
 };
+
+/** فيديوهات الكروت الملحمية — mp4 */
+export const EPIC_VIDEOS: Record<string, any> = {
+    donquixote_doflamingo: require('./donquixote_doflamingo.mp4'),
+};
