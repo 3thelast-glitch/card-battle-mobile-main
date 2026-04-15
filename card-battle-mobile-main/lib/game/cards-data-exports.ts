@@ -25,7 +25,7 @@ import {
   ELEMENT_MULTIPLIER,
 } from './types';
 
-// ─── ALL_CARDS ─────────────────────────────────────────────────────────────────────────────
+// ─── ALL_CARDS ────────────────────────────────────────────────────────────────
 export const ALL_CARDS: Card[] = [
   ...CARDS_BATCH_1,
   ...CARDS_BATCH_2,
@@ -36,7 +36,7 @@ export const ALL_CARDS: Card[] = [
   ...ANIME_CARDS,
 ];
 
-// ─── getElementAdvantage ───────────────────────────────────────────────────────────
+// ─── getElementAdvantage ─────────────────────────────────────────────────────
 export function getElementAdvantage(
   attacker: Element,
   defender: Element,
@@ -48,16 +48,22 @@ export function getElementAdvantage(
   return 'neutral';
 }
 
-// ─── applyElementalReactions ─────────────────────────────────────────────────────────
+// ─── applyElementalReactions ─────────────────────────────────────────────────
 //
-// تُطبّق Buffs/Debuffs على نسخ مؤقتة من البطاقتين، لا تعدّل البيانات الأصلية.
-// التفاعلات الست:
-//   1. ماء ضد نار   → إخماد:    +4 hp للمهاجم، −۲ attack للمدافع
-//   2. برق ضد ماء   → صعق:     +3 attack للمهاجم، −۲ attack و −1 defense للمدافع
-//   3. برق ضد ريح   → شحن:     +2 attack للمهاجم، −۲ defense للمدافع
-//   4. أرض ضد برق   → تأريض:   +4 defense للمهاجم، −٣ attack للمدافع
-//   5. نار ضد أرض   → صهر الصخور: +2 attack للمهاجم، −٣ defense للمدافع
-//   6. ريح ضد أرض   → تعرية:    +3 attack للمهاجم، −۲ defense للمدافع
+// تُطبّق Buffs/Debuffs على نسخ مؤقتة — لا تعدّل البيانات الأصلية.
+//
+// جدول التفاعلات الكامل (7 تفاعلات):
+// ┌─────────────────────────────┬───────────────────────────────────────────┐
+// │ التفاعل                     │ التأثير                                   │
+// ├─────────────────────────────┼───────────────────────────────────────────┤
+// │ 1. ماء   ضد نار   (إخماد)  │ مهاجم: +4 hp    │ مدافع: −2 attack       │
+// │ 2. برق   ضد ماء   (صعق)    │ مهاجم: +3 atk   │ مدافع: −2 atk, −1 def  │
+// │ 3. برق   ضد ريح   (شحن)    │ مهاجم: +2 atk   │ مدافع: −2 def          │
+// │ 4. أرض   ضد برق  (تأريض)  │ مهاجم: +4 def   │ مدافع: −3 attack       │
+// │ 5. نار   ضد أرض  (صهر)    │ مهاجم: +2 atk   │ مدافع: −3 def          │
+// │ 6. ريح   ضد أرض  (تعرية)  │ مهاجم: +3 atk   │ مدافع: −2 def          │
+// │ 7. أرض   ضد ماء  (تجفيف)  │ مهاجم: +2 hp    │ مدافع: −2 def          │
+// └─────────────────────────────┴───────────────────────────────────────────┘
 //
 export function applyElementalReactions(
   attacker: { attack: number; defense: number; hp?: number; element: Element },
@@ -66,7 +72,7 @@ export function applyElementalReactions(
   const atk = attacker.element;
   const def = defender.element;
 
-  // ─ 1. ماء ضد نار (إخماد) ──────────────────────────────────────────────
+  // ─ 1. ماء ضد نار (إخماد) ────────────────────────────────────────────
   if (atk === 'water' && def === 'fire') {
     attacker.hp = (attacker.hp ?? 0) + 4;
     defender.attack = Math.max(1, defender.attack - 2);
@@ -76,7 +82,7 @@ export function applyElementalReactions(
   // ─ 2. برق ضد ماء (صعق) ──────────────────────────────────────────────
   if (atk === 'lightning' && def === 'water') {
     attacker.attack += 3;
-    defender.attack = Math.max(1, defender.attack - 2);
+    defender.attack  = Math.max(1, defender.attack  - 2);
     defender.defense = Math.max(0, defender.defense - 1);
     return;
   }
@@ -88,29 +94,36 @@ export function applyElementalReactions(
     return;
   }
 
-  // ─ 4. أرض ضد برق (تأريض) ───────────────────────────────────────────
+  // ─ 4. أرض ضد برق (تأريض) ────────────────────────────────────────────
   if (atk === 'earth' && def === 'lightning') {
     attacker.defense += 4;
     defender.attack = Math.max(1, defender.attack - 3);
     return;
   }
 
-  // ─ 5. نار ضد أرض (صهر الصخور) ──────────────────────────────────────
+  // ─ 5. نار ضد أرض (صهر الصخور) ───────────────────────────────────────
   if (atk === 'fire' && def === 'earth') {
     attacker.attack += 2;
     defender.defense = Math.max(0, defender.defense - 3);
     return;
   }
 
-  // ─ 6. ريح ضد أرض (تعرية) ────────────────────────────────────────────
+  // ─ 6. ريح ضد أرض (تعرية) ─────────────────────────────────────────────
   if (atk === 'wind' && def === 'earth') {
     attacker.attack += 3;
     defender.defense = Math.max(0, defender.defense - 2);
     return;
   }
+
+  // ─ 7. أرض ضد ماء (تجفيف) ─────────────────────────────────────────────
+  if (atk === 'earth' && def === 'water') {
+    attacker.hp      = (attacker.hp ?? 0) + 2;
+    defender.defense = Math.max(0, defender.defense - 2);
+    return;
+  }
 }
 
-// ─── determineRoundWinner ───────────────────────────────────────────────────────────
+// ─── determineRoundWinner ─────────────────────────────────────────────────────
 interface RoundWinnerResult {
   winner: 'player' | 'bot' | 'draw';
   playerDamage: number;
@@ -129,7 +142,7 @@ export function determineRoundWinner(
   _abilitiesEnabled = true,
 ): RoundWinnerResult {
   const playerAdv = getElementAdvantage(playerCard.element, botCard.element);
-  const botAdv    = getElementAdvantage(botCard.element, playerCard.element);
+  const botAdv    = getElementAdvantage(botCard.element,    playerCard.element);
 
   // ─ نسخ مؤقتة لتطبيق التفاعلات دون تعديل البيانات الأصلية
   const p = { attack: playerCard.attack, defense: playerCard.defense, hp: playerCard.hp, element: playerCard.element };
