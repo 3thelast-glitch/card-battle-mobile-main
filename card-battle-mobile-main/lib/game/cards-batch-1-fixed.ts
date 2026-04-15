@@ -155,16 +155,6 @@ export const CARDS_BATCH_1: Card[] = [
     animationPreset: 'default',
   },
   {
-    id: 'shiki',
-    name: 'Shiki',
-    nameAr: 'شيكي',
-    attack: 18, defense: 16,
-    race: 'human', cardClass: 'warrior', element: 'water',
-    tags: ["sword", "crown"],
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'default',
-  },
-  {
     id: 'roronoa_zoro',
     name: 'Roronoa Zoro',
     nameAr: 'رورونوا زورو',

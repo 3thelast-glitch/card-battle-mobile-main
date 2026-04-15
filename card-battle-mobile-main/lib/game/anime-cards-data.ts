@@ -170,16 +170,6 @@ export const ANIME_CARDS: Card[] = [
     animationPreset: 'fire',
   },
   {
-    id: 'shiki',
-    name: 'Shiki',
-    nameAr: 'شيكي',
-    attack: 18, defense: 16,
-    race: 'human', cardClass: 'warrior', element: 'lightning',
-    tags: ['sword', 'shield'], emoji: '⚔️',
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'lightning',
-  },
-  {
     id: 'roronoa_zoro',
     name: 'Roronoa Zoro',
     nameAr: 'رورونوا زورو',
@@ -508,16 +498,6 @@ export const ANIME_CARDS: Card[] = [
     animationPreset: 'default',
   },
   {
-    id: 'syn_shenron',
-    name: 'Syn Shenron',
-    nameAr: 'سين شينرون',
-    attack: 18, defense: 16,
-    race: 'dragon', cardClass: 'mage', element: 'fire',
-    tags: ['magic'], emoji: '🐉',
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'fire',
-  },
-  {
     id: 'trunks',
     name: 'Trunks',
     nameAr: 'ترانكس',
@@ -574,16 +554,6 @@ export const ANIME_CARDS: Card[] = [
     attack: 18, defense: 16,
     race: 'monster', cardClass: 'berserker', element: 'fire',
     tags: ['sword'], emoji: '👹',
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'fire',
-  },
-  {
-    id: 'omega_shenron',
-    name: 'Omega Shenron',
-    nameAr: 'أوميغا شينرون',
-    attack: 19, defense: 16,
-    race: 'dragon', cardClass: 'mage', element: 'fire',
-    tags: ['magic'], emoji: '🐉',
     rarity: 'legendary', stars: 5,
     animationPreset: 'fire',
   },
@@ -734,16 +704,6 @@ export const ANIME_CARDS: Card[] = [
     name: 'Gon Freecss',
     nameAr: 'غون فريكس',
     attack: 16, defense: 17,
-    race: 'human', cardClass: 'warrior', element: 'lightning',
-    tags: ['sword', 'shield'], emoji: '⚔️',
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'lightning',
-  },
-  {
-    id: 'killua_zoldyck',
-    name: 'Killua Zoldyck',
-    nameAr: 'كيلوا زولديك',
-    attack: 18, defense: 16,
     race: 'human', cardClass: 'warrior', element: 'lightning',
     tags: ['sword', 'shield'], emoji: '⚔️',
     rarity: 'legendary', stars: 5,
@@ -985,16 +945,6 @@ export const ANIME_CARDS: Card[] = [
   // ════════════════════════════════════════════════════
   // Death Note
   // ════════════════════════════════════════════════════
-  {
-    id: 'ryuk',
-    name: 'Ryuk',
-    nameAr: 'ريوك',
-    attack: 17, defense: 16,
-    race: 'demon', cardClass: 'berserker', element: 'ice',
-    tags: ['sword'], emoji: '😈',
-    rarity: 'legendary', stars: 5,
-    animationPreset: 'ice',
-  },
   {
     // ✅ بطاقة ميسا أمان — الفيديو مربوط تلقائياً عبر COMMON_VIDEOS
     id: 'misa_amane',
