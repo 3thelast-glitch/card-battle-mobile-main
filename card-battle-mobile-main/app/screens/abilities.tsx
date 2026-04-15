@@ -6,7 +6,7 @@ import {
 import { ThemedText } from '@/components/ui/ThemedText';
 import { AbilityCard } from '@/components/game/ability-card';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Save } from 'lucide-react-native';
+import { ArrowLeft, Save, Plus } from 'lucide-react-native';
 import * as AbilitiesData from '@/data/abilities';
 import {
   getDisabledAbilityIds,
@@ -15,7 +15,6 @@ import {
 
 type FilterType = 'All' | 'Common' | 'Rare' | 'Epic' | 'Legendary' | 'Special';
 
-// ─── إعدادات كل فلتر: اللون النشط + اسمه ─────────────────────────────────
 const FILTER_CONFIG: Record<
   FilterType,
   { labelAr: string; activeColor: string; activeBg: string; activeBorder: string }
@@ -111,6 +110,15 @@ export default function AbilitiesScreen() {
     setTimeout(() => setSaveText('حفظ التعديلات'), 2000);
   }, [disabledIds]);
 
+  // ─── فتح edit-ability بالندرة المختارة حالياً ───
+  const handleAddAbility = useCallback(() => {
+    const presetRarity = filter === 'All' ? 'Common' : filter;
+    router.push({
+      pathname: '/screens/edit-ability',
+      params: { presetRarity },
+    } as any);
+  }, [filter, router]);
+
   if (!loaded) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -122,6 +130,10 @@ export default function AbilitiesScreen() {
   }
 
   const activeConfig = FILTER_CONFIG[filter];
+  // لون زر الإضافة يتبع الندرة المختارة
+  const addBtnColor = filter === 'All' ? '#6366f1' : activeConfig.activeColor;
+  const addBtnBg   = filter === 'All' ? 'rgba(99,102,241,0.15)' : activeConfig.activeBg;
+  const addBtnBorder = filter === 'All' ? 'rgba(99,102,241,0.5)' : activeConfig.activeBorder;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -137,8 +149,15 @@ export default function AbilitiesScreen() {
           <ThemedText style={styles.backText}>رجوع</ThemedText>
         </TouchableOpacity>
 
-        {/* ─── Title ─── */}
+        {/* ─── Title + زر + ─── */}
         <View style={styles.titleContainer}>
+          {/* عداد الكروت */}
+          <View style={[styles.countBadge, { backgroundColor: activeConfig.activeBg, borderColor: activeConfig.activeBorder }]}>
+            <ThemedText style={[styles.countText, { color: activeConfig.activeColor }]}>
+              {filteredAbilities.length}
+            </ThemedText>
+          </View>
+
           <ThemedText
             style={[
               styles.title,
@@ -147,12 +166,25 @@ export default function AbilitiesScreen() {
           >
             القدرات
           </ThemedText>
-          {/* عداد الكروت الظاهرة */}
-          <View style={[styles.countBadge, { backgroundColor: activeConfig.activeBg, borderColor: activeConfig.activeBorder }]}>
-            <ThemedText style={[styles.countText, { color: activeConfig.activeColor }]}>
-              {filteredAbilities.length}
+
+          {/* ─── زر + إضافة قدرة ─── */}
+          <TouchableOpacity
+            onPress={handleAddAbility}
+            activeOpacity={0.75}
+            style={[
+              styles.addBtn,
+              {
+                backgroundColor: addBtnBg,
+                borderColor: addBtnBorder,
+                shadowColor: addBtnColor,
+              },
+            ]}
+          >
+            <Plus size={15} color={addBtnColor} strokeWidth={2.5} />
+            <ThemedText style={[styles.addBtnText, { color: addBtnColor }]}>
+              إضافة
             </ThemedText>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* ─── Filter Tabs ─── */}
@@ -177,7 +209,6 @@ export default function AbilitiesScreen() {
                     ? {
                         backgroundColor: cfg.activeBg,
                         borderColor: cfg.activeBorder,
-                        // توهج خفيف للندرة الخاصة
                         ...(isSpecial && {
                           shadowColor: cfg.activeColor,
                           shadowOpacity: 0.6,
@@ -188,21 +219,14 @@ export default function AbilitiesScreen() {
                     : styles.filterTabInactive,
                 ]}
               >
-                {/* نقطة لون بجانب النص */}
                 {isActive && (
-                  <View
-                    style={[
-                      styles.filterDot,
-                      { backgroundColor: cfg.activeColor },
-                    ]}
-                  />
+                  <View style={[styles.filterDot, { backgroundColor: cfg.activeColor }]} />
                 )}
                 <ThemedText
                   style={[
                     styles.filterLabel,
                     { color: isActive ? cfg.activeColor : 'rgba(255,255,255,0.45)' },
                     isActive && { fontWeight: '700' },
-                    // Special له حجم نص أكبر قليلاً
                     isSpecial && { letterSpacing: 0.5 },
                   ]}
                 >
@@ -214,12 +238,7 @@ export default function AbilitiesScreen() {
         </ScrollView>
 
         {/* ─── فاصل ─── */}
-        <View
-          style={[
-            styles.divider,
-            { backgroundColor: activeConfig.activeBorder },
-          ]}
-        />
+        <View style={[styles.divider, { backgroundColor: activeConfig.activeBorder }]} />
 
         {/* ─── Cards Grid ─── */}
         <ScrollView
@@ -245,11 +264,61 @@ export default function AbilitiesScreen() {
                   </TouchableOpacity>
                 );
               })}
+
+              {/* ─── بطاقة + إضافة داخل الغريد ─── */}
+              <TouchableOpacity
+                onPress={handleAddAbility}
+                activeOpacity={0.75}
+                style={[
+                  styles.addCardSlot,
+                  {
+                    borderColor: addBtnBorder,
+                    backgroundColor: addBtnBg,
+                    shadowColor: addBtnColor,
+                  },
+                ]}
+              >
+                <View style={[
+                  styles.addCardIcon,
+                  { backgroundColor: addBtnBg, borderColor: addBtnBorder },
+                ]}>
+                  <Plus size={28} color={addBtnColor} strokeWidth={2} />
+                </View>
+                <ThemedText style={[styles.addCardLabel, { color: addBtnColor }]}>
+                  كرت جديد
+                </ThemedText>
+                <ThemedText style={styles.addCardSub}>
+                  أضف قدرة {filter !== 'All' ? FILTER_CONFIG[filter].labelAr : ''}
+                </ThemedText>
+              </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <ThemedText style={styles.emptyText}>لا توجد قدرات في هذا القسم</ThemedText>
-            </View>
+            /* ─── حالة فارغة: تعرض بطاقة إضافة كبيرة ─── */
+            <TouchableOpacity
+              onPress={handleAddAbility}
+              activeOpacity={0.75}
+              style={[
+                styles.emptyAddCard,
+                {
+                  borderColor: addBtnBorder,
+                  backgroundColor: addBtnBg,
+                  shadowColor: addBtnColor,
+                },
+              ]}
+            >
+              <View style={[
+                styles.addCardIcon,
+                { backgroundColor: addBtnBg, borderColor: addBtnBorder, width: 64, height: 64, borderRadius: 32 },
+              ]}>
+                <Plus size={34} color={addBtnColor} strokeWidth={2} />
+              </View>
+              <ThemedText style={[styles.addCardLabel, { color: addBtnColor, fontSize: 18, marginTop: 14 }]}>
+                أضف أول قدرة
+              </ThemedText>
+              <ThemedText style={[styles.addCardSub, { marginTop: 6 }]}>
+                لا توجد قدرات في هذا القسم — اضغط لإضافة واحدة
+              </ThemedText>
+            </TouchableOpacity>
           )}
         </ScrollView>
 
@@ -273,15 +342,11 @@ export default function AbilitiesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#020617',
-  },
+  safeArea: { flex: 1, backgroundColor: '#020617' },
 
   backBtn: {
     position: 'absolute',
-    top: 24,
-    left: 0,
+    top: 24, left: 0,
     zIndex: 50,
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,11 +358,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  backText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  backText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   titleContainer: {
     marginTop: 72,
@@ -305,10 +366,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
   },
   title: {
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: '900',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 16,
@@ -321,10 +382,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  countText: {
-    fontSize: 13,
-    fontWeight: '800',
+  countText: { fontSize: 13, fontWeight: '800' },
+
+  // ─── زر + إضافة في الهيدر
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 5,
   },
+  addBtnText: { fontSize: 13, fontWeight: '700' },
 
   filterScroll: {
     paddingHorizontal: 4,
@@ -346,15 +420,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  filterDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  filterLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
+  filterDot: { width: 6, height: 6, borderRadius: 3 },
+  filterLabel: { fontSize: 13, fontWeight: '500' },
 
   divider: {
     height: 1.5,
@@ -364,10 +431,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
 
-  grid: {
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
+  grid: { alignItems: 'center', paddingBottom: 100 },
   cardsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -375,27 +439,62 @@ const styles = StyleSheet.create({
     gap: 16,
     width: '100%',
   },
-  cardSlot: {
+  cardSlot: { width: 220, height: 330 },
+
+  // ─── بطاقة + داخل الغريد
+  addCardSlot: {
     width: 220,
     height: 330,
-  },
-
-  emptyState: {
-    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
+    gap: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
-  emptyText: {
-    fontSize: 17,
+  addCardIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCardLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  addCardSub: {
+    fontSize: 11,
     color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+
+  // ─── بطاقة + كبيرة عند القسم الفارغ
+  emptyAddCard: {
+    width: 280,
+    height: 280,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
 
   saveBtn: {
     position: 'absolute',
-    bottom: 32,
-    right: 0,
+    bottom: 32, right: 0,
     zIndex: 50,
     flexDirection: 'row',
     alignItems: 'center',
@@ -409,9 +508,5 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
   },
-  saveBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
