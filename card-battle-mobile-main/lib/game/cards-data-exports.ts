@@ -2,9 +2,10 @@
  * cards-data-exports.ts
  *
  * يُوفّر exports مطلوبة من ملفات أخرى:
- *   - ALL_CARDS            ← bot-ai.ts
- *   - getElementAdvantage  ← bot-ai.ts
- *   - determineRoundWinner ← game-context.tsx
+ *   - ALL_CARDS                 ← bot-ai.ts
+ *   - getElementAdvantage       ← bot-ai.ts
+ *   - applyElementalReactions   ← منطق المعركة (داخلي)
+ *   - determineRoundWinner      ← game-context.tsx
  */
 
 import { CARDS_BATCH_1 } from './cards-batch-1-fixed';
@@ -24,7 +25,7 @@ import {
   ELEMENT_MULTIPLIER,
 } from './types';
 
-// ─── ALL_CARDS ────────────────────────────────────────────────────────────────
+// ─── ALL_CARDS ─────────────────────────────────────────────────────────────────────────────
 export const ALL_CARDS: Card[] = [
   ...CARDS_BATCH_1,
   ...CARDS_BATCH_2,
@@ -35,7 +36,7 @@ export const ALL_CARDS: Card[] = [
   ...ANIME_CARDS,
 ];
 
-// ─── getElementAdvantage ─────────────────────────────────────────────────────
+// ─── getElementAdvantage ───────────────────────────────────────────────────────────
 export function getElementAdvantage(
   attacker: Element,
   defender: Element,
@@ -47,7 +48,69 @@ export function getElementAdvantage(
   return 'neutral';
 }
 
-// ─── determineRoundWinner ─────────────────────────────────────────────────────
+// ─── applyElementalReactions ─────────────────────────────────────────────────────────
+//
+// تُطبّق Buffs/Debuffs على نسخ مؤقتة من البطاقتين، لا تعدّل البيانات الأصلية.
+// التفاعلات الست:
+//   1. ماء ضد نار   → إخماد:    +4 hp للمهاجم، −۲ attack للمدافع
+//   2. برق ضد ماء   → صعق:     +3 attack للمهاجم، −۲ attack و −1 defense للمدافع
+//   3. برق ضد ريح   → شحن:     +2 attack للمهاجم، −۲ defense للمدافع
+//   4. أرض ضد برق   → تأريض:   +4 defense للمهاجم، −٣ attack للمدافع
+//   5. نار ضد أرض   → صهر الصخور: +2 attack للمهاجم، −٣ defense للمدافع
+//   6. ريح ضد أرض   → تعرية:    +3 attack للمهاجم، −۲ defense للمدافع
+//
+export function applyElementalReactions(
+  attacker: { attack: number; defense: number; hp?: number; element: Element },
+  defender: { attack: number; defense: number; hp?: number; element: Element },
+): void {
+  const atk = attacker.element;
+  const def = defender.element;
+
+  // ─ 1. ماء ضد نار (إخماد) ──────────────────────────────────────────────
+  if (atk === 'water' && def === 'fire') {
+    attacker.hp = (attacker.hp ?? 0) + 4;
+    defender.attack = Math.max(1, defender.attack - 2);
+    return;
+  }
+
+  // ─ 2. برق ضد ماء (صعق) ──────────────────────────────────────────────
+  if (atk === 'lightning' && def === 'water') {
+    attacker.attack += 3;
+    defender.attack = Math.max(1, defender.attack - 2);
+    defender.defense = Math.max(0, defender.defense - 1);
+    return;
+  }
+
+  // ─ 3. برق ضد ريح (شحن) ──────────────────────────────────────────────
+  if (atk === 'lightning' && def === 'wind') {
+    attacker.attack += 2;
+    defender.defense = Math.max(0, defender.defense - 2);
+    return;
+  }
+
+  // ─ 4. أرض ضد برق (تأريض) ───────────────────────────────────────────
+  if (atk === 'earth' && def === 'lightning') {
+    attacker.defense += 4;
+    defender.attack = Math.max(1, defender.attack - 3);
+    return;
+  }
+
+  // ─ 5. نار ضد أرض (صهر الصخور) ──────────────────────────────────────
+  if (atk === 'fire' && def === 'earth') {
+    attacker.attack += 2;
+    defender.defense = Math.max(0, defender.defense - 3);
+    return;
+  }
+
+  // ─ 6. ريح ضد أرض (تعرية) ────────────────────────────────────────────
+  if (atk === 'wind' && def === 'earth') {
+    attacker.attack += 3;
+    defender.defense = Math.max(0, defender.defense - 2);
+    return;
+  }
+}
+
+// ─── determineRoundWinner ───────────────────────────────────────────────────────────
 interface RoundWinnerResult {
   winner: 'player' | 'bot' | 'draw';
   playerDamage: number;
@@ -66,41 +129,49 @@ export function determineRoundWinner(
   _abilitiesEnabled = true,
 ): RoundWinnerResult {
   const playerAdv = getElementAdvantage(playerCard.element, botCard.element);
-  const botAdv = getElementAdvantage(botCard.element, playerCard.element);
+  const botAdv    = getElementAdvantage(botCard.element, playerCard.element);
 
-  let playerAtk = playerCard.attack;
-  let playerDef = playerCard.defense;
-  let botAtk = botCard.attack;
-  let botDef = botCard.defense;
+  // ─ نسخ مؤقتة لتطبيق التفاعلات دون تعديل البيانات الأصلية
+  const p = { attack: playerCard.attack, defense: playerCard.defense, hp: playerCard.hp, element: playerCard.element };
+  const b = { attack: botCard.attack,    defense: botCard.defense,    hp: botCard.hp,    element: botCard.element };
 
+  applyElementalReactions(p, b); // تفاعل لاعب على بوت
+  applyElementalReactions(b, p); // تفاعل بوت على لاعب
+
+  let playerAtk = p.attack;
+  let playerDef = p.defense;
+  let botAtk    = b.attack;
+  let botDef    = b.defense;
+
+  // ─ تطبيق تأثيرات القدرات
   for (const e of playerEffects) {
     if (e.kind === 'statModifier') {
       const d = e.data as { stat?: string; amount?: number } | undefined;
-      if (d?.stat === 'attack') playerAtk = Math.max(0, playerAtk + (d.amount ?? 0));
+      if (d?.stat === 'attack')  playerAtk = Math.max(0, playerAtk + (d.amount ?? 0));
       if (d?.stat === 'defense') playerDef = Math.max(0, playerDef + (d.amount ?? 0));
     }
   }
   for (const e of botEffects) {
     if (e.kind === 'statModifier') {
       const d = e.data as { stat?: string; amount?: number } | undefined;
-      if (d?.stat === 'attack') botAtk = Math.max(0, botAtk + (d.amount ?? 0));
+      if (d?.stat === 'attack')  botAtk = Math.max(0, botAtk + (d.amount ?? 0));
       if (d?.stat === 'defense') botDef = Math.max(0, botDef + (d.amount ?? 0));
     }
   }
 
   const playerRaw = playerAtk * ELEMENT_MULTIPLIER[playerAdv];
-  const botRaw = botAtk * ELEMENT_MULTIPLIER[botAdv];
+  const botRaw    = botAtk    * ELEMENT_MULTIPLIER[botAdv];
 
   const playerBaseDamage = Math.max(0, Math.floor(playerRaw));
-  const botBaseDamage = Math.max(0, Math.floor(botRaw));
+  const botBaseDamage    = Math.max(0, Math.floor(botRaw));
 
   const playerDamage = Math.max(0, Math.floor(playerRaw - botDef));
-  const botDamage = Math.max(0, Math.floor(botRaw - playerDef));
+  const botDamage    = Math.max(0, Math.floor(botRaw    - playerDef));
 
   let winner: 'player' | 'bot' | 'draw';
-  if (playerDamage > botDamage) winner = 'player';
+  if      (playerDamage > botDamage) winner = 'player';
   else if (botDamage > playerDamage) winner = 'bot';
-  else winner = 'draw';
+  else                               winner = 'draw';
 
   return {
     winner,
@@ -109,6 +180,6 @@ export function determineRoundWinner(
     playerBaseDamage,
     botBaseDamage,
     playerElementAdvantage: playerAdv,
-    botElementAdvantage: botAdv,
+    botElementAdvantage:    botAdv,
   };
 }
