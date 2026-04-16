@@ -3,6 +3,7 @@
  * ✨ MetaStrip: sits BETWEEN attack & defense badges (same row)
  * ✨ Chips = icon only, no background, no border — pure clean icons
  * ✨ Element has NO visual effect on card colors — rarity theme only
+ * ✨ StatBadge shows effective value with ▲/▼ diff indicator when buffs/debuffs active
  */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle } from 'react-native';
@@ -25,6 +26,10 @@ interface Props {
     imageOffsetY?: number;
     fitInsideBorder?: boolean;
     isOpenedView?: boolean;
+    /** القيمة الفعلية للهجوم بعد تطبيق التأثيرات (Buffs/Debuffs). إذا لم تُمرَّر يُستخدم card.attack */
+    effectiveAttack?: number;
+    /** القيمة الفعلية للدفاع بعد تطبيق التأثيرات (Buffs/Debuffs). إذا لم تُمرَّر يُستخدم card.defense */
+    effectiveDefense?: number;
 }
 
 function isVideoUri(uri: string): boolean {
@@ -160,7 +165,6 @@ const RarityShimmer = ({ cardW, foilDuration, color }: { cardW: number; foilDura
         return () => cancelAnimation(x);
     }, [cardW, foilDuration]);
     const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-    // parse hex color for shimmer tints
     const r = parseInt(color.slice(1,3),16);
     const g = parseInt(color.slice(3,5),16);
     const b = parseInt(color.slice(5,7),16);
@@ -209,14 +213,49 @@ const LegendaryParticles = ({ color }: { color: string }) => (
 );
 
 // ─────────────────────────────────────────────
-// StatBadge
+// StatBadge — يدعم إظهار الفرق ▲/▼ عند وجود تأثيرات
 // ─────────────────────────────────────────────
-const StatBadge = ({ icon, value, isAttack, fs }: { icon:string;value:number;isAttack:boolean;fs:number }) => (
-    <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
-        <Text style={{ fontSize: fs + 1 }}>{icon}</Text>
-        <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>{value}</Text>
-    </View>
-);
+const StatBadge = ({
+    icon, value, effectiveValue, isAttack, fs
+}: {
+    icon: string;
+    value: number;
+    effectiveValue: number;
+    isAttack: boolean;
+    fs: number;
+}) => {
+    const diff = effectiveValue - value;
+    const isModified = diff !== 0;
+    const diffColor = diff > 0 ? '#4ade80' : '#f87171';
+
+    return (
+        <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
+            <Text style={{ fontSize: fs + 1 }}>{icon}</Text>
+            {isModified ? (
+                <>
+                    <Text style={[
+                        styles.statValue,
+                        { fontSize: fs - 1 },
+                        isAttack ? styles.attackText : styles.defenseText,
+                        styles.struckValue,
+                    ]}>
+                        {value}
+                    </Text>
+                    <Text style={[styles.statValue, { fontSize: fs, color: diffColor, fontWeight: '900' }]}>
+                        {effectiveValue}
+                    </Text>
+                    <Text style={{ fontSize: fs - 3, color: diffColor, fontWeight: '700', lineHeight: fs }}>
+                        {diff > 0 ? `▲+${diff}` : `▼${diff}`}
+                    </Text>
+                </>
+            ) : (
+                <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>
+                    {value}
+                </Text>
+            )}
+        </View>
+    );
+};
 
 // ─────────────────────────────────────────────
 // ElvenCorner
@@ -390,13 +429,19 @@ const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, 
 // ─────────────────────────────────────────────
 // ✨✨ MAIN EXPORT ✨✨
 // ─────────────────────────────────────────────
-export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitInsideBorder=false, isOpenedView=false }: Props) {
+export function LuxuryCharacterCardAnimated({
+    card, style, imageOffsetY=0, fitInsideBorder=false, isOpenedView=false,
+    effectiveAttack, effectiveDefense,
+}: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity] ?? RARITY_THEMES.common;
     const hasAbility = !!card.specialAbility;
     const stars = card.stars ?? 0;
 
-    // ── Element has NO effect on colors — rarity only ──
+    // القيم المعروضة — إذا لم تُمرَّر effectiveAttack/effectiveDefense نستخدم القيم الأصلية
+    const displayAttack  = effectiveAttack  ?? card.attack;
+    const displayDefense = effectiveDefense ?? card.defense;
+
     const themeColor   = theme.color;
     const themeBorder  = theme.borderColor;
 
@@ -440,7 +485,6 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
     const specialRarityBadgeBg = rarity==='special'?'rgba(0,0,0,0.85)':rarity==='legendary'?'rgba(30,20,0,0.75)':rarity==='epic'?'rgba(20,0,30,0.75)':'rgba(0,0,0,0.65)';
     const isLegendary = rarity==='legendary';
 
-    // bottom gradient — neutral dark only, no element tint
     const bottomGradient: [string,string,string,string] = rarity==='special'
         ? ['rgba(0,0,0,0.2)','transparent','rgba(0,0,0,0.7)','rgba(0,0,0,0.97)']
         : ['transparent','transparent','rgba(0,0,0,0.55)','rgba(0,0,0,0.94)'];
@@ -522,9 +566,9 @@ export function LuxuryCharacterCardAnimated({ card, style, imageOffsetY=0, fitIn
 
                     {/* Stats row: [ ⚔️ 18 ] [ icons ] [ 🛡️ 16 ] */}
                     <View style={[styles.statsRow,{bottom:statsBottom,paddingHorizontal:Math.max(6,14*scW)}]}>
-                        <StatBadge icon="⚔️" value={card.attack}  isAttack={true}  fs={statFs} />
+                        <StatBadge icon="⚔️" value={card.attack}  effectiveValue={displayAttack}  isAttack={true}  fs={statFs} />
                         <MetaStrip card={card} sc={sc} />
-                        <StatBadge icon="🛡️" value={card.defense} isAttack={false} fs={statFs} />
+                        <StatBadge icon="🛡️" value={card.defense} effectiveValue={displayDefense} isAttack={false} fs={statFs} />
                     </View>
                 </View>
             </View>
@@ -580,6 +624,7 @@ const styles = StyleSheet.create({
     statValue:    { fontWeight:'800', letterSpacing:0.3 },
     attackText:   { color:'#FFB830' },
     defenseText:  { color:'#60A5FA' },
+    struckValue:  { textDecorationLine:'line-through', opacity:0.45 },
 
     particle:        { position:'absolute', width:5, height:5, borderRadius:3 },
     smokeBlob:       { position:'absolute', zIndex:3 },
