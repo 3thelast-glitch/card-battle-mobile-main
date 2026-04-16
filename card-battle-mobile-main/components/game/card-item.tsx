@@ -1,18 +1,8 @@
 /**
  * Enhanced CardItem — Rarity-driven design with 60fps animations.
  *
- * Features:
- *  - Rarity gradients (Common/Rare/Epic/Legendary)
- *  - Glowing border + 3D shadow per rarity
- *  - Pulsing glow ring for Epic & Legendary
- *  - Fire particle overlay for Legendary
- *  - Tap: scale(1.05) + rotate(2°) spring bounce
- *  - Summon entrance: slide-up + peak scale
- *  - Stats overlay: attack (with buff/debuff ▲▼), defense, hp
- *  - Rarity badge pill (top-right)
- *  - Gradient placeholder when no image available
- *  - Video support with sound (videoUrl) via expo-video
- *  - ✨ Live buff/debuff display via activeEffects + cardSide props
+ * ✅ Fix: reads activeEffects directly from GameContext (useGame)
+ *    so buff/debuff display updates live without manual prop passing.
  */
 
 import React, { useEffect } from 'react';
@@ -27,7 +17,7 @@ import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Card, Effect, Side } from '@/lib/game/types';
+import { Card, Side } from '@/lib/game/types';
 import { getRarityConfig } from '@/lib/game/card-rarity';
 import { CARD_DIMENSIONS, CARD_SHADOW } from '@/constants/game-config';
 import { useCardTapAnimation, useCardSummonAnimation } from '@/lib/animations';
@@ -35,7 +25,7 @@ import { RarityGlow } from './rarity-glow';
 import { FireParticles } from '@/lib/particles';
 import { getCardImage } from '@/lib/game/get-card-image';
 import { getEffectiveStats } from '@/lib/game/ui-helpers';
-import type { CardRarity } from '@/lib/game/types';
+import { useGame } from '@/lib/game/game-context';
 
 // ─── Placeholder colors per rarity ───────────────────────────────────────────
 const PLACEHOLDER_COLORS: Record<string, readonly [string, string, string]> = {
@@ -73,35 +63,24 @@ const SIZE_PRESETS = {
 // ─── Props ───────────────────────────────────────────────────────────────────
 interface CardItemProps {
   card: Card;
+  /**
+   * جانب الكارت — يحدد أي التأثيرات تسري عليه.
+   * ‘player’ = كارت اللاعب، ‘bot’ = كارت البوت.
+   */
+  cardSide?: Side;
   isSelected?: boolean;
   size?: keyof typeof SIZE_PRESETS;
-  /** Play the summon entrance animation on mount */
   playEntranceAnimation?: boolean;
-  /** Delay (ms) before summon animation starts */
   entranceDelay?: number;
   onPress?: () => void;
   style?: ViewStyle;
-  /** Disable tap interaction (e.g. display-only) */
   disabled?: boolean;
-  /** Show attack / defense / hp stats overlay */
   showStats?: boolean;
-  /** Absolute width override (ignoring size preset) */
   customWidth?: number;
-  /** Absolute height override (ignoring size preset) */
   customHeight?: number;
-  /**
-   * ✨ التأثيرات النشطة في الجولة الحالية.
-   * إذا مُرِّرت، تُحسب القيم الفعلية للهجوم والدفاع وتُعرَض مع مؤشر ▲/▼.
-   */
-  activeEffects?: Effect[];
-  /**
-   * ✨ جانب الكارت ('player' | 'bot') — مطلوب مع activeEffects.
-   * يُحدِّد أي التأثيرات تنطبق على هذا الكارت.
-   */
-  cardSide?: Side;
 }
 
-// ─── VideoCard sub-component (expo-video) ────────────────────────────────────
+// ─── VideoCard sub-component ───────────────────────────────────────────────────
 function VideoCard({ source, style }: { source: any; style: object }) {
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
@@ -121,6 +100,7 @@ function VideoCard({ source, style }: { source: any; style: object }) {
 // ─── Component ───────────────────────────────────────────────────────────────
 export function CardItem({
   card,
+  cardSide = 'player',
   isSelected = false,
   size = 'medium',
   playEntranceAnimation = false,
@@ -131,26 +111,27 @@ export function CardItem({
   showStats = true,
   customWidth,
   customHeight,
-  activeEffects,
-  cardSide = 'player',
 }: CardItemProps) {
-  const preset = SIZE_PRESETS[size];
-  const rarity = (card.rarity ?? 'common') as string;
+  const preset    = SIZE_PRESETS[size];
+  const rarity    = (card.rarity ?? 'common') as string;
   const rarityCfg = getRarityConfig(rarity);
+  const width     = customWidth  ?? preset.width;
+  const height    = customHeight ?? preset.height;
 
-  const width  = customWidth  ?? preset.width;
-  const height = customHeight ?? preset.height;
+  // ✅ قراءة activeEffects مباشرةً من الـ context — يتحدّث فوريًا عند أي تغيير
+  const { state } = useGame();
+  const activeEffects = state.activeEffects;
 
   // ── حساب القيم الفعلية بعد تطبيق التأثيرات ──────────────────────────────
   const { attack: effectiveAttack, defense: effectiveDefense } =
-    activeEffects && activeEffects.length > 0
+    activeEffects.length > 0
       ? getEffectiveStats(card.attack, card.defense, activeEffects, cardSide)
       : { attack: card.attack, defense: card.defense };
 
   // ── Resolve image / video ──────────────────────────────────────────────────
-  const cardImage = getCardImage(card);
-  const hasVideo  = !!(card as any).videoUrl;
-  const hasImage  = !hasVideo && !!cardImage;
+  const cardImage         = getCardImage(card);
+  const hasVideo          = !!(card as any).videoUrl;
+  const hasImage          = !hasVideo && !!cardImage;
   const placeholderColors = PLACEHOLDER_COLORS[rarity] ?? PLACEHOLDER_COLORS.common;
 
   // ── Animations ──────────────────────────────────────────────────────────────
@@ -164,7 +145,6 @@ export function CardItem({
     }
   }, [playEntranceAnimation, card.id]);
 
-  // ── Outer shadow driven by rarity ──
   const cardShadow: ViewStyle = {
     shadowColor:   rarityCfg.glowColor ?? CARD_SHADOW.shadowColor,
     shadowOffset:  CARD_SHADOW.shadowOffset,
@@ -188,7 +168,6 @@ export function CardItem({
         style,
       ]}
     >
-      {/* Pulsing glow ring for Epic / Legendary */}
       {rarityCfg.hasPulsingGlow && (
         <RarityGlow
           color={rarityCfg.glowColor!}
@@ -208,12 +187,10 @@ export function CardItem({
       >
         <Animated.View style={[styles.card, { width, height }, borderStyle]}>
 
-          {/* Background gradient via layered Views */}
           <View style={[styles.gradientBg, { backgroundColor: rarityCfg.gradient[0] }]} />
           <View style={[styles.gradientMid, { backgroundColor: rarityCfg.gradient[1], opacity: 0.75 }]} />
           <View style={[styles.gradientTop, { backgroundColor: rarityCfg.gradient[2], opacity: 0.4 }]} />
 
-          {/* Card Art — Video, Image, or Placeholder */}
           {hasVideo ? (
             <VideoCard source={(card as any).videoUrl} style={styles.image} />
           ) : hasImage ? (
@@ -239,13 +216,12 @@ export function CardItem({
             </>
           )}
 
-          {/* Tap animated layer */}
           <Animated.View
             style={[StyleSheet.absoluteFillObject, tap.animatedStyle]}
             pointerEvents="none"
           />
 
-          {/* ✨ Stats overlay — يعرض القيم الفعلية مع ▲▼ عند وجود تأثيرات */}
+          {/* ✅ Stats — تعرض القيم الفعلية مع ▲▼ تلقائيًا */}
           {showStats && (
             <View style={styles.statsOverlay}>
               <View style={styles.statsRow}>
@@ -262,30 +238,24 @@ export function CardItem({
                   size={preset.statFontSize}
                 />
               </View>
-              <Text
-                style={[styles.cardName, { fontSize: preset.nameFontSize }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.cardName, { fontSize: preset.nameFontSize }]} numberOfLines={1}>
                 {card.nameAr}
               </Text>
             </View>
           )}
 
-          {/* Element pill (top-left) */}
           <View style={styles.elementBadge}>
             <Text style={[styles.elementEmoji, { fontSize: preset.badgeFontSize + 2 }]}>
               {card.emoji}
             </Text>
           </View>
 
-          {/* Rarity badge (top-right) */}
           <View style={[styles.rarityBadge, { backgroundColor: rarityCfg.badgeColor }]}>
             <Text style={[styles.rarityText, { fontSize: preset.badgeFontSize }]}>
               {rarity.charAt(0).toUpperCase()}
             </Text>
           </View>
 
-          {/* CardEffect icons */}
           {card.cardEffects && card.cardEffects.length > 0 && (
             <View style={styles.effectsRow}>
               {card.cardEffects.slice(0, 3).map((effect) => (
@@ -296,12 +266,10 @@ export function CardItem({
             </View>
           )}
 
-          {/* Selected highlight */}
           {isSelected && <View style={styles.selectedOverlay} />}
         </Animated.View>
       </Pressable>
 
-      {/* Fire particles for Legendary */}
       {rarityCfg.hasParticles && !disabled && (
         <View
           style={[StyleSheet.absoluteFillObject, { borderRadius: 14, overflow: 'hidden' }]}
@@ -314,38 +282,23 @@ export function CardItem({
   );
 }
 
-// ─── StatBadge ✨ ─────────────────────────────────────────────────────────────
-// يعرض القيمة العادية إذا لا يوجد تغيير.
-// يعرض: [~~base~~] [effective ▲+N / ▼-N] إذا يوجد buff أو debuff.
-function StatBadge({
-  icon,
-  base,
-  effective,
-  size,
-}: {
+// ─── StatBadge ─────────────────────────────────────────────────────────────
+function StatBadge({ icon, base, effective, size }: {
   icon: string;
   base: number;
   effective: number;
   size: number;
 }) {
-  const diff = effective - base;
+  const diff       = effective - base;
   const isModified = diff !== 0;
-  const diffColor = diff > 0 ? '#4ade80' : '#f87171'; // أخضر للـ buff / أحمر للـ debuff
+  const diffColor  = diff > 0 ? '#4ade80' : '#f87171';
 
   return (
     <View style={styles.statBadge}>
       <Text style={[styles.statIcon, { fontSize: size }]}>{icon}</Text>
-
       {isModified ? (
-        // ── حالة التأثير: قيمة أصلية مشطوبة + قيمة فعلية + مؤشر ▲▼
         <>
-          <Text
-            style={[
-              styles.statValue,
-              styles.statStruck,
-              { fontSize: size - 1, color: 'rgba(255,255,255,0.4)' },
-            ]}
-          >
+          <Text style={[styles.statValue, styles.statStruck, { fontSize: size - 1, color: 'rgba(255,255,255,0.35)' }]}>
             {base}
           </Text>
           <Text style={[styles.statValue, { fontSize: size, color: diffColor, fontWeight: '900' }]}>
@@ -356,7 +309,6 @@ function StatBadge({
           </Text>
         </>
       ) : (
-        // ── حالة عادية: قيمة واحدة فقط
         <Text style={[styles.statValue, { fontSize: size }]}>{base}</Text>
       )}
     </View>
@@ -365,150 +317,39 @@ function StatBadge({
 
 // ─── Effect icon map ──────────────────────────────────────────────────────────
 const EFFECT_ICONS: Record<string, string> = {
-  taunt:        '🛡️',
+  taunt:         '🛡️',
   divine_shield: '✨',
-  poison:       '☠️',
-  stealth:      '👁️',
-  charge:       '⚡',
+  poison:        '☠️',
+  stealth:       '👁️',
+  charge:        '⚡',
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  outerWrapper: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressable: {
-    borderRadius: 14,
-  },
-  card: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  gradientBg: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gradientMid: {
-    position: 'absolute',
-    top: '30%',
-    left: 0, right: 0, bottom: 0,
-  },
-  gradientTop: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: '50%',
-  },
-  image: {
-    width: '100%',
-    height: '75%',
-    position: 'absolute',
-    top: 0,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '75%',
-    position: 'absolute',
-    top: 0,
-  },
-  noImageBadge: {
-    position: 'absolute',
-    top: '18%',
-    left: 0, right: 0,
-    alignItems: 'center',
-    zIndex: 4,
-  },
-  noImageIcon: {
-    fontSize: 22,
-    opacity: 0.35,
-  },
-  noImageText: {
-    fontSize: 7,
-    color: 'rgba(255,255,255,0.25)',
-    marginTop: 2,
-  },
-  statsOverlay: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(0,0,0,0.68)',
-    borderBottomLeftRadius: 13,
-    borderBottomRightRadius: 13,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  statBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  statIcon: {
-    lineHeight: 14,
-  },
-  statValue: {
-    color: '#fff',
-    fontWeight: '700',
-    fontFamily: 'System',
-  },
-  statStruck: {
-    textDecorationLine: 'line-through',
-    opacity: 0.5,
-  },
-  statDiff: {
-    fontWeight: '800',
-    lineHeight: 13,
-  },
-  cardName: {
-    color: '#e5e7eb',
-    textAlign: 'center',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  elementBadge: {
-    position: 'absolute',
-    top: 5, left: 5,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 10,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  elementEmoji: {
-    lineHeight: 16,
-  },
-  rarityBadge: {
-    position: 'absolute',
-    top: 5, right: 5,
-    width: 18, height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rarityText: {
-    color: '#fff',
-    fontWeight: '900',
-    lineHeight: 12,
-  },
-  effectsRow: {
-    position: 'absolute',
-    bottom: 52, right: 4,
-    gap: 2,
-    alignItems: 'center',
-  },
-  effectIcon: {
-    fontSize: 10,
-  },
-  selectedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 13,
-  },
+  outerWrapper:    { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  pressable:       { borderRadius: 14 },
+  card:            { borderRadius: 14, overflow: 'hidden', position: 'relative', alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  gradientBg:      { ...StyleSheet.absoluteFillObject },
+  gradientMid:     { position: 'absolute', top: '30%', left: 0, right: 0, bottom: 0 },
+  gradientTop:     { position: 'absolute', top: 0, left: 0, right: 0, height: '50%' },
+  image:           { width: '100%', height: '75%', position: 'absolute', top: 0 },
+  imagePlaceholder:{ width: '100%', height: '75%', position: 'absolute', top: 0 },
+  noImageBadge:    { position: 'absolute', top: '18%', left: 0, right: 0, alignItems: 'center', zIndex: 4 },
+  noImageIcon:     { fontSize: 22, opacity: 0.35 },
+  noImageText:     { fontSize: 7, color: 'rgba(255,255,255,0.25)', marginTop: 2 },
+  statsOverlay:    { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 6, paddingVertical: 5, backgroundColor: 'rgba(0,0,0,0.68)', borderBottomLeftRadius: 13, borderBottomRightRadius: 13 },
+  statsRow:        { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 3 },
+  statBadge:       { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  statIcon:        { lineHeight: 14 },
+  statValue:       { color: '#fff', fontWeight: '700', fontFamily: 'System' },
+  statStruck:      { textDecorationLine: 'line-through', opacity: 0.5 },
+  statDiff:        { fontWeight: '800', lineHeight: 13 },
+  cardName:        { color: '#e5e7eb', textAlign: 'center', fontWeight: '600', letterSpacing: 0.3 },
+  elementBadge:    { position: 'absolute', top: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, paddingHorizontal: 4, paddingVertical: 2 },
+  elementEmoji:    { lineHeight: 16 },
+  rarityBadge:     { position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  rarityText:      { color: '#fff', fontWeight: '900', lineHeight: 12 },
+  effectsRow:      { position: 'absolute', bottom: 52, right: 4, gap: 2, alignItems: 'center' },
+  effectIcon:      { fontSize: 10 },
+  selectedOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 13 },
 });
