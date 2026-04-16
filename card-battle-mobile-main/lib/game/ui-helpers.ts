@@ -34,8 +34,15 @@ export const buildPredictionSummary = (activeEffects: Effect[], sourceSide: Side
 
 /**
  * يحسب قيم الهجوم والدفاع الفعلية للكرت بعد تطبيق كل التأثيرات النشطة.
- * - statModifier: يعدّل هجوم أو دفاع كرت محدد (مثال: الخسوف = هجوم الخصم → 0)
- * - fortify: يعدّل الهجوم والدفاع معاً (مثال: التدعيم، التقليص)
+ *
+ * ✅ إصلاح: game-context يخزن القيمة في `data.amount` — لذا نقرأ `amount` هنا.
+ *
+ * أنواع التأثيرات المدعومة:
+ *  - statModifier  : stat='attack'|'defense' + amount (موجب=buff، سالب=debuff)
+ *  - statModifier  : stat='attack' + multiplier=true + amount (مضاعفة)
+ *  - statModifier  : stat='elementalOverride' (تجاهل، لا يؤثر على الأرقام)
+ *  - fortify/greedBuff/revengeBuff/compensationBuff/weakeningDebuff/explosionDebuff:
+ *      تُعالَج كـ statModifier بعد تحويلها في PLAY_ROUND — لا حاجة لمعالجتها هنا
  */
 export function getEffectiveStats(
   baseAttack: number,
@@ -47,23 +54,43 @@ export function getEffectiveStats(
   let def = baseDefense;
 
   for (const eff of effects) {
+    // تجاهل التأثيرات التي لا تستهدف هذا الجانب
     if (eff.targetSide !== side && eff.targetSide !== 'all') continue;
 
-    const data = eff.data ?? {};
+    const data = (eff.data ?? {}) as Record<string, unknown>;
+    const amount = typeof data.amount === 'number' ? data.amount : 0;
 
     switch (eff.kind) {
-      case 'statModifier':
-        if (data.stat === 'attack')  atk = Math.max(0, atk + (data.delta as number ?? 0));
-        if (data.stat === 'defense') def = Math.max(0, def + (data.delta as number ?? 0));
+      case 'statModifier': {
+        // تجاهل elementalOverride — لا يؤثر على القيم المعروضة
+        if (data.stat === 'elementalOverride') break;
+
+        // مضاعفة (DoubleNextCards / DoublePoints)
+        if (data.multiplier === true) {
+          if (data.stat === 'attack')  atk = Math.max(0, atk + amount);
+          if (data.stat === 'defense') def = Math.max(0, def + amount);
+          break;
+        }
+
+        // تعديل عادي (buff / debuff)
+        if (data.stat === 'attack')  atk = Math.max(0, atk + amount);
+        if (data.stat === 'defense') def = Math.max(0, def + amount);
         break;
-      case 'fortify':
-        atk = Math.max(0, atk + (data.attackDelta as number ?? 0));
-        def = Math.max(0, def + (data.defenseDelta as number ?? 0));
-        break;
+      }
+
+      // التأثيرات التي تُحوَّل لاحقاً إلى statModifier في PLAY_ROUND
+      // نطبقها مباشرة هنا لعرض معاينة صحيحة على الكارت قبل الجولة
+      case 'fortify':           def = Math.max(0, def + 1);  break; // Reinforcement: +1 دفاع عند الفوز
+      case 'greedBuff':         atk = Math.max(0, atk + 1);  break; // Greed: +1 هجوم عند الفوز
+      case 'revengeBuff':       atk = Math.max(0, atk + 1);  break; // Revenge: +1 هجوم عند الخسارة
+      case 'compensationBuff':  def = Math.max(0, def + 1);  break; // Compensation: +1 دفاع عند الخسارة
+      case 'weakeningDebuff':   atk = Math.max(0, atk - 1);  break; // Weakening: -1 هجوم للخصم
+      case 'explosionDebuff':   def = Math.max(0, def - 1);  break; // Explosion: -1 دفاع للخصم
+
       default:
         break;
     }
   }
 
-  return { attack: atk, defense: def };
+  return { attack: Math.max(0, atk), defense: Math.max(0, def) };
 }
