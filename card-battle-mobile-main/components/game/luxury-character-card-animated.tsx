@@ -235,15 +235,15 @@ const StatBadge = ({
             </View>
             {isModified ? (
                 <>
-                    <Text style={[styles.statValue, { fontSize: fs, color: diffColor, fontWeight: 'bold', flexShrink: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
+                    <Text style={[styles.statValue, { fontSize: fs, color: diffColor, fontWeight: 'bold', flexShrink: 1 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                         {effectiveValue}
                     </Text>
-                    <Text style={{ fontSize: Math.max(9, fs - 5), color: diffColor, fontWeight: 'bold', flexShrink: 0 }} numberOfLines={1}>
+                    <Text style={{ fontSize: Math.max(8, fs - 6), color: diffColor, fontWeight: 'bold', flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                         ({diff > 0 ? `+${diff}▲` : `${diff}▼`})
                     </Text>
                 </>
             ) : (
-                <Text style={[styles.statValue, { fontSize: fs, flexShrink: 1 }, isAttack ? styles.attackText : styles.defenseText]} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={[styles.statValue, { fontSize: fs, flexShrink: 1 }, isAttack ? styles.attackText : styles.defenseText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                     {value}
                 </Text>
             )}
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     abilityText: { flex: 1, fontWeight: '600', writingDirection: 'rtl' },
 
     statsRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, gap: 2 },
-    statBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 6, paddingBottom: 3, borderRadius: 20, gap: 2, minWidth: 42, justifyContent: 'center', flexWrap: 'nowrap', flexShrink: 1, overflow: 'visible' },
+    statBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingTop: 6, paddingBottom: 3, borderRadius: 20, gap: 1, minWidth: 32, justifyContent: 'center', flexWrap: 'nowrap', flexShrink: 1, overflow: 'visible' },
     attackBadge: { backgroundColor: 'rgba(20,12,0,0.88)', borderWidth: 1.5, borderColor: '#B8860B' },
     defenseBadge: { backgroundColor: 'rgba(0,10,28,0.88)', borderWidth: 1.5, borderColor: '#2563EB' },
     statValue: { fontWeight: '800', letterSpacing: 0.3 },

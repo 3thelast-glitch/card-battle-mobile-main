@@ -33,7 +33,7 @@ import Animated, {
   withTiming, withDelay, withSpring, withSequence,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/screen-container';
 import { LuxuryCharacterCardAnimated } from '@/components/game/luxury-character-card-animated';
 import { StatusBar } from 'expo-status-bar';
@@ -41,7 +41,6 @@ import { ElementEffect } from '@/components/game/element-effect';
 import { LuxuryBackground } from '@/components/game/luxury-background';
 import { DamageNumber, DamageNumberVariant } from '@/components/game/damage-number';
 import { BattleResultOverlay } from '@/components/game/BattleResultOverlay';
-import { RotateHintScreen } from '@/components/game/RotateHintScreen';
 import { useLandscapeLayout, LAYOUT_PADDING, CARD_WIDTH_FACTOR } from '@/utils/layout';
 import { useGame } from '@/lib/game/game-context';
 import { ELEMENT_EMOJI, ElementAdvantage, Element, CardClass } from '@/lib/game/types';
@@ -417,9 +416,10 @@ export default function BattleScreen() {
     if (Platform.OS !== 'web' && settings.vibration) Haptics.notificationAsync(type);
   }, [settings.vibration]);
 
-  const maxH = height * 0.54;
-  const cardWidth = Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, maxH / 1.5);
-  const cardHeight = cardWidth * 1.5;
+  const isPortrait = height > width;
+  // Dynamic scaling instead of fixed maxes
+  const cardWidth = isPortrait ? (width * 0.44) : Math.min(width * CARD_WIDTH_FACTOR[size] * 0.88, (height * 0.54) / 1.5);
+  const cardHeight = cardWidth * (320 / 220);
 
   const {
     state, playRound, isGameOver, currentPlayerCard, currentBotCard,
@@ -769,8 +769,6 @@ export default function BattleScreen() {
     return (<View style={S.root}><View style={S.loadWrap}><Text style={S.loadText}>جاري تحميل الساحة...</Text></View></View>);
   }
 
-  if (!isLandscape) return <RotateHintScreen />;
-
   return (
     <View style={S.root}>
       <StatusBar hidden />
@@ -799,7 +797,7 @@ export default function BattleScreen() {
             </DraggableResizable>
           </>
         ) : (
-          <View style={S.normalRoot}>
+          <SafeAreaView style={S.normalRoot}>
             <BattleResultOverlay
               visible={showResult && phase === 'waiting'}
               winner={state.playerScore > state.botScore ? 'player' : state.botScore > state.playerScore ? 'bot' : 'draw'}
@@ -860,7 +858,7 @@ export default function BattleScreen() {
               )}
 
               {/* ══ ARENA ══ */}
-              <View style={S.arena}>
+              <View style={[S.arena, { flexDirection: isPortrait ? 'column-reverse' : 'row' }]}>
 
                 {/* PLAYER PANEL */}
                 <View style={S.playerPanel}>
@@ -878,9 +876,9 @@ export default function BattleScreen() {
                   {activeDamageNumbers.filter(n => n.side === 'player').map(n => (
                     <DamageNumber key={n.id} value={n.value} variant={n.variant} x={40} y={-20} onComplete={() => removeDmg(n.id)} />
                   ))}
-                  {showResult && lastRoundResult && (
-                    <AdvantageChip advantage={lastRoundResult.playerElementAdvantage} element={lastRoundResult.playerCard.element} />
-                  )}
+                    {showResult && lastRoundResult && (
+                      <AdvantageChip advantage={lastRoundResult.playerElementAdvantage} element={lastRoundResult.playerCard.element} />
+                    )}
                 </View>
 
                 {/* CENTER COLUMN */}
@@ -977,13 +975,14 @@ export default function BattleScreen() {
                     <Text style={S.botStatusText}>{phase === 'action' ? '🤖 ينتظر...' : phase === 'combat' ? '⚔️ يقاتل!' : '🤖 جاهز'}</Text>
                   </View>
                 </View>
+
               </View>
 
               <TouchableOpacity style={[S.editFab, editMode && S.editFabActive]} onPress={() => setEditMode(!editMode)} activeOpacity={0.8}>
                 <Text style={S.editFabText}>{editMode ? '✅ تم' : '✏️'}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </SafeAreaView>
         )}
       </View>
 
@@ -1145,7 +1144,7 @@ const S = StyleSheet.create({
   loadWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadText: { fontSize: FONT.xl, color: COLOR.textMuted },
   normalRoot: { flex: 1 },
-  screen: { flex: 1, flexDirection: 'column', paddingBottom: 8 },
+  screen: { flex: 1, flexDirection: 'column', paddingBottom: 8, justifyContent: 'space-between' },
   topHud: { height: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg, backgroundColor: 'rgba(8,6,18,0.82)', borderBottomWidth: 1, borderBottomColor: 'rgba(228,165,42,0.18)', gap: SPACE.sm },
   hudSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   hudSideRight: { justifyContent: 'flex-end' },
@@ -1161,9 +1160,9 @@ const S = StyleSheet.create({
   effectsBarSide: { flex: 1, alignItems: 'flex-start' },
   effectsBarDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.08)' },
   effectsBarLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 9, letterSpacing: 0.5, marginBottom: 2 },
-  arena: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, gap: SPACE.sm },
-  playerPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(10,26,10,0.4)', borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)', borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, gap: SPACE.sm, height: '100%' },
-  botPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(26,10,10,0.4)', borderWidth: 1, borderColor: 'rgba(248,113,113,0.2)', borderRadius: RADIUS.lg, paddingVertical: SPACE.lg, gap: SPACE.sm, height: '100%' },
+  arena: { flex: 1, justifyContent: 'space-evenly', alignItems: 'center', paddingHorizontal: SPACE.lg, gap: SPACE.xl, position: 'relative' },
+  playerPanel: { alignItems: 'center', justifyContent: 'center', zIndex: 2, paddingVertical: SPACE.md },
+  botPanel: { alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingVertical: SPACE.md },
   panelLabel: { color: COLOR.textMuted, fontSize: FONT.xs - 2, letterSpacing: 1, textTransform: 'uppercase' },
   botStatus: { marginTop: SPACE.xs, paddingHorizontal: SPACE.md, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   botStatusText: { color: '#94a3b8', fontSize: FONT.xs - 2 },
