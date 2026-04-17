@@ -52,6 +52,7 @@ import PopularityModal from '@/components/modals/PopularityModal';
 import {
   buildPredictionSummary, getRemainingRounds,
   getUpcomingPredictionRounds, isPredictionComplete,
+  getEffectiveStats,
 } from '@/lib/game/ui-helpers';
 import { COLOR, SPACE, RADIUS, FONT, GLASS_PANEL, SHADOW } from '@/components/ui/design-tokens';
 import {
@@ -746,6 +747,15 @@ export default function BattleScreen() {
 
   const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
   const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+
+  const playerEffective = displayPlayerCard 
+    ? getEffectiveStats(displayPlayerCard.attack, displayPlayerCard.defense, state.activeEffects, 'player') 
+    : { attack: 0, defense: 0 };
+
+  const botEffective = displayBotCard 
+    ? getEffectiveStats(displayBotCard.attack, displayBotCard.defense, state.activeEffects, 'bot') 
+    : { attack: 0, defense: 0 };
+
   const playerWonThisRound = !!lastRoundResult && lastRoundResult.winner === 'player';
   const maxScore = state.totalRounds;
 
@@ -856,7 +866,13 @@ export default function BattleScreen() {
                 <View style={S.playerPanel}>
                   <Text style={S.panelLabel}>لاعب</Text>
                   <Animated.View style={playerStyle}>
-                    <LuxuryCharacterCardAnimated card={displayPlayerCard} style={{ width: cardWidth, height: cardHeight }} isOpenedView={playerWonThisRound} />
+                    <LuxuryCharacterCardAnimated 
+                      card={displayPlayerCard} 
+                      style={{ width: cardWidth, height: cardHeight }} 
+                      effectiveAttack={playerEffective.attack} 
+                      effectiveDefense={playerEffective.defense} 
+                      isOpenedView={playerWonThisRound}
+                    />
                     {showPlayerEffect && <ElementEffect element={displayPlayerCard.element} isActive />}
                   </Animated.View>
                   {activeDamageNumbers.filter(n => n.side === 'player').map(n => (
@@ -943,7 +959,12 @@ export default function BattleScreen() {
                 <View style={S.botPanel}>
                   <Text style={S.panelLabel}>بوت</Text>
                   <Animated.View style={[botStyle, { transform: [{ scale: 0.95 }] }]}>
-                    <LuxuryCharacterCardAnimated card={displayBotCard} style={{ width: cardWidth, height: cardHeight }} />
+                    <LuxuryCharacterCardAnimated 
+                      card={displayBotCard} 
+                      style={{ width: cardWidth, height: cardHeight }} 
+                      effectiveAttack={botEffective.attack} 
+                      effectiveDefense={botEffective.defense}
+                    />
                     {showBotEffect && <ElementEffect element={displayBotCard.element} isActive />}
                   </Animated.View>
                   {activeDamageNumbers.filter(n => n.side === 'bot').map(n => (

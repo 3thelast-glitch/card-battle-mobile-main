@@ -230,26 +230,18 @@ const StatBadge = ({
 
     return (
         <View style={[styles.statBadge, isAttack ? styles.attackBadge : styles.defenseBadge]}>
-            <Text style={{ fontSize: fs + 1 }}>{icon}</Text>
+            <Text style={{ fontSize: fs, flexShrink: 0 }} numberOfLines={1}>{icon}</Text>
             {isModified ? (
                 <>
-                    <Text style={[
-                        styles.statValue,
-                        { fontSize: fs - 1 },
-                        isAttack ? styles.attackText : styles.defenseText,
-                        styles.struckValue,
-                    ]}>
-                        {value}
-                    </Text>
-                    <Text style={[styles.statValue, { fontSize: fs, color: diffColor, fontWeight: '900' }]}>
+                    <Text style={[styles.statValue, { fontSize: fs, color: diffColor, fontWeight: 'bold', flexShrink: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
                         {effectiveValue}
                     </Text>
-                    <Text style={{ fontSize: fs - 3, color: diffColor, fontWeight: '700', lineHeight: fs }}>
-                        {diff > 0 ? `▲+${diff}` : `▼${diff}`}
+                    <Text style={{ fontSize: Math.max(9, fs - 5), color: diffColor, fontWeight: 'bold', flexShrink: 0 }} numberOfLines={1}>
+                        ({diff > 0 ? `+${diff}▲` : `${diff}▼`})
                     </Text>
                 </>
             ) : (
-                <Text style={[styles.statValue, { fontSize: fs }, isAttack ? styles.attackText : styles.defenseText]}>
+                <Text style={[styles.statValue, { fontSize: fs, flexShrink: 1 }, isAttack ? styles.attackText : styles.defenseText]} numberOfLines={1} adjustsFontSizeToFit>
                     {value}
                 </Text>
             )}
@@ -565,7 +557,7 @@ export function LuxuryCharacterCardAnimated({
                     )}
 
                     {/* Stats row: [ ⚔️ 18 ] [ icons ] [ 🛡️ 16 ] */}
-                    <View style={[styles.statsRow,{bottom:statsBottom,paddingHorizontal:Math.max(6,14*scW)}]}>
+                    <View style={[styles.statsRow,{bottom:statsBottom,paddingHorizontal:Math.max(4,8*scW)}]}>
                         <StatBadge icon="⚔️" value={card.attack}  effectiveValue={displayAttack}  isAttack={true}  fs={statFs} />
                         <MetaStrip card={card} sc={sc} />
                         <StatBadge icon="🛡️" value={card.defense} effectiveValue={displayDefense} isAttack={false} fs={statFs} />
@@ -617,8 +609,8 @@ const styles = StyleSheet.create({
     abilityIcon:            {},
     abilityText:            { flex:1, fontWeight:'600', writingDirection:'rtl' },
 
-    statsRow: { position:'absolute', left:0, right:0, flexDirection:'row', justifyContent:'space-between', alignItems:'center', zIndex:10 },
-    statBadge:    { flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:5, borderRadius:20, gap:4, minWidth:48, justifyContent:'center' },
+    statsRow: { position:'absolute', left:0, right:0, flexDirection:'row', justifyContent:'space-between', alignItems:'center', zIndex:10, gap:2 },
+    statBadge:    { flexDirection:'row', alignItems:'center', paddingHorizontal:6, paddingVertical:2, borderRadius:20, gap:2, minWidth:0, justifyContent:'center', flexWrap:'nowrap', flexShrink:1, overflow:'hidden' },
     attackBadge:  { backgroundColor:'rgba(20,12,0,0.88)',  borderWidth:1.5, borderColor:'#B8860B' },
     defenseBadge: { backgroundColor:'rgba(0,10,28,0.88)',  borderWidth:1.5, borderColor:'#2563EB' },
     statValue:    { fontWeight:'800', letterSpacing:0.3 },
