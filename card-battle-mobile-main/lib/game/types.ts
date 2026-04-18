@@ -84,6 +84,14 @@ export interface Card {
   ability?: AbilityType;
   /** إعدادات وضع الغضب — اختياري، يُفعّل من شاشة إدارة الكروت */
   rageMode?: RageModeData;
+  /** هل البطاقة في وضع الغضب حالياً؟ */
+  isRagedVersion?: boolean;
+  /** الهجوم الأصلي قبل تفعيل وضع الغضب */
+  originalAttack?: number;
+  /** الدفاع الأصلي قبل تفعيل وضع الغضب */
+  originalDefense?: number;
+  /** علامة داخلية لمتابعة حالة الغضب */
+  _rageActive?: boolean;
 }
 
 export type AbilityType =

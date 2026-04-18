@@ -38,4 +38,6 @@ export const BATTLE_TIMINGS = {
   botCardDelay: 240,      // تأخير ظهور كرت البوت
   vsDelay: 440,           // تأخير ظهور VS
   phaseActionDelay: 720,  // التأخير قبل مرحلة الاختيار
+  cardEntrance: 720,      // التأخير قبل بدء مرحلة الاختيار
+  autoNextRound: 1200,     // التأخير قبل الانتقال التلقائي للجولة التالية
 } as const;

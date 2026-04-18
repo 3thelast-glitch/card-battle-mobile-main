@@ -30,6 +30,8 @@ interface Props {
     effectiveAttack?: number;
     /** القيمة الفعلية للدفاع بعد تطبيق التأثيرات (Buffs/Debuffs). إذا لم تُمرَّر يُستخدم card.defense */
     effectiveDefense?: number;
+    /** هل يتم تشغيل الصوت (للفيديو)؟ الافتراضي false */
+    playAudio?: boolean;
 }
 
 function isVideoUri(uri: string): boolean {
@@ -408,12 +410,12 @@ const AbilityBanner = ({ text, rarity, theme, sc }: { text: string; rarity: Card
 // ─────────────────────────────────────────────
 // CardMedia
 // ─────────────────────────────────────────────
-const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, videoMuted }: {
+const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, playAudio }: {
     cardImage: ReturnType<typeof getCardImage>; videoAsset?: any; customUri?: string;
-    isCustomImage: boolean; imgStyle: object; videoMuted: boolean;
+    isCustomImage: boolean; imgStyle: object; playAudio: boolean;
 }) => {
-    if (videoAsset) return <Video source={videoAsset} style={imgStyle as any} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted={videoMuted} useNativeControls={false} />;
-    if (customUri && isVideoUri(customUri)) return <Video source={{ uri: customUri }} style={imgStyle as any} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted={videoMuted} useNativeControls={false} />;
+    if (videoAsset) return <Video source={videoAsset} style={imgStyle as any} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted={!playAudio} volume={1.0} useNativeControls={false} />;
+    if (customUri && isVideoUri(customUri)) return <Video source={{ uri: customUri }} style={imgStyle as any} resizeMode={ResizeMode.COVER} shouldPlay isLooping isMuted={!playAudio} volume={1.0} useNativeControls={false} />;
     const uri: string | undefined = cardImage && typeof cardImage === 'object' && 'uri' in cardImage ? (cardImage as any).uri : undefined;
     const animated = uri ? isAnimatedUri(uri) : false;
     const source = animated ? { uri, headers: {} } : (cardImage as any);
@@ -425,7 +427,7 @@ const CardMedia = ({ cardImage, videoAsset, customUri, isCustomImage, imgStyle, 
 // ─────────────────────────────────────────────
 export function LuxuryCharacterCardAnimated({
     card, style, imageOffsetY = 0, fitInsideBorder = false, isOpenedView = false,
-    effectiveAttack, effectiveDefense,
+    effectiveAttack, effectiveDefense, playAudio = false,
 }: Props) {
     const rarity: CardRarity = card.rarity ?? 'common';
     const theme = RARITY_THEMES[rarity] ?? RARITY_THEMES.common;
@@ -435,6 +437,10 @@ export function LuxuryCharacterCardAnimated({
     // القيم المعروضة — إذا لم تُمرَّر effectiveAttack/effectiveDefense نستخدم القيم الأصلية
     const displayAttack = effectiveAttack ?? card.attack;
     const displayDefense = effectiveDefense ?? card.defense;
+
+    // للحفاظ على إظهار التأثير باللون الأخضر للبطاقات في وضع الغضب
+    const baseAttack = (card as any).originalAttack ?? card.attack;
+    const baseDefense = (card as any).originalDefense ?? card.defense;
 
     const themeColor = theme.color;
     const themeBorder = theme.borderColor;
@@ -500,7 +506,7 @@ export function LuxuryCharacterCardAnimated({
             <View style={[styles.cardInner, { borderRadius: Math.round(12 * sc) }]}>
                 <LinearGradient colors={theme.bgColors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 {rarity === 'special' && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 1 }]} pointerEvents="none" />}
-                {(hasImage || hasVideo) && <CardMedia cardImage={cardImage} videoAsset={videoAsset} customUri={customUri} isCustomImage={isCustomImage} imgStyle={imgStyle} videoMuted={!isOpenedView} />}
+                {(hasImage || hasVideo) && <CardMedia cardImage={cardImage} videoAsset={videoAsset} customUri={customUri} isCustomImage={isCustomImage} imgStyle={imgStyle} playAudio={playAudio} />}
 
                 <View style={styles.contentLayer}>
                     {theme.hasFoil && <RarityShimmer cardW={cardW} foilDuration={theme.foilDuration} color={themeColor} />}
@@ -562,9 +568,9 @@ export function LuxuryCharacterCardAnimated({
 
                     {/* Stats row: [ ⚔️ 18 ] [ icons ] [ 🛡️ 16 ] */}
                     <View style={[styles.statsRow, { bottom: statsBottom, paddingHorizontal: Math.max(4, 8 * scW) }]}>
-                        <StatBadge icon="⚔️" value={card.attack} effectiveValue={displayAttack} isAttack={true} fs={statFs} />
+                        <StatBadge icon="⚔️" value={baseAttack} effectiveValue={displayAttack} isAttack={true} fs={statFs} />
                         <MetaStrip card={card} sc={sc} />
-                        <StatBadge icon="🛡️" value={card.defense} effectiveValue={displayDefense} isAttack={false} fs={statFs} />
+                        <StatBadge icon="🛡️" value={baseDefense} effectiveValue={displayDefense} isAttack={false} fs={statFs} />
                     </View>
                 </View>
             </View>

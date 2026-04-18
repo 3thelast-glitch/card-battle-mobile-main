@@ -55,6 +55,10 @@ export function applyRageToCard(card: Card, rageState: RageState): Card {
     // وضع العلامة الدلالية للغضب بدلاً من تعديل الـ id لأنه سيكسر اسم الكرت في الواجهة
     isRagedVersion: true,
     
+    // الاحتفاظ بالقيم الأصلية لتلوين الـ Buff باللون الأخضر في الواجهة
+    originalAttack: card.attack,
+    originalDefense: card.defense,
+    
     attack:  card.attack  + (rm.rageAttackBoost  ?? 0),
     defense: card.defense + (rm.rageDefenseBoost ?? 0),
     nameAr:  rm.rageNameAr ?? card.nameAr,

@@ -896,6 +896,7 @@ export default function CardsGalleryScreen() {
                   imageOffsetY={edits.imageOffsetY}
                   fitInsideBorder={edits.fitInsideBorder}
                   isOpenedView={true}
+                  playAudio={true}
                   style={{ width: modalCardW, height: modalCardH }}
                 />
               </View>

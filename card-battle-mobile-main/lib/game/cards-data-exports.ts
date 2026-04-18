@@ -151,26 +151,41 @@ export function determineRoundWinner(
   applyElementalReactions(p, b); // تفاعل لاعب على بوت
   applyElementalReactions(b, p); // تفاعل بوت على لاعب
 
-  let playerAtk = p.attack;
-  let playerDef = p.defense;
-  let botAtk    = b.attack;
-  let botDef    = b.defense;
-
   // ─ تطبيق تأثيرات القدرات
-  for (const e of playerEffects) {
-    if (e.kind === 'statModifier') {
-      const d = e.data as { stat?: string; amount?: number } | undefined;
-      if (d?.stat === 'attack')  playerAtk = Math.max(0, playerAtk + (d.amount ?? 0));
-      if (d?.stat === 'defense') playerDef = Math.max(0, playerDef + (d.amount ?? 0));
+  const applySideEffects = (baseAtk: number, baseDef: number, effects: Effect[]) => {
+    let atk = baseAtk;
+    let def = baseDef;
+    for (const e of effects) {
+      const d = e.data as any;
+      const amount = d?.amount ?? 0;
+      switch (e.kind) {
+        case 'statModifier':
+          if (d?.multiplier === true) {
+            if (d.stat === 'attack')  atk = Math.max(0, atk + amount);
+            if (d.stat === 'defense') def = Math.max(0, def + amount);
+          } else {
+            if (d?.stat === 'attack')  atk = Math.max(0, atk + amount);
+            if (d?.stat === 'defense') def = Math.max(0, def + amount);
+          }
+          break;
+        case 'fortify':           def = Math.max(0, def + 1);  break;
+        case 'greedBuff':         atk = Math.max(0, atk + 1);  break;
+        case 'revengeBuff':       atk = Math.max(0, atk + 1);  break;
+        case 'compensationBuff':  def = Math.max(0, def + 1);  break;
+        case 'weakeningDebuff':   atk = Math.max(0, atk - 1);  break;
+        case 'explosionDebuff':   def = Math.max(0, def - 1);  break;
+      }
     }
-  }
-  for (const e of botEffects) {
-    if (e.kind === 'statModifier') {
-      const d = e.data as { stat?: string; amount?: number } | undefined;
-      if (d?.stat === 'attack')  botAtk = Math.max(0, botAtk + (d.amount ?? 0));
-      if (d?.stat === 'defense') botDef = Math.max(0, botDef + (d.amount ?? 0));
-    }
-  }
+    return { atk, def };
+  };
+
+  const pStats = applySideEffects(p.attack, p.defense, playerEffects);
+  const bStats = applySideEffects(b.attack, b.defense, botEffects);
+
+  let playerAtk = pStats.atk;
+  let playerDef = pStats.def;
+  let botAtk    = bStats.atk;
+  let botDef    = bStats.def;
 
   const playerRaw = playerAtk * ELEMENT_MULTIPLIER[playerAdv];
   const botRaw    = botAtk    * ELEMENT_MULTIPLIER[botAdv];

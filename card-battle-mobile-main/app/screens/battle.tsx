@@ -28,6 +28,7 @@ import {
 import { ThemedText as Text } from '@/components/ui/ThemedText';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withTiming, withDelay, withSpring, withSequence,
@@ -73,9 +74,9 @@ const advantageColor = (a: ElementAdvantage) =>
 const advantageLabel = (a: ElementAdvantage) =>
   a === 'strong' ? '⬆️ قوي' : a === 'weak' ? '⬇️ ضعيف' : '';
 
-const ALL_ELEMENTS: Element[] = ['fire', 'ice', 'water', 'earth', 'lightning', 'wind'];
+const ALL_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'lightning', 'wind'];
 const ELEMENT_LABELS: Record<Element, string> = {
-  fire: '🔥 نار', ice: '❄️ جليد', water: '💧 ماء',
+  fire: '🔥 نار', water: '💧 ماء',
   earth: '🌍 أرض', lightning: '⚡ برق', wind: '💨 ريح',
 };
 const ALL_CLASSES: CardClass[] = ['warrior', 'knight', 'mage', 'archer', 'berserker', 'paladin'];
@@ -459,8 +460,9 @@ export default function BattleScreen() {
   const isTransitioning = useRef(false);
   const nextRoundTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // تنظيف المؤقتات (Cleanup Timeouts) عند خروج المكون
+  // تهيئة الصوت ليعمل حتى لو كان الهاتف صامتاً (iOS)
   useEffect(() => {
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
     return () => {
       if (nextRoundTimeout.current) clearTimeout(nextRoundTimeout.current);
     };
@@ -521,6 +523,7 @@ export default function BattleScreen() {
         let bChanged = false;
 
         const newPlayerDeck = state.playerDeck.map(pc => {
+          if (pc.isRagedVersion || (pc as any)._rageActive) return pc; // ✅ الحفاظ على الكرت بوضع الغضب دون الكتابة فوقه بالنسخة الأصلية
           const updated = mergedCards.find(mc => mc.id === pc.id);
           if (updated && (updated.attack !== pc.attack || updated.defense !== pc.defense || JSON.stringify(updated.rageMode) !== JSON.stringify(pc.rageMode) || updated.isRagedVersion !== pc.isRagedVersion || updated.videoUrl !== pc.videoUrl)) {
             pChanged = true;
@@ -530,6 +533,7 @@ export default function BattleScreen() {
         });
 
         const newBotDeck = state.botDeck.map(bc => {
+          if (bc.isRagedVersion || (bc as any)._rageActive) return bc; // ✅ عدم إبطال غضب البوت (إن وُجد مستقبلاً)
           const updated = mergedCards.find(mc => mc.id === bc.id);
           if (updated && (updated.attack !== bc.attack || updated.defense !== bc.defense || JSON.stringify(updated.rageMode) !== JSON.stringify(bc.rageMode) || updated.isRagedVersion !== bc.isRagedVersion || updated.videoUrl !== bc.videoUrl)) {
             bChanged = true;
@@ -618,7 +622,7 @@ export default function BattleScreen() {
         setShowBotEffect(false); 
         setPhase('result'); 
         isTransitioning.current = false;
-      }, BATTLE_TIMINGS.combatDuration);
+      }, BATTLE_TIMINGS.combatDuration) as unknown as NodeJS.Timeout;
     }
   }, [playRound, runBotAbility, hapticImpact]);
 
@@ -775,7 +779,7 @@ export default function BattleScreen() {
           setPhase('selection'); 
           nextRound(); 
           isTransitioning.current = false;
-        }, BATTLE_TIMINGS.autoNextRound);
+        }, BATTLE_TIMINGS.autoNextRound) as unknown as NodeJS.Timeout;
       }
     }
   }, [phase, lastRoundResult, editMode, isGameOver, settings.showDamageNumbers]);
@@ -805,6 +809,9 @@ export default function BattleScreen() {
   const botEffective = displayBotCard 
     ? getEffectiveStats(displayBotCard.attack, displayBotCard.defense, state.activeEffects, 'bot') 
     : { attack: 0, defense: 0 };
+
+  // منطق اختيار الكرت الذي سيعمل صوته (الكرت الأقوى هجوماً)
+  const isPlayerStronger = playerEffective.attack >= botEffective.attack;
 
   const playerWonThisRound = !!lastRoundResult && lastRoundResult.winner === 'player';
   const maxScore = state.totalRounds;
@@ -920,6 +927,7 @@ export default function BattleScreen() {
                       effectiveAttack={playerEffective.attack} 
                       effectiveDefense={playerEffective.defense} 
                       isOpenedView={playerWonThisRound}
+                      playAudio={isPlayerStronger}
                     />
                     {showPlayerEffect && <ElementEffect element={displayPlayerCard.element} isActive />}
                   </Animated.View>
@@ -1012,6 +1020,7 @@ export default function BattleScreen() {
                       style={{ width: cardWidth, height: cardHeight }} 
                       effectiveAttack={botEffective.attack} 
                       effectiveDefense={botEffective.defense}
+                      playAudio={!isPlayerStronger}
                     />
                     {showBotEffect && <ElementEffect element={displayBotCard.element} isActive />}
                   </Animated.View>
