@@ -408,7 +408,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...state,
-        currentRound: state.currentRound + 1,
+        // currentRound: state.currentRound + 1, // ✅ تم إزالة الزيادة من هنا، وتركها لدالة NEXT_ROUND لمنع تخطي الجولات (Double Increment)
         playerScore: Math.max(0, state.playerScore + playerHpDelta),
         botScore:    Math.max(0, state.botScore    + botHpDelta),
         roundResults: [...state.roundResults, roundResult],

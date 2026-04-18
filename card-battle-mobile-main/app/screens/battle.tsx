@@ -455,6 +455,17 @@ export default function BattleScreen() {
     extraData?: any;
   }>({ visible: false, title: '', options: [], abilityType: '' });
 
+  // ── Transition Lock & Timers ──
+  const isTransitioning = useRef(false);
+  const nextRoundTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // تنظيف المؤقتات (Cleanup Timeouts) عند خروج المكون
+  useEffect(() => {
+    return () => {
+      if (nextRoundTimeout.current) clearTimeout(nextRoundTimeout.current);
+    };
+  }, []);
+
   // edit mode
   const [editMode, setEditMode] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
@@ -579,17 +590,36 @@ export default function BattleScreen() {
   }, [state.playerDeck, state.currentRound, setPlayerDeck]);
 
   const handleExecuteAttack = useCallback(() => {
-    // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
-    hapticImpact(Haptics.ImpactFeedbackStyle.Heavy);
-    flashAnim.value = withSequence(withTiming(0.35, { duration: 60 }), withTiming(0, { duration: 300 }));
-    setPhase('combat'); setShowPlayerEffect(true); setShowBotEffect(true);
+    // إضافة قفل انتقال (Transition Lock)
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
 
-    runBotAbility();
+    try {
+      // ✅ Step 2: استخدام hapticImpact بدل Haptics المباشر
+      hapticImpact(Haptics.ImpactFeedbackStyle.Heavy);
+      flashAnim.value = withSequence(withTiming(0.35, { duration: 60 }), withTiming(0, { duration: 300 }));
+      setPhase('combat'); 
+      setShowPlayerEffect(true); 
+      setShowBotEffect(true);
 
-    playRound();
-    setPredictionSelections({}); setShowPredictionModal(false);
-    // ✅ Step 4: استخدام BATTLE_TIMINGS.combatDuration بدل 1000
-    setTimeout(() => { setShowPlayerEffect(false); setShowBotEffect(false); setPhase('result'); }, BATTLE_TIMINGS.combatDuration);
+      runBotAbility();
+
+      playRound();
+      setPredictionSelections({}); 
+      setShowPredictionModal(false);
+    } catch (error) {
+      console.error('Error during attack execution:', error);
+      isTransitioning.current = false;
+    } finally {
+      if (nextRoundTimeout.current) clearTimeout(nextRoundTimeout.current);
+      // ✅ Step 4: Ensure transition always happens, preventing infinite stuck state
+      nextRoundTimeout.current = setTimeout(() => { 
+        setShowPlayerEffect(false); 
+        setShowBotEffect(false); 
+        setPhase('result'); 
+        isTransitioning.current = false;
+      }, BATTLE_TIMINGS.combatDuration);
+    }
   }, [playRound, runBotAbility, hapticImpact]);
 
   useEffect(() => { if (editMode) setShowSidebar(true); else setShowSidebar(false); }, [editMode]);
@@ -705,32 +735,48 @@ export default function BattleScreen() {
   // ── تحديث ذاكرة البوت بعد كل جولة ──────────────────────────────────────
   useEffect(() => {
     if (phase !== 'result' || !lastRoundResult || editMode) return;
+    
+    // إضافة قفل انتقال (Transition Lock) لمعالجة مشكلة تخطي الجولات
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
 
-    updateBotMemory(lastRoundResult, undefined, state.botAbilities);
+    try {
+      updateBotMemory(lastRoundResult, undefined, state.botAbilities);
 
-    setRoundHistory(prev => {
-      if (prev.some(h => h.round === lastRoundResult.round)) return prev;
-      return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
-    });
+      setRoundHistory(prev => {
+        if (prev.some(h => h.round === lastRoundResult.round)) return prev;
+        return [...prev, { round: lastRoundResult.round, playerCard: lastRoundResult.playerCard, botCard: lastRoundResult.botCard, winner: lastRoundResult.winner }];
+      });
 
-    // ✅ Step 3: إظهار أرقام الضرر فقط إذا كان الإعداد مفعّلاً
-    if (settings.showDamageNumbers) {
-      if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
-      if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
-    }
-
-    if (isGameOver) {
-      setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
-      // ✅ Step 2: استخدام hapticNotification
-      if (lastRoundResult.winner === 'player') hapticNotification(Haptics.NotificationFeedbackType.Success);
-      else if (lastRoundResult.winner === 'bot') hapticNotification(Haptics.NotificationFeedbackType.Error);
-      else hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
-      setPhase('waiting');
-    } else {
-      // ✅ Step 2
-      hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-      // ✅ Step 4: استخدام BATTLE_TIMINGS.autoNextRound بدل 1200
-      setTimeout(() => { setPhase('selection'); nextRound(); }, BATTLE_TIMINGS.autoNextRound);
+      // ✅ Step 3: إظهار أرقام الضرر فقط إذا كان الإعداد مفعّلاً
+      if (settings.showDamageNumbers) {
+        if (lastRoundResult.botDamage > 0) spawnDmg('bot', lastRoundResult.botDamage, lastRoundResult.playerElementAdvantage === 'strong' ? 'critical' : 'damage');
+        if (lastRoundResult.playerDamage > 0) spawnDmg('player', lastRoundResult.playerDamage, lastRoundResult.botElementAdvantage === 'strong' ? 'critical' : 'damage');
+      }
+    } catch (error) {
+      console.error('Error processing round result:', error);
+      isTransitioning.current = false;
+    } finally {
+      if (isGameOver) {
+        setShowResult(true); resultOp.value = withTiming(1, { duration: 300 });
+        // ✅ Step 2: استخدام hapticNotification
+        if (lastRoundResult.winner === 'player') hapticNotification(Haptics.NotificationFeedbackType.Success);
+        else if (lastRoundResult.winner === 'bot') hapticNotification(Haptics.NotificationFeedbackType.Error);
+        else hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
+        setPhase('waiting');
+        isTransitioning.current = false;
+      } else {
+        // ✅ Step 2
+        hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+        // تنظيف المؤقتات (Cleanup Timeouts)
+        if (nextRoundTimeout.current) clearTimeout(nextRoundTimeout.current);
+        // ✅ Step 4: استخدام BATTLE_TIMINGS.autoNextRound بدل 1200
+        nextRoundTimeout.current = setTimeout(() => { 
+          setPhase('selection'); 
+          nextRound(); 
+          isTransitioning.current = false;
+        }, BATTLE_TIMINGS.autoNextRound);
+      }
     }
   }, [phase, lastRoundResult, editMode, isGameOver, settings.showDamageNumbers]);
 
@@ -745,8 +791,12 @@ export default function BattleScreen() {
   const remainingRounds = useMemo(() => getRemainingRounds(roundNumber, state.totalRounds), [roundNumber, state.totalRounds]);
   const predictionComplete = useMemo(() => isPredictionComplete(upcomingRounds, predictionSelections), [upcomingRounds, predictionSelections]);
 
-  const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : currentPlayerCard;
-  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : currentBotCard;
+  // Fallback to the last played cards if the current round exhausted the deck to avoid infinite loading
+  const fallbackPlayerCard = currentPlayerCard || lastRoundResult?.playerCard;
+  const fallbackBotCard = currentBotCard || lastRoundResult?.botCard;
+
+  const displayPlayerCard = showResult && lastRoundResult ? lastRoundResult.playerCard : fallbackPlayerCard;
+  const displayBotCard = showResult && lastRoundResult ? lastRoundResult.botCard : fallbackBotCard;
 
   const playerEffective = displayPlayerCard 
     ? getEffectiveStats(displayPlayerCard.attack, displayPlayerCard.defense, state.activeEffects, 'player') 
